@@ -1,0 +1,5 @@
+{
+    "dart.enableSdkFormatter": true,
+    "dart.lineLength": 80,
+    "dart.testAdditionalArgs": []
+}
