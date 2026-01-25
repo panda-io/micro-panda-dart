@@ -18,7 +18,6 @@ enum Token {
   intLiteral('int_literal'),
   floatLiteral('float_literal'),
   stringLiteral('string_literal'),
-  nullLiteral('null'),
   literalEnd,
 
   // Keywords
@@ -34,7 +33,6 @@ enum Token {
   kFunction('fun'),
   kIf('if'),
   kImport('import'),
-  kPointer('pointer'),
   kReturn('return'),
   kSizeof('sizeof'),
   kStruct('struct'),
@@ -111,32 +109,27 @@ enum Token {
   comma(','),
   colon(':'),
   dot('.'),
-  cascade('..'), // Dart-style cascade operator
+  cascade('..'),
   operatorEnd;
 
-  /// The string representation used in source code
   final String? literal;
   const Token([this.literal]);
 
-  /// Pre-computed map for fast lookup of keywords and operators
   static final Map<String, Token> _stringToToken = {
     for (var type in Token.values)
       if (type.literal != null) type.literal!: type
   };
 
-  /// Lookup a token type from a string literal (e.g., "if" -> kIf)
   static Token fromString(String text) {
     return _stringToToken[text] ?? Token.identifier;
   }
 
-  // Range checks using the built-in index property
   bool get isLiteral => index > literalBegin.index && index < literalEnd.index;
   bool get isKeyword => index > keywordBegin.index && index < keywordEnd.index;
   bool get isScalar  => index > scalarBegin.index  && index < scalarEnd.index;
   bool get isOperator => index > operatorBegin.index && index < operatorEnd.index;
   bool get isAssign => index > assignBegin.index && index < assignEnd.index;
 
-  /// Returns the operator precedence (higher = binds tighter)
   int get precedence {
     if (isAssign) return 1;
     return switch (this) {
