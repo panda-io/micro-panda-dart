@@ -2,6 +2,7 @@ part of 'scanner.dart';
 
 extension ScannerTokens on Scanner {
   Token _scanIdentifier() {
+    _reader.cutIn();
     while (_reader.peek().isLetter || _reader.peek().isDecimal) {
       _reader.consume();
     }
@@ -10,7 +11,10 @@ extension ScannerTokens on Scanner {
     return Token(_reader.offset, type, literal);
   }
 
-  Token _scanNumber(int offset) {
+  Token _scanNumber() {
+    final offset = _reader.offset;
+    _reader.cutIn();
+
     var type = TokenType.intLiteral;
     int rune = _reader.consume();
 
@@ -73,17 +77,22 @@ extension ScannerTokens on Scanner {
     return length;
   }
 
-  Token _scanSpecialCharacters(int firstRune, int offset) {
+  Token _scanSpecialCharacters(int firstRune) {
+    final offset = _reader.offset;
+
     switch (firstRune) {
       case 10: // '\n'
         _reader.consume();
         _isAtLineStart = true;
         return Token(offset, TokenType.newline, "\n");
       case 39: // '\''
+        _reader.consume();
         return Token(offset, TokenType.charLiteral, _scanChar(offset));
       case 34: // '"'
+        _reader.consume();
         return Token(offset, TokenType.stringLiteral, _scanString(offset));
       case 96: // '`'
+        _reader.consume();
         return Token(offset, TokenType.stringLiteral, _scanRawString(offset));
       case 47: // '/'
         final next = _reader.peek();
@@ -97,17 +106,17 @@ extension ScannerTokens on Scanner {
       case 46: // '.'
         if (_reader.peek().isDecimal) {
            _reader.back();
-           return _scanNumber(offset);
+           return _scanNumber();
         }
         _reader.consume();
         return Token(offset, TokenType.dot, ".");
       case 35: // '#'
-        _reader.consume();
         return _scanPreprocessor();
     }
 
     // operators and delimiters
     var type = TokenType.illegal;
+    _reader.cutIn();
     while (_reader.peek() >= 0) {
       _reader.consume();
       final literal = _reader.cutOut();
@@ -125,6 +134,7 @@ extension ScannerTokens on Scanner {
 
   /// scans a comment, which can be either a single-line comment starting with '//' or a multi-line comment enclosed by '/*' and '*/'.
   String _scanComment(int offset) {
+    _reader.cutIn();
     if (_reader.consume() == 47) { // '/' -> single line comment
       while (_reader.peek() != 10 && _reader.peek() != RuneReader.eof) {
         _reader.consume();
@@ -146,6 +156,7 @@ extension ScannerTokens on Scanner {
 
   /// scans a normal string, which is enclosed by double quotes (") and may contain escape sequences.
   String _scanString(int offset) {
+    _reader.cutIn();
     while (true) {
       final r = _reader.peek();
       if (r == 10 || r == RuneReader.eof) {
@@ -172,6 +183,7 @@ extension ScannerTokens on Scanner {
 
   /// scans a raw string, which is enclosed by backticks (`) and does not process escape sequences.
   String _scanRawString(int offset) {
+    _reader.cutIn();
     while (true) {
       final r = _reader.peek();
       if (r == RuneReader.eof) {
@@ -185,6 +197,7 @@ extension ScannerTokens on Scanner {
   }
   
   String _scanChar(int offset) {
+    _reader.cutIn();
     final r = _reader.peek();
     if (r == 10 || r < 0) {
       _error(offset, "Char not terminated");

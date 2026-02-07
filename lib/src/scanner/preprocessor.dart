@@ -8,22 +8,20 @@ class PreprocessorState {
 }
 
 extension ScannerPreprocessor on Scanner {
-  static const String _if = "#if";
-  static const String _elif = "#elif";
-  static const String _else = "#else";
-  static const String _end = "#end";
+  static const String _if = "if";
+  static const String _elif = "elif";
+  static const String _else = "else";
+  static const String _end = "end";
 
   Token _scanPreprocessor() {
     final offset = _reader.offset;
 
-    _reader.cutIn();
     _reader.consume();
-
     if (!_reader.peek().isLetter) {
       _error(offset, "Unexpected preprocessor");
     }
 
-    final keyword = "#${_scanIdentifier().literal}";
+    final keyword = _scanIdentifier().literal;
     if (keyword == _if) {
       _preprocessorToken = _scan();
       final expr = _parseExpression();
@@ -66,6 +64,7 @@ extension ScannerPreprocessor on Scanner {
     } else if (keyword == _end) {
       if (_preprocessors.isEmpty) _error(offset, "Unexpected #end");
       _preprocessors.removeLast();
+
     } else {
       _error(offset, "Unexpected preprocessor directive: $keyword");
     }
@@ -85,9 +84,8 @@ extension ScannerPreprocessor on Scanner {
         _error(_reader.offset, "Preprocessor not terminated, expecting #end");
       }
 
-      _reader.cutIn();
       _reader.consume(); // '#'
-      final keyword = "#${_scanIdentifier().literal}";
+      final keyword = _scanIdentifier().literal;
 
       if (keyword == _if) {
         _preprocessors.add(PreprocessorState(_if, false));

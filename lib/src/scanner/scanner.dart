@@ -41,7 +41,6 @@ class Scanner {
 
     _skipHorizontalSpace();
     
-    _reader.cutIn();
     final offset = _reader.offset;
     final rune = _reader.peek();
 
@@ -56,9 +55,9 @@ class Scanner {
     if (rune.isLetter) {
       return _scanIdentifier();
     } else if (rune.isDecimal) {
-      return _scanNumber(offset);
+      return _scanNumber();
     }
-    return _scanSpecialCharacters(rune, offset);
+    return _scanSpecialCharacters(rune);
   }
 
   void _skipHorizontalSpace() {
