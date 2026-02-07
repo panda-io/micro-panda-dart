@@ -1,5 +1,5 @@
-import 'package:micro_panda/src/ast/node/node.dart';
-import 'package:micro_panda/src/token/token_type.dart';
+import '../node/node.dart';
+import '../../token/token_type.dart';
 import 'type_array.dart';
 import 'type_builtin.dart';
 import 'type_function.dart';

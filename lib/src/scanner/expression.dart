@@ -1,5 +1,5 @@
 import 'dart:collection';
-import 'package:micro_panda/src/token/token_type.dart';
+import '../token/token_type.dart';
 
 sealed class Expression {
   bool evaluate(HashSet<String> flags);

@@ -7,7 +7,7 @@ extension ScannerTokens on Scanner {
       _reader.consume();
     }
     final literal = _reader.cutOut();
-    final type = TokenType.fromString(literal); 
+    final type = TokenType.fromString(literal);
     return Token(_reader.offset, type, literal);
   }
 

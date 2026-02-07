@@ -1,4 +1,4 @@
-import 'package:micro_panda/src/token/position.dart';
+import '../token/position.dart';
 
 class RuneReader {
   static const int eof = -1;

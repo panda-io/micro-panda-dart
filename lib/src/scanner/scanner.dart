@@ -1,6 +1,6 @@
 import 'dart:collection';
-import 'package:micro_panda/src/token/token_type.dart';
-import 'package:micro_panda/src/token/position.dart';
+import '../token/token_type.dart';
+import '../token/position.dart';
 import 'rune_reader.dart';
 import 'expression.dart';
 
@@ -12,7 +12,7 @@ class Scanner {
   final RuneReader _reader;
   final HashSet<String> _flags;
 
-  final List<int> _indentStack = [0]; 
+  final List<int> _indentStack = [0];
   int? _indentWidth;
   final Queue<Token> _pendingTokens = Queue();
   Token? _preprocessorToken;

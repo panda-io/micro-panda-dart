@@ -33,7 +33,7 @@ extension ScannerPreprocessor on Scanner {
 
       _preprocessors.add(PreprocessorState(_if, result));
       if (!result) _skipPreprocessor();
-      
+
     } else if (keyword == _elif) {
       if (_preprocessors.isEmpty || _preprocessors.last.keyword == _else) {
         _error(offset, "Unexpected #elif");
