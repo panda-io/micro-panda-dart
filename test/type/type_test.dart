@@ -33,22 +33,16 @@ void main() {
       expect(t1.equal(t3), isFalse);
     });
 
-    test('Array equality (decays to pointer logic)', () {
+    test('Array equality', () {
       // int[10]
       final t1 = TypeArray(Type.typeI32)..dimension.add(10);
       // int[10]
       final t2 = TypeArray(Type.typeI32)..dimension.add(10);
       // int[5]
       final t3 = TypeArray(Type.typeI32)..dimension.add(5);
-      // int* (dim 0)
-      final tPtr = TypeArray(Type.typeI32)..dimension.add(0);
 
       expect(t1.equal(t2), isTrue);
-      
-      // Note: Current implementation ignores dim[0] for equality if lengths match.
-      // This reflects C-style array decaying where int[10] is compatible with int*.
-      expect(t1.equal(t3), isTrue); 
-      expect(t1.equal(tPtr), isTrue);
+      expect(t1.equal(t3), isFalse); 
 
       // int[2][3]
       final multi1 = TypeArray(Type.typeI32)..dimension.addAll([2, 3]);
@@ -62,32 +56,12 @@ void main() {
       expect(multi1.equal(multi3), isFalse);
     });
 
-    test('Type properties (isArray)', () {
-      final ptr = TypeArray(Type.typeU8)..dimension.add(0);
-      expect(ptr.isArray, isFalse); // dim[0] == 0 means it's treated as a pointer, not a fixed array
-      
-      final arr = TypeArray(Type.typeU8)..dimension.add(10);
-      expect(arr.isArray, isTrue);
-    });
-
     test('Type.elementType getter logic', () {
-      // 1. Pointer to U8: u8* (dim=[0]) -> returns u8
-      final ptr = TypeArray(Type.typeU8)..dimension.add(0);
-      expect(ptr.elementType, isNotNull);
-      expect(ptr.elementType!.equal(Type.typeU8), isTrue);
+      final array = TypeArray(Type.typeU8)..dimension.add(5);
+      expect(array.elementType.equal(Type.typeU8), isTrue);
 
-      // 2. Pointer to Array: u8*[5] (dim=[0, 5]) -> returns u8[5] (dim=[5])
-      final ptrToArray = TypeArray(Type.typeU8)..dimension.addAll([0, 5]);
-      final dereferenced = ptrToArray.elementType;
-      
-      expect(dereferenced, isNotNull);
-      expect(dereferenced is TypeArray, isTrue);
-      expect((dereferenced as TypeArray).dimension, equals([5]));
-      expect(dereferenced.elementType.equal(Type.typeU8), isTrue);
-
-      // 3. Regular Array: u8[10] (dim=[10]) -> returns null (not a pointer)
-      final arr = TypeArray(Type.typeU8)..dimension.add(10);
-      expect(arr.elementType, isNull);
+      final multiArray = TypeArray(Type.typeU8)..dimension.addAll([5, 5]);
+      expect(multiArray.elementType.equal(Type.typeU8), isTrue);
     });
 
     test('FunctionType equality', () {

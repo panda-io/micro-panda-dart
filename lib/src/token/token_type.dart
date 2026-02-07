@@ -146,4 +146,32 @@ enum TokenType {
       _ => 0,
     };
   }
+
+  bool get isIntegerType => switch (this) {
+    typeInt8 || typeInt16 || typeInt32 || typeInt64 ||
+    typeUint8 || typeUint16 || typeUint32 || typeUint64 => true,
+    _ => false,
+  };
+
+  bool get isFloatType => switch (this) {
+    typeFloat16 || typeFloat32 || typeFloat64 => true,
+    _ => false,
+  };
+
+  int get bits => switch (this) {
+    typeBool => 1,
+    typeInt8 || typeUint8 => 8,
+    typeInt16 || typeUint16 || typeFloat16 => 16,
+    typeInt32 || typeUint32 || typeFloat32 => 32,
+    typeInt64 || typeUint64 || typeFloat64 => 64,
+    _ => 0,
+  };
+
+  int get size => switch (this) {
+    typeBool || typeInt8 || typeUint8 => 1,
+    typeInt16 || typeUint16 || typeFloat16 => 2,
+    typeInt32 || typeUint32 || typeFloat32 => 4,
+    typeInt64 || typeUint64 || typeFloat64 => 8,
+    _ => 0,
+  };
 }
