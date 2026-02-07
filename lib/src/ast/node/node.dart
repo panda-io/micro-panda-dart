@@ -1,5 +1,4 @@
 abstract class Node {
-  int position;
-
+  final int position;
   Node(this.position);
 }
