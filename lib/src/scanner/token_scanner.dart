@@ -75,6 +75,10 @@ extension ScannerTokens on Scanner {
 
   Token _scanSpecialCharacters(int firstRune, int offset) {
     switch (firstRune) {
+      case 10: // '\n'
+        _reader.consume();
+        _isAtLineStart = true;
+        return Token(offset, TokenType.newline, "\n");
       case 39: // '\''
         return Token(offset, TokenType.charLiteral, _scanChar(offset));
       case 34: // '"'

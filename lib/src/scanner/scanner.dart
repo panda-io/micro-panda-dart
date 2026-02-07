@@ -13,6 +13,7 @@ class Scanner {
   final HashSet<String> _flags;
 
   final List<int> _indentStack = [0]; 
+  int? _indentWidth;
   final Queue<Token> _pendingTokens = Queue();
   Token? _preprocessorToken;
   final List<PreprocessorState> _preprocessors = [];
@@ -75,12 +76,12 @@ class Scanner {
       int r = _reader.peek();
       if (r == 32) { // Space
         currentIndent++;
+        _reader.consume();
       } else if (r == 9) { // Tab
-        currentIndent += 4; // assuming a tab is 4 spaces
+        _error(_reader.offset, "Tabs are not allowed for indentation");
       } else {
         break;
       }
-      _reader.consume();
     }
 
     int r = _reader.peek();
@@ -90,6 +91,15 @@ class Scanner {
 
     int lastIndent = _indentStack.last;
     if (currentIndent > lastIndent) {
+      final diff = currentIndent - lastIndent;
+      if (_indentWidth == null) {
+        if (diff != 2 && diff != 4) {
+          _error(_reader.offset, "Indentation must be 2 or 4 spaces");
+        }
+        _indentWidth = diff;
+      } else if (diff != _indentWidth) {
+        _error(_reader.offset, "Mixed indentation not allowed (expected $_indentWidth spaces)");
+      }
       _indentStack.add(currentIndent);
       _pendingTokens.add(Token(_reader.offset, TokenType.indent, ""));
     } else if (currentIndent < lastIndent) {
