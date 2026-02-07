@@ -1,4 +1,4 @@
-enum Token {
+enum TokenType {
   // Special tokens
   illegal,
   eof,
@@ -101,8 +101,8 @@ enum Token {
   notEqual('!='),
   lessEqual('<='),
   greaterEqual('>='),
-  logicalAnd('&&'),
-  logicalOr('||'),
+  and('&&'),
+  or('||'),
   plusPlus('++'),
   minusMinus('--'),
 
@@ -113,15 +113,15 @@ enum Token {
   operatorEnd;
 
   final String? literal;
-  const Token([this.literal]);
+  const TokenType([this.literal]);
 
-  static final Map<String, Token> _stringToToken = {
-    for (var type in Token.values)
+  static final Map<String, TokenType> _stringToToken = {
+    for (var type in TokenType.values)
       if (type.literal != null) type.literal!: type
   };
 
-  static Token fromString(String text) {
-    return _stringToToken[text] ?? Token.identifier;
+  static TokenType fromString(String text) {
+    return _stringToToken[text] ?? TokenType.identifier;
   }
 
   bool get isLiteral => index > literalBegin.index && index < literalEnd.index;
@@ -133,8 +133,8 @@ enum Token {
   int get precedence {
     if (isAssign) return 1;
     return switch (this) {
-      logicalOr => 2,
-      logicalAnd => 3,
+      or => 2,
+      and => 3,
       bitOr => 4,
       bitXor => 5,
       bitAnd => 6,
