@@ -87,17 +87,30 @@ extension ScannerTokens on Scanner {
         return Token(offset, TokenType.newline, "\n");
       case 39: // '\''
         _reader.consume();
-        return Token(offset, TokenType.charLiteral, _scanChar(offset));
+        if (_reader.peek() == 39) {
+          _reader.consume();
+          if (_reader.peek() == 39) {
+            _reader.consume();
+            return Token(offset, TokenType.stringLiteral, _scanTripleQuoteString(39));
+          }
+          _reader.back();
+        }
+        return Token(offset, TokenType.charLiteral, _scanChar());
       case 34: // '"'
         _reader.consume();
-        return Token(offset, TokenType.stringLiteral, _scanString(offset));
-      case 96: // '`'
-        _reader.consume();
-        return Token(offset, TokenType.stringLiteral, _scanRawString(offset));
+        if (_reader.peek() == 34) {
+          _reader.consume();
+          if (_reader.peek() == 34) {
+            _reader.consume();
+            return Token(offset, TokenType.stringLiteral, _scanTripleQuoteString(34));
+          }
+          _reader.back();
+        }
+        return Token(offset, TokenType.stringLiteral, _scanString());
       case 47: // '/'
         final next = _reader.peek();
         if (next == 47 || next == 42) { // '//' or '/*'
-          return Token(offset, TokenType.comment, _scanComment(offset));
+          return Token(offset, TokenType.comment, _scanComment());
         }
         break; // continue to operator scanning
       case 64: // '@'
@@ -133,7 +146,8 @@ extension ScannerTokens on Scanner {
   }
 
   /// scans a comment, which can be either a single-line comment starting with '//' or a multi-line comment enclosed by '/*' and '*/'.
-  String _scanComment(int offset) {
+  String _scanComment() {
+    final offset = _reader.offset;
     _reader.cutIn();
     if (_reader.consume() == 47) { // '/' -> single line comment
       while (_reader.peek() != 10 && _reader.peek() != RuneReader.eof) {
@@ -155,7 +169,8 @@ extension ScannerTokens on Scanner {
   }
 
   /// scans a normal string, which is enclosed by double quotes (") and may contain escape sequences.
-  String _scanString(int offset) {
+  String _scanString() {
+    int offset = _reader.offset;
     _reader.cutIn();
     while (true) {
       final r = _reader.peek();
@@ -181,22 +196,31 @@ extension ScannerTokens on Scanner {
     }
   }
 
-  /// scans a raw string, which is enclosed by backticks (`) and does not process escape sequences.
-  String _scanRawString(int offset) {
+  String _scanTripleQuoteString(int delimiter) {
+    final offset = _reader.offset;
     _reader.cutIn();
     while (true) {
       final r = _reader.peek();
       if (r == RuneReader.eof) {
-        _error(offset, "Raw string not terminated");
+        _error(offset, "Triple-quoted string not terminated");
         break;
       }
       _reader.consume();
-      if (r == 96) break; // '`'
+      if (r == delimiter) {
+        if (_reader.peek() == delimiter) {
+          _reader.consume();
+          if (_reader.peek() == delimiter) {
+            _reader.consume();
+            break;
+          }
+        }
+      }
     }
     return _reader.cutOut();
   }
   
-  String _scanChar(int offset) {
+  String _scanChar() {
+    final offset = _reader.offset;
     _reader.cutIn();
     final r = _reader.peek();
     if (r == 10 || r < 0) {

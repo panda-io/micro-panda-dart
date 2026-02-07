@@ -48,7 +48,7 @@ void main() {
     });
 
     test('Scans strings and chars', () {
-      final tokens = scan("'a' \"hello\" `raw`");
+      final tokens = scan("'a' \"hello\" '''raw'''");
       expect(tokens.map((t) => t.type).toList(), [
         TokenType.charLiteral,
         TokenType.stringLiteral,
