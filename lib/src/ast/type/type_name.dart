@@ -3,6 +3,7 @@ import 'type.dart';
 class TypeName extends Type {
   String? name;
   String? qualifiedName;
+  @override
   bool isEnum = false;
   String? selector;
 

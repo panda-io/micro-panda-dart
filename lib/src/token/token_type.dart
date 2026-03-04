@@ -22,6 +22,7 @@ enum TokenType {
 
   // Keywords
   keywordBegin,
+  kAs('as'),
   kBreak('break'),
   kClass('class'),
   kConst('const'),
@@ -109,6 +110,7 @@ enum TokenType {
 
   comma(','),
   colon(':'),
+  doubleColon('::'),
   dot('.'),
   operatorEnd;
 
