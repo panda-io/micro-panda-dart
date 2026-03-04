@@ -1,46 +1,70 @@
+# Import and Visibility
 
-no namespace, no package. like Dart, micro panda use file local as the lib path
+## Module System
 
+Micro Panda has no namespaces or packages. Like Dart, the file path is the module path.
 
+---
 
+## Importing
 
-import a file:
+### Import a whole module
 
+The last path segment becomes the qualifier:
+
+```python
 import util.math
 
-var min_value := math.min(1, 2)
+var result := math.min(1, 2)
+```
 
+### Import a specific symbol
 
-
-import symbol:
-
+```python
 import util.math::min
 
-var min_value := min(1, 2)
+var result := min(1, 2)
+```
 
+### Import with alias
 
+Alias a module:
 
-use alias
-
+```python
 import util.math as m
 
-var min_value := m.min(1, 2)
+var result := m.min(1, 2)
+```
 
+Alias a symbol:
 
-import util.math::min as min
+```python
+import util.math::min as minimum
 
-var min_value := min(1, 2)
+var result := minimum(1, 2)
+```
 
+---
 
+## Visibility
 
+There are no `public` / `private` keywords. Visibility is determined by the name:
 
+| Name | Visibility |
+|------|------------|
+| `my_function` | Public |
+| `_my_function` | Private (starts with `_`) |
+| `my_var` | Public |
+| `_my_var` | Private (starts with `_`) |
 
+This applies to functions, variables, constants, classes, and enum types.
 
-visibilty, no public / private modifier
+```python
+fun public_function()         # accessible from other files
+    ...
 
+fun _private_helper()         # only accessible within this file
+    ...
 
-fun public_method -> public
-
-fun _private_method -> private function start with "_"
-
-the same to vars
+var _internal_state: i32 = 0  # private variable
+```

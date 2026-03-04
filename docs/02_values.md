@@ -1,44 +1,56 @@
+# Types and Literals
 
+## Primitive Types
 
-ptrimitive types:
+| Type | Description |
+|------|-------------|
+| `bool` | Boolean (`true` / `false`) |
+| `i8` | 8-bit signed integer |
+| `u8` | 8-bit unsigned integer |
+| `i16` | 16-bit signed integer |
+| `u16` | 16-bit unsigned integer |
+| `i32` | 32-bit signed integer (default int) |
+| `u32` | 32-bit unsigned integer |
+| `i64` | 64-bit signed integer |
+| `u64` | 64-bit unsigned integer |
+| `f32` | 32-bit float (default float) |
+| `f64` | 64-bit float |
+| `fixed` | 16.16 fixed-point number |
+| `void` | No value / absent return type |
 
-bool,
+> **Strings** — there is no dedicated string type. Strings are treated as `u8` arrays.
 
-i8, u8, i16, u16, i32, u32, i64, u64
+## Integer Literals
 
-f32, f64
+```python
+const decimal_int    = 98222
+const hex_int        = 0xff
+const another_hex    = 0xFF
+const octal_int      = 0o755
+const binary_int     = 0b11110000
+```
 
-void
+Underscores can be placed between digits as a visual separator:
 
-fixed (16.16)
+```python
+const one_billion  = 1_000_000_000
+const binary_mask  = 0b1_1111_1111
+const permissions  = 0o7_5_5
+const big_address  = 0xFF80_0000_0000_0000
+```
 
-string will be treaed as u8 array
+## Float Literals
 
-
-
-
-
-integer literals:
-
-
-const decimal_int = 98222
-const hex_int = 0xff
-const another_hex_int = 0xFF
-const octal_int = 0o755
-const binary_int = 0b11110000
-
-// underscores may be placed between two digits as a visual separator
-const one_billion = 1_000_000_000
-const binary_mask = 0b1_1111_1111
-const permissions = 0o7_5_5
-const big_address = 0xFF80_0000_0000_0000
-
-
-
-float literfals:
-
+```python
 const another_float = 123.0
 
-// underscores may be placed between two digits as a visual separator
-const lightspeed = 299_792_458.000_000;
-const nanosecond = 0.000_000_001;
+# Underscores as visual separator
+const lightspeed = 299_792_458.000_000
+const nanosecond = 0.000_000_001
+```
+
+## Default Types for Untyped Literals
+
+When no type is specified:
+- Integer literals default to `i32`
+- Float literals default to `f32`
