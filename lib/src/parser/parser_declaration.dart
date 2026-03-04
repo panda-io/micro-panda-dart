@@ -43,7 +43,7 @@ extension ParserDeclaration on Parser {
 
   // ── function ────────────────────────────────────────────────────────────────
 
-  FunctionDecl _parseFunctionDecl() {
+  FunctionDecl _parseFunctionDecl({List<Annotation> annotations = const []}) {
     final pos = _current.offset;
     _expect(TokenType.kFunction);
 
@@ -70,7 +70,7 @@ extension ParserDeclaration on Parser {
       _expectNewline();
     }
 
-    return FunctionDecl(name, params, returnType, body, pos);
+    return FunctionDecl(name, params, returnType, body, pos, annotations: annotations);
   }
 
   List<Parameter> _parseParameters() {
@@ -119,8 +119,10 @@ extension ParserDeclaration on Parser {
         while (_current.type != TokenType.dedent && _current.type != TokenType.eof) {
           if (_current.type == TokenType.kVar || _current.type == TokenType.kVal) {
             bodyFields.add(_parseBodyField());
-          } else if (_current.type == TokenType.kFunction) {
-            methods.add(_parseFunctionDecl());
+          } else if (_current.type == TokenType.annotation ||
+              _current.type == TokenType.kFunction) {
+            final annots = _parseAnnotations();
+            methods.add(_parseFunctionDecl(annotations: annots));
           } else {
             _error('expected field (var/val) or method (fun) in class body, '
                 'found ${_current.type.name}');

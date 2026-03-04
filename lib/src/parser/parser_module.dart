@@ -21,16 +21,27 @@ extension ParserModule on Parser {
       _skipNewlines();
       if (_current.type == TokenType.eof) break;
 
+      final annotations = _parseAnnotations();
+
       switch (_current.type) {
         case TokenType.kVar:
         case TokenType.kVal:
         case TokenType.kConst:
+          if (annotations.isNotEmpty) {
+            _error('annotations are not supported on variable declarations');
+          }
           variables.add(_parseVariableDecl());
         case TokenType.kFunction:
-          functions.add(_parseFunctionDecl());
+          functions.add(_parseFunctionDecl(annotations: annotations));
         case TokenType.kClass:
+          if (annotations.isNotEmpty) {
+            _error('annotations are not supported on class declarations');
+          }
           classes.add(_parseClassDecl());
         case TokenType.kEnum:
+          if (annotations.isNotEmpty) {
+            _error('annotations are not supported on enum declarations');
+          }
           enums.add(_parseEnumDecl());
         default:
           _error('expected top-level declaration (var, val, const, fun, class, enum), '

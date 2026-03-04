@@ -65,15 +65,46 @@ extension GeneratorExpression on CGenerator {
       final ma = inv.function as MemberAccess;
       return _methodCall(ma.parent, ma.member, inv.arguments);
     }
-    // Class constructor call in expression position: VM() → {0}
+
     if (inv.function is Identifier) {
       final name = (inv.function as Identifier).name;
+      // @extern function → apply template substitution
+      if (_externFns.containsKey(name)) {
+        return _applyExtern(_externFns[name]!, inv.arguments);
+      }
+      // Class constructor call in expression position: VM() → {0}
       if (_classes.containsKey(name)) return '{0}';
     }
+
     // Regular function call
     final fn = _expr(inv.function);
     final args = inv.arguments.map(_expr).join(', ');
     return '$fn($args)';
+  }
+
+  /// Emit a call to an @extern function using its template.
+  ///
+  ///   @extern                      → fn_name(args...)
+  ///   @extern("malloc")            → malloc(args...)
+  ///   @extern("assert($a == $b)")  → assert(x == y)
+  String _applyExtern(FunctionDecl fn, List<Expression> callArgs) {
+    final template = fn.externAnnotation!.template;
+    final args = callArgs.map(_expr).toList();
+
+    if (template == null) {
+      // No template: call by the function's own name
+      return '${fn.name}(${args.join(', ')})';
+    }
+    if (!template.contains('\$')) {
+      // C rename (no placeholders): pass args in order
+      return '$template(${args.join(', ')})';
+    }
+    // Named placeholder substitution: $paramName → evaluated arg expression
+    var result = template;
+    for (int i = 0; i < fn.parameters.length && i < args.length; i++) {
+      result = result.replaceAll('\$${fn.parameters[i].name}', args[i]);
+    }
+    return result;
   }
 
   String _methodCall(Expression receiver, String method, List<Expression> args) {

@@ -68,6 +68,9 @@ class CGenerator {
   /// Maps a tagged-enum variant name → (enumName, EnumMember).
   final Map<String, ({String enumName, EnumMember member})> _variants = {};
 
+  /// Maps @extern function name → FunctionDecl (for template-based call generation).
+  final Map<String, FunctionDecl> _externFns = {};
+
   // ── type-tracking scope ───────────────────────────────────────────────────────
   /// Types of global variables (name → Type).
   final Map<String, Type?> _globals = {};
@@ -106,6 +109,14 @@ class CGenerator {
       }
       for (final v in mod.variables) {
         _globals[v.name] = v.type ?? _inferVarType(v.value);
+      }
+      for (final fn in mod.functions) {
+        if (fn.isExtern) _externFns[fn.name] = fn;
+      }
+      for (final cls in mod.classes) {
+        for (final fn in cls.methods) {
+          if (fn.isExtern) _externFns['${cls.name}_${fn.name}'] = fn;
+        }
       }
     }
   }

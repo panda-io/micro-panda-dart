@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import '../ast/annotation.dart';
 import '../ast/module.dart';
 import '../ast/declaration/class_decl.dart';
 import '../ast/declaration/enum_decl.dart';
@@ -102,6 +103,32 @@ class Parser {
 
   Never _error(String message) {
     throw Exception('Parse error at offset ${_current.offset}: $message');
+  }
+
+  // ── annotations ──────────────────────────────────────────────────────────────
+
+  /// Parses zero or more annotations (@name or @name("template")) that precede
+  /// a declaration. Each annotation must be on its own line.
+  List<Annotation> _parseAnnotations() {
+    final annotations = <Annotation>[];
+    while (_current.type == TokenType.annotation) {
+      _advance(); // consume '@'
+      final name = _expectIdentifier();
+      String? template;
+      if (_current.type == TokenType.leftParen) {
+        _advance(); // consume '('
+        if (_current.type != TokenType.stringLiteral) {
+          _error('expected string literal in annotation argument');
+        }
+        template = _current.literal;
+        _advance();
+        _expect(TokenType.rightParen);
+      }
+      _expectNewline();
+      _skipNewlines();
+      annotations.add(Annotation(name, template: template));
+    }
+    return annotations;
   }
 
   // ── entry point ──────────────────────────────────────────────────────────────

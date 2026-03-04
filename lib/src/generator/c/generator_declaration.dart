@@ -111,12 +111,14 @@ extension GeneratorDeclaration on CGenerator {
     var any = false;
     for (final mod in modules) {
       for (final fn in mod.functions) {
+        if (fn.isExtern) continue; // externally defined — no prototype needed
         final isPrivate = fn.name.startsWith('_');
         _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, null)};');
         any = true;
       }
       for (final cls in mod.classes) {
         for (final fn in cls.methods) {
+          if (fn.isExtern) continue;
           final isPrivate = fn.name.startsWith('_');
           _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, cls.name)};');
           any = true;
@@ -183,7 +185,7 @@ extension GeneratorDeclaration on CGenerator {
   }
 
   void _emitFunctionDef(FunctionDecl fn, String? className) {
-    if (fn.body == null) return; // forward declaration only
+    if (fn.body == null || fn.isExtern) return; // forward declaration or extern
 
     // Set member-function context and reset scope.
     _currentClass = className;

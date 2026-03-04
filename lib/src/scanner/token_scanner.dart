@@ -180,6 +180,7 @@ extension ScannerTokens on Scanner {
   }
 
   /// Scans a normal string enclosed by double quotes (").
+  /// Returns only the content (without opening or closing quotes).
   String _scanString() {
     int offset = _reader.offset;
     _reader.cutIn();
@@ -189,11 +190,13 @@ extension ScannerTokens on Scanner {
         _error(offset, "String not terminated");
         break;
       }
+      if (r == 34) break; // closing " — stop before consuming
       _reader.consume();
-      if (r == 34) break; // '"'
       if (r == 92) _bypassEscape(offset); // '\'
     }
-    return _reader.cutOut();
+    final content = _reader.cutOut(); // content without closing "
+    if (_reader.peek() == 34) _reader.consume(); // consume closing "
+    return content;
   }
 
   /// Bypasses an escape sequence. Assumes the backslash has already been consumed.
@@ -207,6 +210,7 @@ extension ScannerTokens on Scanner {
     }
   }
 
+  /// Returns content between triple delimiters (without the delimiters themselves).
   String _scanTripleQuoteString(int delimiter) {
     final offset = _reader.offset;
     _reader.cutIn();
@@ -221,8 +225,14 @@ extension ScannerTokens on Scanner {
         if (_reader.peek() == delimiter) {
           _reader.consume();
           if (_reader.peek() == delimiter) {
+            // Found closing triple. Back up 2 so cutOut ends before 1st closing delimiter.
+            _reader.back(2);
+            final content = _reader.cutOut();
+            // Consume all 3 closing delimiters.
             _reader.consume();
-            break;
+            _reader.consume();
+            _reader.consume();
+            return content;
           }
         }
       }
@@ -230,6 +240,7 @@ extension ScannerTokens on Scanner {
     return _reader.cutOut();
   }
 
+  /// Returns the char content (without surrounding single quotes).
   String _scanChar() {
     final offset = _reader.offset;
     _reader.cutIn();
@@ -240,11 +251,12 @@ extension ScannerTokens on Scanner {
     }
     _reader.consume();
     if (r == 92) _bypassEscape(offset);
+    final content = _reader.cutOut(); // content without closing '
     if (_reader.peek() != 39) { // '\''
       _error(offset, "Illegal char");
     } else {
-      _reader.consume();
+      _reader.consume(); // consume closing '
     }
-    return _reader.cutOut();
+    return content;
   }
 }

@@ -301,4 +301,33 @@ void main() {
       expect(ret.value, isNull);
     });
   });
+
+  group('Parser – annotations', () {
+    test('@extern with no template', () {
+      final m = parse('@extern\nfun tick()\n');
+      final f = m.functions[0];
+      expect(f.annotations, hasLength(1));
+      expect(f.annotations[0].name, 'extern');
+      expect(f.annotations[0].template, isNull);
+      expect(f.isExtern, isTrue);
+    });
+
+    test('@extern with template string', () {
+      final m = parse('@extern("assert(\$a == \$b)")\nfun assert_eq(a: i32, b: i32)\n');
+      final f = m.functions[0];
+      expect(f.annotations[0].template, 'assert(\$a == \$b)');
+    });
+
+    test('function without annotation has empty list', () {
+      final m = parse('fun tick()\n');
+      expect(m.functions[0].annotations, isEmpty);
+      expect(m.functions[0].isExtern, isFalse);
+    });
+
+    test('@extern on class method', () {
+      final src = 'class Foo\n    @extern\n    fun bar()\n';
+      final m = parse(src);
+      expect(m.classes[0].methods[0].isExtern, isTrue);
+    });
+  });
 }

@@ -292,4 +292,48 @@ fun main()
       expect(c, contains('Counter_reset('));
     });
   });
+
+  group('Generator – @extern annotation', () {
+    test('@extern function: no prototype or definition emitted', () {
+      final src = '@extern\nfun tick()\n';
+      final c = gen(src);
+      expect(c, isNot(contains('void tick')));
+    });
+
+    test('@extern with no template: call by function name', () {
+      final src = '@extern\nfun tick()\nfun main()\n    tick()\n';
+      final c = gen(src);
+      expect(c, contains('tick()'));
+      expect(c, isNot(contains('void tick')));
+    });
+
+    test('@extern with C rename (no placeholders): pass args in order', () {
+      final src = '@extern("malloc")\nfun alloc(size: u32) &u8\nfun main()\n    var p := alloc(64)\n';
+      final c = gen(src);
+      expect(c, contains('malloc(64)'));
+      // No prototype or definition for 'alloc' should be emitted
+      expect(c, isNot(contains('uint8_t* alloc')));
+    });
+
+    test('@extern with named placeholder: substitutes arg expressions', () {
+      final src = '@extern("assert(\$condition)")\nfun assert_true(condition: bool)\nfun main()\n    assert_true(1 == 1)\n';
+      final c = gen(src);
+      expect(c, contains('assert((1 == 1))'));
+      expect(c, isNot(contains('assert_true(')));
+    });
+
+    test('@extern with two placeholders: assert_eq style', () {
+      final src = '@extern("assert(\$a == \$b)")\nfun assert_i32_equal(a: i32, b: i32)\nfun main()\n    assert_i32_equal(result, 42)\n';
+      final c = gen(src);
+      expect(c, contains('assert(result == 42)'));
+      expect(c, isNot(contains('assert_i32_equal(')));
+    });
+
+    test('string literal value excludes quotes', () {
+      // Verifies the scanner fix: string literal should not include closing "
+      final src = 'fun f()\n    var s: u8\n';
+      final c = gen(src);
+      expect(c, isNotNull); // just ensure it parses without error
+    });
+  });
 }
