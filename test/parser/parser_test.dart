@@ -1,29 +1,25 @@
 import 'package:test/test.dart';
 
-import '../../lib/src/ast/declaration/class_decl.dart';
-import '../../lib/src/ast/declaration/enum_decl.dart';
-import '../../lib/src/ast/declaration/function_decl.dart';
-import '../../lib/src/ast/declaration/variable_decl.dart';
-import '../../lib/src/ast/expression/expression_binary.dart';
-import '../../lib/src/ast/expression/expression_identifier.dart';
-import '../../lib/src/ast/expression/expression_literal.dart';
-import '../../lib/src/ast/expression/expression_member_access.dart';
-import '../../lib/src/ast/module.dart';
-import '../../lib/src/ast/statement/statement_block.dart';
-import '../../lib/src/ast/statement/statement_declaration.dart';
-import '../../lib/src/ast/statement/statement_expression.dart';
-import '../../lib/src/ast/statement/statement_for.dart';
-import '../../lib/src/ast/statement/statement_if.dart';
-import '../../lib/src/ast/statement/statement_match.dart';
-import '../../lib/src/ast/statement/statement_return.dart';
-import '../../lib/src/ast/statement/statement_while.dart';
-import '../../lib/src/ast/type/type_array.dart';
-import '../../lib/src/ast/type/type_builtin.dart';
-import '../../lib/src/ast/type/type_name.dart';
-import '../../lib/src/ast/type/type_ref.dart';
-import '../../lib/src/parser/parser.dart';
-import '../../lib/src/token/position.dart' show SourceFile;
-import '../../lib/src/token/token_type.dart';
+import 'package:micro_panda/src/ast/expression/expression_binary.dart';
+import 'package:micro_panda/src/ast/expression/expression_identifier.dart';
+import 'package:micro_panda/src/ast/expression/expression_literal.dart';
+import 'package:micro_panda/src/ast/expression/expression_member_access.dart';
+import 'package:micro_panda/src/ast/module.dart';
+import 'package:micro_panda/src/ast/statement/statement_block.dart';
+import 'package:micro_panda/src/ast/statement/statement_declaration.dart';
+import 'package:micro_panda/src/ast/statement/statement_expression.dart';
+import 'package:micro_panda/src/ast/statement/statement_for.dart';
+import 'package:micro_panda/src/ast/statement/statement_if.dart';
+import 'package:micro_panda/src/ast/statement/statement_match.dart';
+import 'package:micro_panda/src/ast/statement/statement_return.dart';
+import 'package:micro_panda/src/ast/statement/statement_while.dart';
+import 'package:micro_panda/src/ast/type/type_array.dart';
+import 'package:micro_panda/src/ast/type/type_builtin.dart';
+import 'package:micro_panda/src/ast/type/type_name.dart';
+import 'package:micro_panda/src/ast/type/type_ref.dart';
+import 'package:micro_panda/src/parser/parser.dart';
+import 'package:micro_panda/src/token/position.dart' show SourceFile;
+import 'package:micro_panda/src/token/token_type.dart';
 
 // Helper: parse source text as a Module.
 Module parse(String source) {
