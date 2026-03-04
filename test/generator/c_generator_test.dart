@@ -1,0 +1,295 @@
+import 'package:test/test.dart';
+
+import 'package:micro_panda/src/generator/c/generator.dart';
+import 'package:micro_panda/src/parser/parser.dart';
+import 'package:micro_panda/src/token/position.dart' show SourceFile;
+
+/// Parse [source] and generate C.
+String gen(String source) {
+  final file = SourceFile('test', 0, source.length);
+  final module = Parser(file, source, {}).parseModule('test');
+  return CGenerator().generate([module]);
+}
+
+void main() {
+  group('Generator – includes', () {
+    test('always emits standard headers', () {
+      final c = gen('');
+      expect(c, contains('#include <stdint.h>'));
+      expect(c, contains('#include <stdbool.h>'));
+      expect(c, contains('#include <stddef.h>'));
+    });
+  });
+
+  group('Generator – types', () {
+    test('builtin type mapping', () {
+      final c = gen('var a: i32\nvar b: u8\nvar d: f32\nvar e: bool\n');
+      expect(c, contains('int32_t a'));
+      expect(c, contains('uint8_t b'));
+      expect(c, contains('float d'));
+      expect(c, contains('bool e'));
+    });
+
+    test('reference type becomes pointer', () {
+      final c = gen('var p: &i32\n');
+      expect(c, contains('int32_t* p'));
+    });
+
+    test('array type', () {
+      final c = gen('var buf: u8[32]\n');
+      expect(c, contains('uint8_t buf[32]'));
+    });
+  });
+
+  group('Generator – global variables', () {
+    test('var with literal value', () {
+      final c = gen('var x: i32 = 42\n');
+      expect(c, contains('int32_t x = 42'));
+    });
+
+    test('val becomes const', () {
+      final c = gen('val MAX: i32 = 100\n');
+      expect(c, contains('const int32_t MAX = 100'));
+    });
+
+    test('private var gets static', () {
+      final c = gen('var _count: i32 = 0\n');
+      expect(c, contains('static int32_t _count = 0'));
+    });
+
+    test('const becomes const', () {
+      final c = gen('const LIMIT = 256\n');
+      expect(c, contains('const int32_t LIMIT = 256'));
+    });
+
+    test('private const becomes static const', () {
+      final c = gen('const _LIMIT = 256\n');
+      expect(c, contains('static const int32_t _LIMIT = 256'));
+    });
+  });
+
+  group('Generator – plain enum', () {
+    test('auto-increment members', () {
+      final c = gen('enum Color\n    Red\n    Green\n    Blue\n');
+      expect(c, contains('Color_Red = 0'));
+      expect(c, contains('Color_Green = 1'));
+      expect(c, contains('Color_Blue = 2'));
+      expect(c, contains('} Color;'));
+    });
+
+    test('value enum', () {
+      final c = gen('enum Op\n    Add = 1\n    Sub = 2\n');
+      expect(c, contains('Op_Add = 1'));
+      expect(c, contains('Op_Sub = 2'));
+    });
+  });
+
+  group('Generator – tagged enum', () {
+    test('forward declaration emitted', () {
+      final c = gen('enum Expr\n    Num(value: i32)\n');
+      expect(c, contains('typedef struct Expr Expr;'));
+    });
+
+    test('tag enum emitted', () {
+      final c = gen('enum Expr\n    Num(value: i32)\n');
+      expect(c, contains('Expr_Num,'));
+      expect(c, contains('Expr_Tag;'));
+    });
+
+    test('data struct emitted', () {
+      final c = gen('enum Expr\n    Num(value: i32)\n');
+      expect(c, contains('Expr_Num_Data;'));
+      expect(c, contains('int32_t value;'));
+    });
+
+    test('main struct with tag + union', () {
+      final c = gen('enum Expr\n    Num(value: i32)\n');
+      expect(c, contains('Expr_Tag tag;'));
+      expect(c, contains('union {'));
+      expect(c, contains('Expr_Num_Data Num;'));
+    });
+  });
+
+  group('Generator – class / struct', () {
+    test('forward typedef emitted', () {
+      final c = gen('class Point(val x: i32, val y: i32)\n');
+      expect(c, contains('typedef struct Point Point;'));
+    });
+
+    test('struct body emitted', () {
+      final c = gen('class Point(val x: i32, val y: i32)\n');
+      expect(c, contains('struct Point {'));
+      expect(c, contains('int32_t x;'));
+      expect(c, contains('int32_t y;'));
+    });
+
+    test('body fields included', () {
+      final src = 'class Counter\n    var count: i32 = 0\n';
+      final c = gen(src);
+      expect(c, contains('int32_t count;'));
+    });
+
+    test('global class instance zero-initialised', () {
+      final src = 'class VM\n    var pc: i32 = 0\n\nval _vm := VM()\n';
+      final c = gen(src);
+      expect(c, contains('_vm = {0}'));
+    });
+  });
+
+  group('Generator – functions', () {
+    test('simple function signature and body', () {
+      final src = 'fun add(a: i32, b: i32) i32\n    return a\n';
+      final c = gen(src);
+      expect(c, contains('int32_t add(int32_t a, int32_t b)'));
+      expect(c, contains('return a;'));
+    });
+
+    test('void function (no return type)', () {
+      final src = 'fun tick()\n    return\n';
+      final c = gen(src);
+      expect(c, contains('void tick(void)'));
+    });
+
+    test('private function gets static', () {
+      final src = 'fun _helper() i32\n    return 0\n';
+      final c = gen(src);
+      expect(c, contains('static int32_t _helper(void)'));
+    });
+
+    test('function prototype emitted before definition', () {
+      final src = 'fun add(a: i32, b: i32) i32\n    return a\n';
+      final c = gen(src);
+      final protoIdx = c.indexOf('int32_t add(int32_t a, int32_t b);');
+      final defIdx   = c.indexOf('int32_t add(int32_t a, int32_t b) {');
+      expect(protoIdx, isNonNegative);
+      expect(defIdx, isNonNegative);
+      expect(protoIdx, lessThan(defIdx));
+    });
+
+    test('member function gets this parameter', () {
+      final src = 'class C(val x: i32)\n    fun get() i32\n        return x\n';
+      final c = gen(src);
+      expect(c, contains('C* this'));
+      expect(c, contains('C_get('));
+      expect(c, contains('this->x'));
+    });
+  });
+
+  group('Generator – statements', () {
+    test('if statement', () {
+      final src = 'fun f(x: i32) i32\n    if x > 0\n        return x\n    return 0\n';
+      final c = gen(src);
+      expect(c, contains('if ((x > 0))'));
+      expect(c, contains('return x;'));
+    });
+
+    test('if-else', () {
+      final src = '''fun f(x: i32) i32
+    if x > 0
+        return x
+    else
+        return 0
+''';
+      final c = gen(src);
+      expect(c, contains('} else {'));
+    });
+
+    test('while loop', () {
+      final src = 'fun f()\n    while x < 10\n        x = x + 1\n';
+      final c = gen(src);
+      expect(c, contains('while ((x < 10))'));
+    });
+
+    test('for range', () {
+      final src = 'fun f()\n    for i in range(0, 10)\n        x = i\n';
+      final c = gen(src);
+      expect(c, contains('for (int32_t i = 0; i < 10; i++)'));
+    });
+
+    test('match with wildcard', () {
+      final src = '''fun f(x: i32) i32
+    match x
+        1: return x
+        _: return 0
+''';
+      final c = gen(src);
+      expect(c, contains('switch (x)'));
+      expect(c, contains('case 1:'));
+      expect(c, contains('default:'));
+    });
+
+    test('match with enum member', () {
+      final src = '''enum Color
+    Red
+    Green
+fun f(c: Color) i32
+    match c
+        Color.Red: return 1
+        _: return 0
+''';
+      final c = gen(src);
+      expect(c, contains('case Color_Red:'));
+    });
+
+    test('match with destructure pattern', () {
+      final src = '''enum Expr
+    Num(value: i32)
+    Add(left: &Expr, right: &Expr)
+fun eval(e: &Expr) i32
+    match e
+        Num(v): return v
+        Add(l, r): return 0
+''';
+      final c = gen(src);
+      expect(c, contains('switch ((e)->tag)'));
+      expect(c, contains('case Expr_Num:'));
+      expect(c, contains('case Expr_Add:'));
+      expect(c, contains('int32_t v = (e)->data.Num.value;'));
+    });
+
+    test('local var declaration', () {
+      final src = 'fun f()\n    var x: i32 = 5\n    x = x + 1\n';
+      final c = gen(src);
+      expect(c, contains('int32_t x = 5;'));
+    });
+
+    test('local := infer-assign', () {
+      final src = 'fun f()\n    var x := 42\n';
+      final c = gen(src);
+      expect(c, contains('int32_t x = 42'));
+    });
+  });
+
+  group('Generator – expressions', () {
+    test('binary with correct precedence parens', () {
+      final src = 'fun f(a: i32, b: i32) i32\n    return a + b\n';
+      final c = gen(src);
+      expect(c, contains('return (a + b);'));
+    });
+
+    test('type cast', () {
+      final src = 'fun f(x: i32) i64\n    return i64(x)\n';
+      final c = gen(src);
+      expect(c, contains('((int64_t)(x))'));
+    });
+
+    test('enum member access in expression', () {
+      final src = 'enum Color\n    Red\nfun f() Color\n    var c := Color.Red\n    return c\n';
+      final c = gen(src);
+      expect(c, contains('Color_Red'));
+    });
+
+    test('method call generates ClassName_method', () {
+      final src = '''class Counter(val start: i32)
+    var count: i32 = 0
+    fun reset()
+        count = start
+fun main()
+    var c: Counter
+    c.reset()
+''';
+      final c = gen(src);
+      expect(c, contains('Counter_reset('));
+    });
+  });
+}
