@@ -37,7 +37,7 @@ class Counter(
 
 ## Member Functions
 
-Member functions are declared inside the class body using `fun`. They have implicit access to the instance's fields:
+Member functions are declared inside the class body using `fun`. Use `this` to access the instance explicitly, or access fields directly:
 
 ```python
 class Counter(val start: i32)
@@ -51,17 +51,33 @@ class Counter(val start: i32)
 
     fun value() i32
         return count
+
+    fun copy_from(other: &Counter)
+        count = other.count
+        start = this.start    # explicit this when needed
 ```
 
 ## Instantiation
 
-There is no `new` keyword. Call the class name directly:
+There is no `new` keyword. Call the class name directly.
+
+**Global scope only** — class instances created without an allocator live in static memory for the lifetime of the program:
 
 ```python
-val p: &Point = Point(10, 20)
+# Global scope — OK, static lifetime
+val _vm := VM()
+val _uart := UART(0x4001_1000)
 ```
 
-Classes are always held by reference. For allocator-based instantiation (e.g. when creating multiple instances at runtime), see [Allocator](14_allocator.md).
+Inside a function, you must use an allocator:
+
+```python
+fun setup()
+    val allocator := Allocator(buffer)
+    val p: &Point = allocator.allocate(sizeof(Point))
+```
+
+See [Allocator](14_allocator.md) for details.
 
 ## No Inheritance
 

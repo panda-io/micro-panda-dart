@@ -44,7 +44,7 @@ Iterates over a half-open range `[start, end)`:
 
 ```python
 for i in range(0, 10)
-    print(i)        # prints 0 .. 9
+    print(i)        # prints 0 through 9
 ```
 
 ---

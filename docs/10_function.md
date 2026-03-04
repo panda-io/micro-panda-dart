@@ -10,6 +10,7 @@ fun function_name(param1: Type1, param2: Type2) ReturnType
 - `fun` declares a function.
 - Parameters use `name: Type` syntax.
 - The return type comes after the parameter list.
+- **No colon** after the function signature — indentation opens the body.
 - The body is indented — no braces or `end`.
 
 ## Void Functions

@@ -4,6 +4,8 @@
 
 ---
 
+No colon after the `match` expression. Each arm ends with `:` as a separator between the pattern and its body.
+
 ## Match on Integer / Value
 
 ```python

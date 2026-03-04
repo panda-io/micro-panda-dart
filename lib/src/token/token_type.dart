@@ -5,7 +5,7 @@ enum TokenType {
   comment,
   annotation,
   newline,
-  
+
   // Indentation tokens (Off-side rule support)
   indent,
   dedent,
@@ -23,23 +23,24 @@ enum TokenType {
   // Keywords
   keywordBegin,
   kBreak('break'),
-  kCase('case'),
+  kClass('class'),
   kConst('const'),
   kContinue('continue'),
-  kDefault('default'),
   kElse('else'),
   kEnum('enum'),
   kFor('for'),
   kFunction('fun'),
   kIf('if'),
   kImport('import'),
+  kIn('in'),
+  kMatch('match'),
+  kRange('range'),
   kReturn('return'),
   kSizeof('sizeof'),
-  kStruct('struct'),
-  kSwitch('switch'),
   kThis('this'),
   kVal('val'),
   kVar('var'),
+  kWhile('while'),
   keywordEnd,
 
   // Scalar types
@@ -53,7 +54,6 @@ enum TokenType {
   typeUint16('u16'),
   typeUint32('u32'),
   typeUint64('u64'),
-  typeFloat16('f16'),
   typeFloat32('f32'),
   typeFloat64('f64'),
   typeVoid('void'),
@@ -85,6 +85,7 @@ enum TokenType {
 
   assignBegin,
   assign('='),
+  inferAssign(':='),
   plusAssign('+='),
   minusAssign('-='),
   mulAssign('*='),
@@ -109,7 +110,6 @@ enum TokenType {
   comma(','),
   colon(':'),
   dot('.'),
-  cascade('..'),
   operatorEnd;
 
   final String? literal;
@@ -154,14 +154,14 @@ enum TokenType {
   };
 
   bool get isFloatType => switch (this) {
-    typeFloat16 || typeFloat32 || typeFloat64 => true,
+    typeFloat32 || typeFloat64 => true,
     _ => false,
   };
 
   int get bits => switch (this) {
     typeBool => 1,
     typeInt8 || typeUint8 => 8,
-    typeInt16 || typeUint16 || typeFloat16 => 16,
+    typeInt16 || typeUint16 => 16,
     typeInt32 || typeUint32 || typeFloat32 => 32,
     typeInt64 || typeUint64 || typeFloat64 => 64,
     _ => 0,
@@ -169,7 +169,7 @@ enum TokenType {
 
   int get size => switch (this) {
     typeBool || typeInt8 || typeUint8 => 1,
-    typeInt16 || typeUint16 || typeFloat16 => 2,
+    typeInt16 || typeUint16 => 2,
     typeInt32 || typeUint32 || typeFloat32 => 4,
     typeInt64 || typeUint64 || typeFloat64 => 8,
     _ => 0,

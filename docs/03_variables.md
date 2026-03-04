@@ -13,17 +13,17 @@ Micro Panda has three kinds of bindings:
 ## Syntax
 
 ```python
-# Explicit type
+# Explicit type annotation
 var my_int: i32 = 0
 var my_float: f32 = 1.0
-
-# Immutable binding
-val no_changed = 1
-no_changed = 2  # compile error
 
 # Type inference with :=
 var inferred := 42        # type is i32
 val inferred_f := 1.5     # type is f32
+
+# Immutable — cannot reassign after initialization
+val no_changed: i32 = 1
+no_changed = 2            # compile error
 
 # Compile-time constant
 const MAX_TASK = 8
@@ -31,12 +31,13 @@ const MAX_TASK = 8
 
 ## Type Inference
 
-Use `:=` to let the compiler infer the type from the right-hand side:
+Use `:=` to let the compiler infer the type from the right-hand side.
+Using `=` without a type annotation is a **compile error**.
 
 ```python
-var x := 100          # i32
-var y := 3.14         # f32
-val name := u8[64]    # u8 array of 64 bytes
+var x := 100          # OK — inferred as i32
+var y := 3.14         # OK — inferred as f32
+var z = 100           # compile error — must use := or explicit type
 ```
 
 ## Default Types
