@@ -2,13 +2,14 @@ part of 'scanner.dart';
 
 extension ScannerTokens on Scanner {
   Token _scanIdentifier() {
+    final offset = _reader.offset;
     _reader.cutIn();
     while (_reader.peek().isLetter || _reader.peek().isDecimal) {
       _reader.consume();
     }
     final literal = _reader.cutOut();
     final type = TokenType.fromString(literal);
-    return Token(_reader.offset, type, literal);
+    return Token(offset, type, literal);
   }
 
   Token _scanNumber() {
@@ -24,7 +25,7 @@ extension ScannerTokens on Scanner {
         if (rune != 46) { // Not '0.'
           int numberBase = 10;
           final lowerRune = rune.toLower();
-          
+
           if (lowerRune == 120) { // 'x'
             numberBase = 16;
             _reader.consume();
@@ -70,9 +71,17 @@ extension ScannerTokens on Scanner {
 
   int _bypassDigits(int numberBase) {
     int length = 0;
-    while (_reader.peek().digitValue < numberBase) {
-      _reader.consume();
-      length++;
+    while (true) {
+      if (_reader.peek() == 95) { // '_' visual separator
+        _reader.consume();
+        continue;
+      }
+      if (_reader.peek().digitValue < numberBase) {
+        _reader.consume();
+        length++;
+      } else {
+        break;
+      }
     }
     return length;
   }
@@ -108,19 +117,20 @@ extension ScannerTokens on Scanner {
         }
         return Token(offset, TokenType.stringLiteral, _scanString());
       case 47: // '/'
+        _reader.consume();
         final next = _reader.peek();
         if (next == 47 || next == 42) { // '//' or '/*'
           return Token(offset, TokenType.comment, _scanComment());
         }
-        break; // continue to operator scanning
+        if (next == 61) { // '=' -> '/='
+          _reader.consume();
+          return Token(offset, TokenType.divAssign, "/=");
+        }
+        return Token(offset, TokenType.div, "/");
       case 64: // '@'
         _reader.consume();
         return Token(offset, TokenType.annotation, "@");
       case 46: // '.'
-        if (_reader.peek().isDecimal) {
-           _reader.back();
-           return _scanNumber();
-        }
         _reader.consume();
         return Token(offset, TokenType.dot, ".");
       case 35: // '#'
@@ -134,8 +144,8 @@ extension ScannerTokens on Scanner {
       _reader.consume();
       final literal = _reader.cutOut();
       final potentialType = TokenType.fromString(literal);
-      
-      if (potentialType != TokenType.illegal) {
+
+      if (potentialType != TokenType.identifier) {
         type = potentialType;
       } else {
         _reader.back();
@@ -145,15 +155,16 @@ extension ScannerTokens on Scanner {
     return Token(offset, type, _reader.cutOut());
   }
 
-  /// scans a comment, which can be either a single-line comment starting with '//' or a multi-line comment enclosed by '/*' and '*/'.
+  /// Scans a comment: single-line (//) or block (/* */).
+  /// Called after the opening '/' has already been consumed.
   String _scanComment() {
     final offset = _reader.offset;
     _reader.cutIn();
-    if (_reader.consume() == 47) { // '/' -> single line comment
+    if (_reader.consume() == 47) { // '/' -> single-line comment
       while (_reader.peek() != 10 && _reader.peek() != RuneReader.eof) {
         _reader.consume();
       }
-    } else { // '*' -> 多行注释
+    } else { // '*' -> block comment
       bool terminated = false;
       while (!_reader.isAtEnd) {
         final r = _reader.consume();
@@ -168,7 +179,7 @@ extension ScannerTokens on Scanner {
     return _reader.cutOut();
   }
 
-  /// scans a normal string, which is enclosed by double quotes (") and may contain escape sequences.
+  /// Scans a normal string enclosed by double quotes (").
   String _scanString() {
     int offset = _reader.offset;
     _reader.cutIn();
@@ -185,7 +196,7 @@ extension ScannerTokens on Scanner {
     return _reader.cutOut();
   }
 
-  /// bypasses an escape sequence in a string literal. It assumes that the initial backslash has already been consumed and the current position is at the escape character.
+  /// Bypasses an escape sequence. Assumes the backslash has already been consumed.
   void _bypassEscape(int offset) {
     final r = _reader.peek();
     const escapes = {39, 34, 92, 48, 97, 98, 101, 102, 110, 114, 116, 118};
@@ -218,7 +229,7 @@ extension ScannerTokens on Scanner {
     }
     return _reader.cutOut();
   }
-  
+
   String _scanChar() {
     final offset = _reader.offset;
     _reader.cutIn();

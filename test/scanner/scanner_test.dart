@@ -37,6 +37,13 @@ void main() {
       expect(tokens[2].literal, "12.34");
     });
 
+    test('Identifier token offset points to start', () {
+      final tokens = scan("  abc");
+      final id = tokens.firstWhere((t) => t.type == TokenType.identifier);
+      expect(id.offset, 2); // starts at position 2
+      expect(id.literal, "abc");
+    });
+
     test('Scans number bases', () {
       final tokens = scan("0xFF 0b10 0o77");
       expect(tokens.map((t) => t.type).toList(), [
@@ -45,6 +52,19 @@ void main() {
         TokenType.intLiteral,
         TokenType.eof,
       ]);
+    });
+
+    test('Scans numbers with underscore separator', () {
+      final tokens = scan("1_000_000 0xFF_FF 0b1111_0000");
+      expect(tokens.map((t) => t.type).toList(), [
+        TokenType.intLiteral,
+        TokenType.intLiteral,
+        TokenType.intLiteral,
+        TokenType.eof,
+      ]);
+      expect(tokens[0].literal, "1_000_000");
+      expect(tokens[1].literal, "0xFF_FF");
+      expect(tokens[2].literal, "0b1111_0000");
     });
 
     test('Scans strings and chars', () {
@@ -57,12 +77,89 @@ void main() {
       ]);
     });
 
-    test('Scans comments', () {
-      final tokens = scan("// line\n/* block */");
+    test('Scans single-line comment', () {
+      final tokens = scan("// line\nabc");
       expect(tokens.map((t) => t.type).toList(), [
         TokenType.comment,
         TokenType.newline,
+        TokenType.identifier,
+        TokenType.eof,
+      ]);
+    });
+
+    test('Scans block comment', () {
+      final tokens = scan("/* block */abc");
+      expect(tokens.map((t) => t.type).toList(), [
         TokenType.comment,
+        TokenType.identifier,
+        TokenType.eof,
+      ]);
+      expect(tokens[1].literal, "abc");
+    });
+
+    test('Scans division operator', () {
+      final tokens = scan("a / b");
+      expect(tokens.map((t) => t.type).toList(), [
+        TokenType.identifier,
+        TokenType.div,
+        TokenType.identifier,
+        TokenType.eof,
+      ]);
+    });
+
+    test('Scans div-assign operator', () {
+      final tokens = scan("a /= b");
+      expect(tokens.map((t) => t.type).toList(), [
+        TokenType.identifier,
+        TokenType.divAssign,
+        TokenType.identifier,
+        TokenType.eof,
+      ]);
+    });
+
+    test('Scans := infer-assign operator', () {
+      final tokens = scan("x := 1");
+      expect(tokens.map((t) => t.type).toList(), [
+        TokenType.identifier,
+        TokenType.inferAssign,
+        TokenType.intLiteral,
+        TokenType.eof,
+      ]);
+    });
+
+    test('Scans arithmetic operators', () {
+      final tokens = scan("+ - * / %");
+      expect(tokens.map((t) => t.type).toList(), [
+        TokenType.plus,
+        TokenType.minus,
+        TokenType.mul,
+        TokenType.div,
+        TokenType.rem,
+        TokenType.eof,
+      ]);
+    });
+
+    test('Scans comparison operators', () {
+      final tokens = scan("== != < > <= >=");
+      expect(tokens.map((t) => t.type).toList(), [
+        TokenType.equal,
+        TokenType.notEqual,
+        TokenType.less,
+        TokenType.greater,
+        TokenType.lessEqual,
+        TokenType.greaterEqual,
+        TokenType.eof,
+      ]);
+    });
+
+    test('Scans compound assignment operators', () {
+      final tokens = scan("+= -= *= /= %=");
+      expect(tokens.map((t) => t.type).toList(), [
+        TokenType.plusAssign,
+        TokenType.minusAssign,
+        TokenType.mulAssign,
+        TokenType.divAssign,
+        TokenType.remAssign,
         TokenType.eof,
       ]);
     });
@@ -70,7 +167,7 @@ void main() {
     test('Handles indentation', () {
       final source = "a\n  b\n    c\n  d";
       final tokens = scan(source);
-      
+
       final types = tokens.map((t) => t.type).toList();
       expect(types, [
         TokenType.identifier,
@@ -89,10 +186,7 @@ void main() {
     });
 
     test('Errors on mixed indentation', () {
-      // First indent establishes width=2. 
-      // Second indent adds 4 spaces (total 6). Diff is 4. 
-      // 4 != 2, so this should fail.
-      final source = "a\n  b\n      c"; 
+      final source = "a\n  b\n      c";
       expect(() => scan(source), throwsException);
     });
 

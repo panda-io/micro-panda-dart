@@ -91,19 +91,19 @@ extension ScannerPreprocessor on Scanner {
         _preprocessors.add(PreprocessorState(_if, false));
       } else if (keyword == _elif) {
         if (_preprocessors.length == startCount) {
-          _reader.back(5);
+          _reader.back(1 + _elif.length);
           break;
         }
         _preprocessors.last.keyword = _elif;
       } else if (keyword == _else) {
         if (_preprocessors.length == startCount) {
-          _reader.back(5);
+          _reader.back(1 + _else.length);
           break;
         }
         _preprocessors.last.keyword = _else;
       } else if (keyword == _end) {
         if (_preprocessors.length == startCount) {
-          _reader.back(4);
+          _reader.back(1 + _end.length);
           break;
         }
         _preprocessors.removeLast();

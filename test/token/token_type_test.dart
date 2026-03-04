@@ -24,9 +24,10 @@ void main() {
     });
 
     test('String to Token mapping', () {
-      expect(TokenType.fromString('..'), TokenType.cascade);
+      expect(TokenType.fromString(':='), TokenType.inferAssign);
       expect(TokenType.fromString('i32'), TokenType.typeInt32);
-      expect(TokenType.fromString('true'), TokenType.identifier); // We handle booleans in the Scanner usually
+      expect(TokenType.fromString('match'), TokenType.kMatch);
+      expect(TokenType.fromString('true'), TokenType.identifier); // booleans handled in the scanner
     });
   });
 }

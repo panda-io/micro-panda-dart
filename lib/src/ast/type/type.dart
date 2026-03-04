@@ -14,7 +14,6 @@ abstract class Type extends Node {
   static final TypeBuiltin typeU8 = TypeBuiltin(TokenType.typeUint8);
   static final TypeBuiltin typeU32 = TypeBuiltin(TokenType.typeUint32);
   static final TypeBuiltin typeI32 = TypeBuiltin(TokenType.typeInt32);
-  static final TypeBuiltin typeF16 = TypeBuiltin(TokenType.typeFloat16);
   static final TypeBuiltin typeF32 = TypeBuiltin(TokenType.typeFloat32);
 
   bool get isInteger => this is TypeBuiltin && (this as TypeBuiltin).token.isIntegerType;
