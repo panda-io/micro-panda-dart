@@ -15,6 +15,17 @@ class Builder {
 
   Builder(this.project, this.target, {this.verbose = false});
 
+  /// Generate C only (no compilation). Returns the written file path, or null on error.
+  File? gen() {
+    _log('Generating C for target "${target.name}"...');
+    final modules = _parseModules();
+    if (modules == null) return null;
+    final cCode = _generateC(modules);
+    final cFile = _writeCFile(cCode);
+    if (cFile != null) _log('Done: ${p.relative(cFile.path, from: project.rootDir)}');
+    return cFile;
+  }
+
   /// Run the full pipeline: discover → parse → generate C → compile/build.
   /// Returns true on success.
   Future<bool> build() async {

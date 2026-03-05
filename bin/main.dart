@@ -9,8 +9,9 @@ Usage:
   mpd <command> [target] [options]
 
 Commands:
-  build [target]   Build one or all targets
-  run <target>     Build then run the target executable
+  gen   [target]   Generate C only (no compilation)
+  build [target]   Generate C then compile to executable
+  run   <target>   Build then run the target executable
   clean            Delete generated C files and binaries
 
 Options:
@@ -18,6 +19,8 @@ Options:
   -h, --help       Show this help
 
 Examples:
+  mpd gen                   Generate C for all targets
+  mpd gen firmware          Generate C for a specific target
   mpd build                 Build all targets
   mpd build firmware        Build a specific target
   mpd run main              Build and run the main target
@@ -37,6 +40,8 @@ Future<void> main(List<String> args) async {
   final targetArg = cleanArgs.length > 1 ? cleanArgs[1] : null;
 
   switch (command) {
+    case 'gen':
+      await _cmdGen(targetArg, verbose: verbose);
     case 'build':
       await _cmdBuild(targetArg, verbose: verbose);
     case 'run':
@@ -51,6 +56,22 @@ Future<void> main(List<String> args) async {
 }
 
 // ── commands ─────────────────────────────────────────────────────────────────
+
+Future<void> _cmdGen(String? targetName, {required bool verbose}) async {
+  final project = _loadProject();
+  final targets = _resolveTargets(project, targetName);
+
+  var allOk = true;
+  for (final target in targets) {
+    final file = Builder(project, target, verbose: verbose).gen();
+    if (file == null) {
+      allOk = false;
+    } else {
+      stdout.writeln('Generated: ${file.path}');
+    }
+  }
+  exit(allOk ? 0 : 1);
+}
 
 Future<void> _cmdBuild(String? targetName, {required bool verbose}) async {
   final project = _loadProject();
