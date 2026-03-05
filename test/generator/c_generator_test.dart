@@ -336,4 +336,120 @@ fun main()
       expect(c, isNotNull); // just ensure it parses without error
     });
   });
+
+  group('Generator – slices', () {
+    test('slice type emits __Slice_T typedef', () {
+      final src = 'class Buf(val data: u8[])\n';
+      final c = gen(src);
+      expect(c, contains('typedef struct { uint8_t* ptr; size_t size; } __Slice_uint8_t;'));
+    });
+
+    test('slice field in struct uses __Slice_T', () {
+      final src = 'class Buf(val data: u8[])\n';
+      final c = gen(src);
+      expect(c, contains('__Slice_uint8_t data'));
+    });
+
+    test('slice subscript emits .ptr[i]', () {
+      final src = '''class Buf(val data: u8[])
+    fun get(i: i32) u8
+        return data[i]
+''';
+      final c = gen(src);
+      expect(c, contains('this->data.ptr[i]'));
+    });
+
+    test('.size() on slice emits .size field', () {
+      final src = '''class Buf(val data: u8[])
+    fun len() u64
+        return data.size()
+''';
+      final c = gen(src);
+      expect(c, contains('this->data.size'));
+    });
+
+    test('.size() on fixed array emits literal', () {
+      final src = '''class Buf(val data: u8[32])
+    fun len() u32
+        return data.size()
+''';
+      final c = gen(src);
+      expect(c, contains('32'));
+    });
+  });
+
+  group('Generator – generics', () {
+    test('generic function gets void* return and size_t param', () {
+      final src = '''class Pool(val buf: u8[])
+    fun alloc<T>(): &T
+        return null
+''';
+      final c = gen(src);
+      expect(c, contains('void* Pool_alloc(Pool* this, size_t __sizeof_T)'));
+    });
+
+    test('sizeof<T>() in generic body emits __sizeof_T', () {
+      final src = '''class Pool(val buf: u8[])
+    fun alloc<T>(): &T
+        val size := sizeof<T>()
+        return null
+''';
+      final c = gen(src);
+      expect(c, contains('const uint64_t size = __sizeof_T'));
+    });
+
+    test('&T(expr) in generic body emits (void*)(expr)', () {
+      final src = '''class Pool(val buf: u8[])
+    fun alloc<T>(): &T
+        val ptr := &T(u8(0))
+        return ptr
+''';
+      final c = gen(src);
+      expect(c, contains('void* ptr = (void*)'));
+    });
+
+    test('null literal emits NULL', () {
+      final src = 'fun f() &u8\n    return null\n';
+      final c = gen(src);
+      expect(c, contains('return NULL;'));
+    });
+
+    test('generic call site casts return and adds sizeof arg', () {
+      final src = '''class Pool(val buf: u8[])
+    fun alloc<T>(): &T
+        return null
+fun use(p: &Pool)
+    val x := p.alloc<u8>()
+''';
+      final c = gen(src);
+      expect(c, contains('(uint8_t*)Pool_alloc(p, sizeof(uint8_t))'));
+    });
+  });
+
+  group('Generator – allocator pattern', () {
+    test('allocator compiles to valid C', () {
+      final src = '''class Allocator(val _memory: u8[])
+    var _cursor: i32 = 0
+
+    fun allocate<T>(): &T
+        val size := sizeof<T>()
+        if _cursor + size > _memory.size()
+            return null
+        val ptr := &T(&_memory[_cursor])
+        _cursor += size
+        return ptr
+''';
+      final c = gen(src);
+      // struct contains slice field
+      expect(c, contains('__Slice_uint8_t _memory'));
+      // generic signature
+      expect(c, contains('void* Allocator_allocate(Allocator* this, size_t __sizeof_T)'));
+      // sizeof<T>()
+      expect(c, contains('__sizeof_T'));
+      // null return
+      expect(c, contains('return NULL;'));
+      // cursor increment
+      expect(c, contains('this->_cursor += size'));
+    });
+  });
 }

@@ -58,6 +58,7 @@ enum TokenType {
   typeFloat32('f32'),
   typeFloat64('f64'),
   typeVoid('void'),
+  typeNull('null'),
   scalarEnd,
 
   // Operators

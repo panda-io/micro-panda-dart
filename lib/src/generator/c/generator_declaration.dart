@@ -189,6 +189,7 @@ extension GeneratorDeclaration on CGenerator {
 
     // Set member-function context and reset scope.
     _currentClass = className;
+    _typeParams = fn.typeParams;
     _scope.clear();
 
     if (className != null) {
@@ -206,6 +207,7 @@ extension GeneratorDeclaration on CGenerator {
     _writeln();
 
     _currentClass = null;
+    _typeParams = [];
     _scope.clear();
   }
 
@@ -213,7 +215,17 @@ extension GeneratorDeclaration on CGenerator {
 
   /// Build the C function signature (without trailing `;` or `{`).
   String _fnSignature(FunctionDecl fn, String? className) {
-    final ret = _cType(fn.returnType);
+    // Generic function: if return type is &T where T is a type param → void*
+    String ret;
+    final retType = fn.returnType;
+    if (fn.typeParams.isNotEmpty &&
+        retType is TypeRef &&
+        retType.elementType is TypeName &&
+        fn.typeParams.contains((retType.elementType as TypeName).name)) {
+      ret = 'void*';
+    } else {
+      ret = _cType(retType);
+    }
     final name = className != null ? '${className}_${fn.name}' : fn.name;
     final params = _buildParamList(fn, className);
     return '$ret $name($params)';
@@ -221,11 +233,15 @@ extension GeneratorDeclaration on CGenerator {
 
   /// Build the comma-separated parameter list for a function.
   /// Member functions receive `ClassName* this` as the first parameter.
+  /// Generic functions receive `size_t __sizeof_T` for each type param.
   String _buildParamList(FunctionDecl fn, String? className) {
     final parts = <String>[];
     if (className != null) parts.add('$className* this');
     for (final p in fn.parameters) {
       parts.add(_paramDecl(p));
+    }
+    for (final tp in fn.typeParams) {
+      parts.add('size_t __sizeof_$tp');
     }
     return parts.isEmpty ? 'void' : parts.join(', ');
   }

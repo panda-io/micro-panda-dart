@@ -66,6 +66,18 @@ extension ParserExpression on Parser {
         case TokenType.leftParen:
           final args = _parseArguments();
           expr = Invocation(expr, args, pos);
+        case TokenType.less:
+          // Disambiguate: generic call f<Type>(args) vs comparison f < x
+          // Heuristic: '<' (type-start-token) '>' '(' → generic call
+          if (_isGenericCallHead()) {
+            _advance(); // consume '<'
+            final typeArg = _parseType();
+            _expect(TokenType.greater);
+            final args = _parseArguments();
+            expr = Invocation(expr, args, pos, typeArgs: [typeArg]);
+          } else {
+            return expr; // let binary parser handle '<'
+          }
         case TokenType.plusPlus:
           _advance();
           expr = Increment(expr, pos);
@@ -76,6 +88,17 @@ extension ParserExpression on Parser {
           return expr;
       }
     }
+  }
+
+  /// True when the next three tokens form `<TypeStart> >` `(` — a generic call.
+  bool _isGenericCallHead() {
+    final p1 = _peek1();
+    final p2 = _peek2();
+    final p3 = _peek3();
+    final isTypeStart = p1.type == TokenType.identifier || p1.type.isScalar;
+    return isTypeStart &&
+        p2.type == TokenType.greater &&
+        p3.type == TokenType.leftParen;
   }
 
   // ── primary ──────────────────────────────────────────────────────────────────
@@ -98,18 +121,35 @@ extension ParserExpression on Parser {
         break;
     }
 
+    // null literal (must come before scalar cast check since typeNull is scalar)
+    if (_current.type == TokenType.typeNull) {
+      _advance();
+      return Literal(TokenType.typeNull, 'null', pos);
+    }
+
     // this
     if (_current.type == TokenType.kThis) {
       _advance();
       return This(pos);
     }
 
-    // sizeof(Type)
+    // sizeof<T>() or sizeof(Type)
     if (_current.type == TokenType.kSizeof) {
       _advance();
-      _expect(TokenType.leftParen);
-      final t = _parseType();
-      _expect(TokenType.rightParen);
+      final Type t;
+      if (_current.type == TokenType.less) {
+        // sizeof<T>() — generic syntax
+        _advance(); // consume '<'
+        t = _parseType();
+        _expect(TokenType.greater);
+        _expect(TokenType.leftParen);
+        _expect(TokenType.rightParen);
+      } else {
+        // sizeof(Type) — classic syntax
+        _expect(TokenType.leftParen);
+        t = _parseType();
+        _expect(TokenType.rightParen);
+      }
       return Sizeof(t, pos);
     }
 
@@ -124,9 +164,22 @@ extension ParserExpression on Parser {
       return Conversion(targetType, val, pos);
     }
 
-    // Address-of: &expr
+    // &TypeName(expr) → pointer cast to TypeName*  (uppercase identifier + '(')
+    // &expr           → address-of (everything else)
     if (_current.type == TokenType.bitAnd) {
       _advance();
+      if (_current.type == TokenType.identifier &&
+          _peek1().type == TokenType.leftParen) {
+        final c = _current.literal[0];
+        if (c == c.toUpperCase() && c != c.toLowerCase()) {
+          // Starts with an uppercase letter → pointer cast
+          final targetType = TypeRef(_parseBaseType(), pos);
+          _expect(TokenType.leftParen);
+          final val = _parseExpression();
+          _expect(TokenType.rightParen);
+          return Conversion(targetType, val, pos);
+        }
+      }
       return RefExpression(_parsePrimary(), pos);
     }
 

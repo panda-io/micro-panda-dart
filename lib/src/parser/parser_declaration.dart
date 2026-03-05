@@ -48,7 +48,23 @@ extension ParserDeclaration on Parser {
     _expect(TokenType.kFunction);
 
     final name = _expectIdentifier();
+
+    // Optional generic type params: fun f<T, U>(...)
+    final typeParams = <String>[];
+    if (_current.type == TokenType.less) {
+      _advance(); // consume '<'
+      typeParams.add(_expectIdentifier());
+      while (_current.type == TokenType.comma) {
+        _advance();
+        typeParams.add(_expectIdentifier());
+      }
+      _expect(TokenType.greater);
+    }
+
     final params = _parseParameters();
+
+    // optional `: ` before return type (Kotlin-style; also accepted without colon)
+    if (_current.type == TokenType.colon) _advance();
 
     // optional return type (if next is not newline/eof/dedent)
     final returnType = _current.type != TokenType.newline &&
@@ -70,7 +86,8 @@ extension ParserDeclaration on Parser {
       _expectNewline();
     }
 
-    return FunctionDecl(name, params, returnType, body, pos, annotations: annotations);
+    return FunctionDecl(name, params, returnType, body, pos,
+        annotations: annotations, typeParams: typeParams);
   }
 
   List<Parameter> _parseParameters() {

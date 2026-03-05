@@ -5,7 +5,7 @@
 Micro Panda has no heap. All memory is either:
 
 - **Static storage** — global variables, arrays declared at module scope
-- **Stack-like allocator** — an arena allocator backed by a static byte buffer
+- **Arena allocator** — backed by a static byte buffer you supply
 
 There is no `malloc`, no `free` for individual objects, and no garbage collector.
 
@@ -15,69 +15,88 @@ There is no `malloc`, no `free` for individual objects, and no garbage collector
 
 Scalars and arrays declared at module scope live in static memory:
 
-```python
+```bash
 val max_tasks: i32 = 8
 var buffer: u8[1024]
 ```
 
 ---
 
-## Holding References vs Values
-
-- **Scalar types** — can be held by value or by reference.
-- **Class types** — always held by reference. There are no class values, only class references.
-
-```python
-import device::Device
-
-val my_device: &Device = Device()
-```
-
----
-
 ## Allocator
 
-The `Allocator` is a built-in arena allocator. It allocates objects from a static byte array and can be **reset entirely** at once — no fragmentation, no per-object free.
+`Allocator` is a generic arena allocator. It allocates objects from a byte slice and can be reset entirely at once.
+
+### Implementation
+
+```bash
+class Allocator(val _memory: u8[])
+    var _cursor: i32 = 0
+
+    fun allocate<T>(): &T
+        val size := sizeof<T>()
+        if _cursor + size > _memory.size()
+            return null
+        val ptr := &T(&_memory[_cursor])
+        _cursor += size
+        return ptr
+```
 
 ### Setup
 
-```python
-val cache: u8[1024]
+```bash
+var cache: u8[1024]
 val allocator := Allocator(cache)
 ```
 
 ### Allocating Objects
 
-```python
-val device: &Device = allocator.allocate(sizeof(Device))
+```bash
+val device := allocator.allocate<Device>()   # returns &Device or null
 ```
 
-`sizeof(T)` returns the size of type `T` in bytes at compile time.
+`sizeof<T>()` returns the byte size of type `T` at compile time. The generic call automatically passes it to the allocator.
 
-### Freeing
+### Checking for Null
 
-```python
-allocator.free()   # resets the entire arena — all allocated objects become invalid
+```bash
+val node := allocator.allocate<Node>()
+if node == null
+    // out of memory
 ```
 
-Use this when you are done with a group of objects and want to reclaim the full buffer for reuse.
+---
+
+## `sizeof<T>()`
+
+Returns the byte size of a type at compile time:
+
+```bash
+val s := sizeof<i32>()     # 4
+val s := sizeof<Point>()   # sizeof(struct Point) in C
+```
+
+Classic form also accepted:
+
+```bash
+val s := sizeof(i32)
+```
 
 ---
 
 ## Usage Pattern
 
-```python
-val task_pool: u8[4096]
+```bash
+var task_pool: u8[4096]
 val pool := Allocator(task_pool)
 
 fun run_tasks()
-    val t1: &Task = pool.allocate(sizeof(Task))
-    val t2: &Task = pool.allocate(sizeof(Task))
+    val t1 := pool.allocate<Task>()
+    val t2 := pool.allocate<Task>()
 
-    t1.run()
-    t2.run()
-
-    pool.free()   # reclaim all task memory at once
+    if t1 != null
+        t1.run()
+    if t2 != null
+        t2.run()
 ```
 
 ---
@@ -86,13 +105,6 @@ fun run_tasks()
 
 Arrays do not require an allocator — their storage is declared statically:
 
-```python
-var expressions: Expression[10]   # static, no allocator needed
-```
-
-To pass an array to a function by reference:
-
-```python
-fun fill(buf: &u8[])
-    buf[0] = 0xFF
+```bash
+var expressions: Expr[10]   # static, no allocator needed
 ```

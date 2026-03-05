@@ -24,16 +24,19 @@ extension GeneratorType on CGenerator {
         _                     => 'void',
       };
     }
-    if (type is TypeRef)   return '${_cType(type.elementType)}*';
-    if (type is TypeName)  return type.name ?? 'void';
-    if (type is TypeArray) return _cType(type.elementType); // caller appends dims
+    if (type is TypeRef)  return '${_cType(type.elementType)}*';
+    if (type is TypeName) return type.name ?? 'void';
+    if (type is TypeArray) {
+      if (type.isSlice) return '__Slice_${_cType(type.elementType)}';
+      return _cType(type.elementType); // fixed array: caller appends dims
+    }
     return 'void';
   }
 
-  /// Array dimension suffix string, e.g. "[10][4]". Unsized → "[0]".
+  /// Array dimension suffix string, e.g. "[10][4]". Only for fixed arrays.
   String _arrayDims(Type? type) {
-    if (type is TypeArray) {
-      return type.dimension.map((d) => d > 0 ? '[$d]' : '[0]').join();
+    if (type is TypeArray && type.isFixed) {
+      return type.dimension.map((d) => '[$d]').join();
     }
     return '';
   }
@@ -41,7 +44,8 @@ extension GeneratorType on CGenerator {
   /// Full C variable declaration fragment: "int32_t name" or "uint8_t buf[32]".
   String _varDecl(String name, Type? type) {
     if (type is TypeArray) {
-      return '${_cType(type.elementType)} $name${_arrayDims(type)}';
+      if (type.isSlice) return '${_cType(type)} $name'; // __Slice_T name
+      return '${_cType(type.elementType)} $name${_arrayDims(type)}'; // fixed array
     }
     return '${_cType(type)} $name';
   }

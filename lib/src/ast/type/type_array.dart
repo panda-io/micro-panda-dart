@@ -6,6 +6,12 @@ class TypeArray extends Type {
 
   TypeArray(this.elementType, [super.position = 0]);
 
+  /// True for unsized `T[]` — stored as a fat pointer { ptr, size } in C.
+  bool get isSlice => dimension.length == 1 && dimension[0] == 0;
+
+  /// True for a fixed-size inline array `T[N]`.
+  bool get isFixed => dimension.isNotEmpty && dimension[0] > 0;
+
   @override
   bool equal(Type type) {
     if (type is TypeArray) {

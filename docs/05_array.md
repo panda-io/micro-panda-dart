@@ -1,67 +1,89 @@
 # Arrays
 
-## Declaration
+Micro Panda has two array forms:
 
-Arrays are statically sized. The size must be a compile-time constant. No allocator is needed — the storage is created statically.
+| Form | Syntax | C representation |
+| --- | --- | --- |
+| Fixed array | `T[N]` | `T name[N]` — inline storage |
+| Slice | `T[]` | `struct { T* ptr; size_t size; }` — fat pointer |
 
-```python
-var my_array: i32[10]       # array of 10 i32 values
-var buffer: u8[256]         # byte buffer of 256 bytes
+---
+
+## Fixed Arrays
+
+Storage lives inline (on the stack or inside a struct). The size must be a compile-time constant.
+
+```bash
+var my_array: i32[10]       # 10 i32 values, inline
+var buffer:   u8[256]       # 256-byte buffer, inline
 ```
 
-## Initialization
+`.size()` on a fixed array returns the compile-time literal:
 
-```python
-var data = [1, 2, 3, 4, 5]  # inferred as i32[5]
+```bash
+var len := my_array.size()  # expands to the literal 10
 ```
 
-## Accessing Elements
+---
 
-```python
-my_array[0] = 42
-var x := my_array[3]
+## Slices
+
+A slice is a fat pointer (pointer + length). Use `T[]` with no size:
+
+```bash
+fun process(data: u8[])
+    var n := data.size()    # runtime .size field
+    var b := data[0]        # data.ptr[0] in C
 ```
 
-## Length
+Only slices can be passed to functions (not fixed arrays). Fixed arrays convert to a slice implicitly at a call site.
 
-```python
-var len := my_array.size()
+---
+
+## Subscript Semantics
+
+| Element type | `arr[i]` returns |
+| --- | --- |
+| Scalar (`i32`, `u8`, …) | value (copy) |
+| Class / struct | `&T` reference — no copy |
+
+---
+
+## .size()
+
+```bash
+var buf: u8[32]
+var n := buf.size()         # compile-time 32
+
+fun f(data: u8[])
+    var n := data.size()    # runtime data.size field
 ```
 
-## Passing to Functions
+---
 
-When used as a function parameter, the size is not specified — the array is passed as a reference to its data along with its length metadata:
+## Address of an Element
 
-```python
-fun process(another_array: i32[])
-    var n := another_array.size()
+Use `&` to take the address of an element:
+
+```bash
+var ptr: &u8 = &buf[4]     # pointer to 5th byte
 ```
 
-> Arrays always carry their length. No need to pass the size separately.
+---
 
-## Memory Layout
+## Arrays of Class Types
 
-An array value consists of:
+Indexing an array of struct/class types returns a **reference** to avoid a copy:
 
-1. A length field
-2. Contiguous element storage
-
-## Arrays of Class / Union Enum Types
-
-Indexing an array of class or union enum types returns a **reference** (not a copy) to avoid struct copies:
-
-```python
-var expressions: Expression[10]
-
-var expr1: &Expression = expressions[0]
-var expr2: &Expression = expressions[1]
+```bash
+var expressions: Expr[10]
+var e: &Expr = expressions[0]
 ```
 
-## Passing Arrays by Reference
+---
 
-To pass an array explicitly by reference (e.g. to allow modification):
+## Array Initializer
 
-```python
-fun fill(buf: &u8[])
-    buf[0] = 0xFF
+```bash
+var data := [1, 2, 3, 4, 5]   # inferred as i32[5]
 ```

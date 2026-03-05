@@ -51,6 +51,7 @@ part 'parser_types.dart';
 class Parser {
   final Scanner _scanner;
   late Token _current;
+  final _peekBuffer = Queue<Token>();
 
   Parser(SourceFile file, String source, Set<String> flags)
       : _scanner = Scanner(file, source, HashSet.of(flags)) {
@@ -59,11 +60,38 @@ class Parser {
 
   // ── token navigation ────────────────────────────────────────────────────────
 
-  /// Advance to the next non-comment token.
-  void _advance() {
+  /// Read next non-comment token from the scanner.
+  Token _nextNonComment() {
+    Token t;
     do {
-      _current = _scanner.nextToken();
-    } while (_current.type == TokenType.comment);
+      t = _scanner.nextToken();
+    } while (t.type == TokenType.comment);
+    return t;
+  }
+
+  /// Advance to the next non-comment token (pulls from peek buffer first).
+  void _advance() {
+    _current = _peekBuffer.isNotEmpty
+        ? _peekBuffer.removeFirst()
+        : _nextNonComment();
+  }
+
+  /// Peek at the 1st token ahead (without consuming).
+  Token _peek1() {
+    if (_peekBuffer.isEmpty) _peekBuffer.addLast(_nextNonComment());
+    return _peekBuffer.first;
+  }
+
+  /// Peek at the 2nd token ahead (without consuming).
+  Token _peek2() {
+    while (_peekBuffer.length < 2) { _peekBuffer.addLast(_nextNonComment()); }
+    return _peekBuffer.elementAt(1);
+  }
+
+  /// Peek at the 3rd token ahead (without consuming).
+  Token _peek3() {
+    while (_peekBuffer.length < 3) { _peekBuffer.addLast(_nextNonComment()); }
+    return _peekBuffer.elementAt(2);
   }
 
   /// Consume and return the current token, then advance.

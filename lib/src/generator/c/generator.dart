@@ -61,6 +61,9 @@ class CGenerator {
   /// Name of the class whose methods are currently being generated.
   String? _currentClass;
 
+  /// Generic type parameter names of the currently generated function.
+  List<String> _typeParams = [];
+
   // ── symbol tables (populated before generation) ───────────────────────────────
   final Map<String, ClassDecl> _classes = {};
   final Map<String, EnumDecl> _enums = {};
@@ -70,6 +73,9 @@ class CGenerator {
 
   /// Maps @extern function name → FunctionDecl (for template-based call generation).
   final Map<String, FunctionDecl> _externFns = {};
+
+  /// C element type strings for which a __Slice_T typedef must be emitted.
+  final Set<String> _sliceElementTypes = {};
 
   // ── type-tracking scope ───────────────────────────────────────────────────────
   /// Types of global variables (name → Type).
@@ -83,6 +89,7 @@ class CGenerator {
   String generate(List<Module> modules) {
     _buildSymbolTables(modules);
     _emitIncludes();
+    _emitSliceTypedefs();
     _emitForwardDeclarations(modules);
     _emitEnumDefs(modules);
     _emitStructDefs(modules);
@@ -119,6 +126,43 @@ class CGenerator {
         }
       }
     }
+    _collectSliceTypes(modules);
+  }
+
+  /// Scan all type annotations and register slice element types for typedef emission.
+  void _collectSliceTypes(List<Module> modules) {
+    void register(Type? type) {
+      if (type == null) return;
+      if (type is TypeArray && type.isSlice) {
+        _sliceElementTypes.add(_cType(type.elementType));
+      }
+      if (type is TypeRef) register(type.elementType);
+      if (type is TypeArray && !type.isSlice) register(type.elementType);
+    }
+
+    for (final mod in modules) {
+      for (final cls in mod.classes) {
+        for (final f in cls.constructorFields) {
+          register(f.type);
+        }
+        for (final f in cls.bodyFields) {
+          register(f.type);
+        }
+        for (final fn in cls.methods) {
+          register(fn.returnType);
+          for (final p in fn.parameters) {
+            register(p.type);
+          }
+        }
+      }
+      for (final fn in mod.functions) {
+        register(fn.returnType);
+        for (final p in fn.parameters) { register(p.type); }
+      }
+      for (final v in mod.variables) {
+        register(v.type);
+      }
+    }
   }
 
   /// Best-effort type inference from a literal initializer (for := declarations).
@@ -133,9 +177,24 @@ class CGenerator {
         _ => null,
       };
     }
+    if (value is Sizeof) {
+      return TypeBuiltin(TokenType.typeUint64); // size_t ≈ uint64_t
+    }
+    if (value is Conversion) {
+      final t = value.targetType;
+      // In a generic context, a cast to a type param → void*
+      if (t is TypeRef &&
+          t.elementType is TypeName &&
+          _typeParams.contains((t.elementType as TypeName).name)) {
+        return TypeRef(TypeBuiltin(TokenType.typeVoid));
+      }
+      return t;
+    }
     if (value is Invocation && value.function is Identifier) {
       final name = (value.function as Identifier).name;
       if (_classes.containsKey(name)) return TypeName(name);
+      // Generic call with type args → return type is pointer to first type arg
+      if (value.typeArgs.isNotEmpty) return TypeRef(value.typeArgs.first);
     }
     return null;
   }
@@ -157,6 +216,14 @@ class CGenerator {
     _writeln('#include <stdint.h>');
     _writeln('#include <stdbool.h>');
     _writeln('#include <stddef.h>');
+    _writeln();
+  }
+
+  void _emitSliceTypedefs() {
+    if (_sliceElementTypes.isEmpty) return;
+    for (final elemCType in _sliceElementTypes) {
+      _writeln('typedef struct { $elemCType* ptr; size_t size; } __Slice_$elemCType;');
+    }
     _writeln();
   }
 

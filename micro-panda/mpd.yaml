@@ -1,0 +1,41 @@
+name: my_project
+version: 0.1.0
+
+src: src/    # micro-panda source root
+out: out/    # generated C files (default)
+
+targets:
+  # Simple mode: mpd drives compilation directly
+  main:
+    entry: main
+    platform: linux-x64
+    cc: gcc
+    cflags: [-O2, -Wall]
+    flags: [release]
+    output: bin/app
+
+  debug:
+    entry: main
+    platform: linux-x64
+    cc: gcc
+    cflags: [-g, -O0]
+    flags: [debug]
+    output: bin/app_debug
+
+  # Custom mode: mpd generates C, external build system compiles
+  # esp_firmware:
+  #   entry: firmware/main
+  #   out: sdk/components/app/    # place generated C where SDK expects it
+  #   build_cmd: make -C sdk/ -j4
+  #   flags: [release, esp8266]
+  #   output: sdk/build/firmware.bin
+
+  # Multi-toolchain example
+  # arm_firmware:
+  #   entry: firmware/main
+  #   platform: arm-cortex-m4
+  #   cc: arm-none-eabi-gcc
+  #   cc_path: /opt/arm-toolchain/bin
+  #   cflags: [-mcpu=cortex-m4, -Os, -ffreestanding]
+  #   flags: [release]
+  #   output: bin/firmware.elf

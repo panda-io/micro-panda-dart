@@ -12,11 +12,11 @@ extension GeneratorExpression on CGenerator {
     if (expr is Increment)        return '${_expr(expr.expression)}++';
     if (expr is Decrement)        return '${_expr(expr.expression)}--';
     if (expr is MemberAccess)     return _memberAccess(expr);
-    if (expr is Subscript)        return '${_expr(expr.parent)}[${_expr(expr.index)}]';
+    if (expr is Subscript)        return _subscript(expr);
     if (expr is Invocation)       return _invocation(expr);
     if (expr is RefExpression)    return '(&${_expr(expr.expression)})';
-    if (expr is Conversion)       return '((${_cType(expr.targetType)})(${_expr(expr.value)}))';
-    if (expr is Sizeof)           return 'sizeof(${_cType(expr.target)})';
+    if (expr is Conversion)       return _conversion(expr);
+    if (expr is Sizeof)           return _sizeof(expr);
     if (expr is ArrayInitializer) return '{${expr.elements.map(_expr).join(', ')}}';
     return '/* unknown expr */';
   }
@@ -25,12 +25,42 @@ extension GeneratorExpression on CGenerator {
 
   String _literal(Literal lit) {
     return switch (lit.tokenType) {
+      TokenType.typeNull      => 'NULL',
       TokenType.boolLiteral   => lit.value,
       TokenType.charLiteral   => "'${lit.value}'",
       TokenType.stringLiteral => '"${lit.value}"',
       TokenType.floatLiteral  => '${lit.value}f',
       _                       => lit.value, // int literals
     };
+  }
+
+  String _subscript(Subscript sub) {
+    final parentType = _inferType(sub.parent);
+    if (parentType is TypeArray && parentType.isSlice) {
+      // Slice subscript: slice.ptr[i]
+      return '${_expr(sub.parent)}.ptr[${_expr(sub.index)}]';
+    }
+    return '${_expr(sub.parent)}[${_expr(sub.index)}]';
+  }
+
+  String _sizeof(Sizeof expr) {
+    // In a generic function body, sizeof<T>() → __sizeof_T (the hidden size param)
+    if (expr.target is TypeName) {
+      final name = (expr.target as TypeName).name!;
+      if (_typeParams.contains(name)) return '__sizeof_$name';
+    }
+    return 'sizeof(${_cType(expr.target)})';
+  }
+
+  String _conversion(Conversion expr) {
+    final t = expr.targetType;
+    // In a generic body, casting to a type param → void*
+    if (t is TypeRef &&
+        t.elementType is TypeName &&
+        _typeParams.contains((t.elementType as TypeName).name)) {
+      return '(void*)(${_expr(expr.value)})';
+    }
+    return '((${_cType(t)})(${_expr(expr.value)}))';
   }
 
   String _identifier(Identifier id) {
@@ -63,7 +93,20 @@ extension GeneratorExpression on CGenerator {
     // Method call: receiver.method(args) → ClassName_method(ref, args)
     if (inv.function is MemberAccess) {
       final ma = inv.function as MemberAccess;
-      return _methodCall(ma.parent, ma.member, inv.arguments);
+
+      // Built-in .size() on arrays/slices
+      if (ma.member == 'size' && inv.arguments.isEmpty) {
+        final receiverType = _inferType(ma.parent);
+        if (receiverType is TypeArray) {
+          if (receiverType.isSlice) {
+            return '${_expr(ma.parent)}.size'; // slice fat-pointer field
+          } else if (receiverType.isFixed) {
+            return '${receiverType.dimension[0]}'; // compile-time constant
+          }
+        }
+      }
+
+      return _methodCall(ma.parent, ma.member, inv.arguments, inv.typeArgs);
     }
 
     if (inv.function is Identifier) {
@@ -76,10 +119,19 @@ extension GeneratorExpression on CGenerator {
       if (_classes.containsKey(name)) return '{0}';
     }
 
-    // Regular function call
+    // Regular (possibly generic) function call
     final fn = _expr(inv.function);
-    final args = inv.arguments.map(_expr).join(', ');
-    return '$fn($args)';
+    final regularArgs = inv.arguments.map(_expr).join(', ');
+    final sizeofArgs = inv.typeArgs.map((t) => 'sizeof(${_cType(t)})').join(', ');
+    final allArgs = [
+      if (regularArgs.isNotEmpty) regularArgs,
+      if (sizeofArgs.isNotEmpty) sizeofArgs,
+    ].join(', ');
+    final call = '$fn($allArgs)';
+
+    // Cast return value when type args present
+    if (inv.typeArgs.length == 1) return '(${_cType(inv.typeArgs.first)}*)$call';
+    return call;
   }
 
   /// Emit a call to an @extern function using its template.
@@ -107,9 +159,11 @@ extension GeneratorExpression on CGenerator {
     return result;
   }
 
-  String _methodCall(Expression receiver, String method, List<Expression> args) {
+  String _methodCall(Expression receiver, String method, List<Expression> args,
+      [List<Type> typeArgs = const []]) {
     final type = _inferType(receiver);
     final argsStr = args.map(_expr).join(', ');
+    final sizeofArgs = typeArgs.map((t) => 'sizeof(${_cType(t)})').join(', ');
 
     String? className;
     String receiverArg;
@@ -136,9 +190,16 @@ extension GeneratorExpression on CGenerator {
       return argsStr.isEmpty ? '$recv.$method()' : '$recv.$method($argsStr)';
     }
 
-    final allArgs =
-        argsStr.isEmpty ? receiverArg : '$receiverArg, $argsStr';
-    return '${className}_$method($allArgs)';
+    final allArgs = [
+      receiverArg,
+      if (argsStr.isNotEmpty) argsStr,
+      if (sizeofArgs.isNotEmpty) sizeofArgs,
+    ].join(', ');
+    final call = '${className}_$method($allArgs)';
+
+    // Cast return value when type args present
+    if (typeArgs.length == 1) return '(${_cType(typeArgs.first)}*)$call';
+    return call;
   }
 
   // ── type inference ────────────────────────────────────────────────────────────
@@ -146,7 +207,21 @@ extension GeneratorExpression on CGenerator {
   /// Infer the type of [expr] from the current scope (best-effort).
   Type? _inferType(Expression expr) {
     if (expr is Identifier) {
-      return _scope[expr.name] ?? _globals[expr.name];
+      if (_scope.containsKey(expr.name)) return _scope[expr.name];
+      if (_globals.containsKey(expr.name)) return _globals[expr.name];
+      // Check class fields (constructor + body fields)
+      if (_currentClass != null) {
+        final cls = _classes[_currentClass];
+        if (cls != null) {
+          for (final f in cls.constructorFields) {
+            if (f.name == expr.name) return f.type;
+          }
+          for (final f in cls.bodyFields) {
+            if (f.name == expr.name) return f.type;
+          }
+        }
+      }
+      return null;
     }
     if (expr is This && _currentClass != null) {
       return TypeRef(TypeName(_currentClass!));
