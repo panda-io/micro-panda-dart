@@ -51,7 +51,7 @@ var result := minimum(1, 2)
 There are no `public` / `private` keywords. Visibility is determined by the name:
 
 | Name | Visibility |
-|------|------------|
+| ------ | ------------ |
 | `my_function` | Public |
 | `_my_function` | Private (starts with `_`) |
 | `my_var` | Public |
