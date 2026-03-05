@@ -3,6 +3,7 @@
 ## Everything is Static
 
 Micro Panda has no heap. All memory is either:
+
 - **Static storage** — global variables, arrays declared at module scope
 - **Stack-like allocator** — an arena allocator backed by a static byte buffer
 

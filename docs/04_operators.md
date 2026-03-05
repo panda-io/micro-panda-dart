@@ -3,7 +3,7 @@
 ## Arithmetic
 
 | Operator | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `+` | Addition |
 | `-` | Subtraction / unary negation |
 | `*` | Multiplication |
@@ -13,7 +13,7 @@
 ## Bitwise
 
 | Operator | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `&` | Bitwise AND |
 | `\|` | Bitwise OR |
 | `^` | Bitwise XOR |
@@ -24,7 +24,7 @@
 ## Comparison
 
 | Operator | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `==` | Equal |
 | `!=` | Not equal |
 | `<` | Less than |
@@ -35,7 +35,7 @@
 ## Logical
 
 | Operator | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `&&` | Logical AND |
 | `\|\|` | Logical OR |
 | `!` | Logical NOT (unary) |
@@ -43,7 +43,7 @@
 ## Assignment
 
 | Operator | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `=` | Assign |
 | `+=` | Add and assign |
 | `-=` | Subtract and assign |
@@ -59,14 +59,14 @@
 ## Increment / Decrement
 
 | Operator | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `++` | Increment by 1 |
 | `--` | Decrement by 1 |
 
 ## Other
 
 | Operator | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | `&` (prefix) | Take reference (address-of) |
 | `.` | Member access |
 | `[]` | Index access |

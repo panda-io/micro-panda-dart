@@ -121,7 +121,7 @@ flags: [debug, esp8266]
 Built-in conventions (not enforced, but recommended):
 
 | Flag | Meaning |
-|---|---|
+| --- | --- |
 | `debug` | Debug build |
 | `release` | Release / optimised build |
 | platform name | Target platform code paths |

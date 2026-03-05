@@ -3,7 +3,7 @@
 ## Primitive Types
 
 | Type | Description |
-|------|-------------|
+| ---------- | ------------- |
 | `bool` | Boolean (`true` / `false`) |
 | `i8` | 8-bit signed integer |
 | `u8` | 8-bit unsigned integer |
@@ -52,5 +52,6 @@ const nanosecond = 0.000_000_001
 ## Default Types for Untyped Literals
 
 When no type is specified:
+
 - Integer literals default to `i32`
 - Float literals default to `f32`

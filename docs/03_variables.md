@@ -5,7 +5,7 @@
 Micro Panda has three kinds of bindings:
 
 | Keyword | Meaning |
-|---------|---------|
+| ---------- | ------------- |
 | `var` | Mutable variable |
 | `val` | Immutable binding — cannot be reassigned after initialization |
 | `const` | Compile-time constant |

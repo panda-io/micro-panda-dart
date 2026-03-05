@@ -11,7 +11,7 @@ The syntax is Python-like: indentation defines scope, no braces required.
 ## Design Philosophy
 
 | Principle | Description |
-|-----------|-------------|
+| ---------- | ------------- |
 | **No heap** | There is no dynamic heap allocation. All memory is static or allocator-managed. |
 | **Everything static** | All types, sizes, and lifetimes are known at compile time. |
 | **No GC** | No garbage collector. Memory management is explicit via arena allocators. |
@@ -28,7 +28,7 @@ The syntax is Python-like: indentation defines scope, no braces required.
 
 ## Compilation Pipeline
 
-```
+```bash
 *.mpd  →  Micro Panda Compiler  →  *.c  →  C Compiler  →  binary
                                               (future: LLVM / RISC-V)
 ```

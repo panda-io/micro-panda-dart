@@ -2,7 +2,7 @@
 
 The micro-panda compiler is invoked as `mpd` from the project root (where `mpd.yaml` lives).
 
-```
+```bash
 mpd <command> [target] [options]
 ```
 
@@ -13,7 +13,7 @@ mpd <command> [target] [options]
 Parses `.mpd` source files and writes the generated C file(s) to the `out/` directory.
 **No compilation is performed.** Use this to inspect generated C without running a compiler.
 
-```
+```bash
 mpd gen              # generate C for all targets
 mpd gen <target>     # generate C for a specific target
 ```
@@ -24,7 +24,7 @@ Output: `out/<target>.c` (or the target's `out:` dir if overridden in mpd.yaml).
 
 Runs the full pipeline: parse → generate C → compile to executable (or run `build_cmd`).
 
-```
+```bash
 mpd build            # build all targets
 mpd build <target>   # build a specific target
 ```
@@ -34,7 +34,7 @@ mpd build <target>   # build a specific target
 Builds the target then immediately executes the output binary. Only meaningful for
 host-native targets (not cross-compiled firmware).
 
-```
+```bash
 mpd run <target>
 ```
 
@@ -43,20 +43,20 @@ mpd run <target>
 Removes the `out/` directory (generated C files) and the `bin/` directory (executables).
 Per-target `out:` overrides are also cleaned.
 
-```
+```bash
 mpd clean
 ```
 
 ## Options
 
 | Flag | Description |
-|---|---|
+| --- | --- |
 | `-v`, `--verbose` | Print each build step (files parsed, compiler command, etc.) |
 | `-h`, `--help` | Show usage |
 
 ## Full workflow example
 
-```
+```bash
 # 1. Inspect generated C first
 mpd gen main -v
 
@@ -74,7 +74,7 @@ mpd clean
 
 For each target, the CLI executes these steps in order:
 
-```
+```bash
 .mpd files
     │
     ▼  parse (Scanner + Parser)

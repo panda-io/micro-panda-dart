@@ -42,6 +42,7 @@ fun process(another_array: i32[])
 ## Memory Layout
 
 An array value consists of:
+
 1. A length field
 2. Contiguous element storage
 
