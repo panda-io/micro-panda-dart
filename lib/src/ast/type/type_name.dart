@@ -17,7 +17,8 @@ class TypeName extends Type {
   @override
   bool equal(Type type) {
     if (type is TypeName) {
-      return (qualifiedName?.isNotEmpty ?? false) && type.qualifiedName == qualifiedName;
+      if ((qualifiedName?.isNotEmpty ?? false) && type.qualifiedName == qualifiedName) return true;
+      return name != null && name == type.name;
     }
     return false;
   }

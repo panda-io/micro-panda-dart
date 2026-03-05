@@ -1,7 +1,5 @@
-import '../../token/token_type.dart';
 import '../context.dart';
 import '../type/type.dart';
-import '../type/type_builtin.dart';
 import '../type/type_name.dart';
 import '../type/type_ref.dart';
 import 'expression.dart';
@@ -26,7 +24,7 @@ class MemberAccess extends Expression {
         if (!hasMember) {
           context.error(position, "enum '$name' has no member '$member'");
         }
-        type = TypeBuiltin(TokenType.typeInt32); // enum values are int-like
+        type = TypeName(name); // enum member has the enum's type
         return;
       }
     }
