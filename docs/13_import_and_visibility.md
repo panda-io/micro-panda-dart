@@ -15,7 +15,7 @@ The last path segment becomes the qualifier:
 ```python
 import util.math
 
-var result := math.min(1, 2)
+var result := math::min(1, 2)
 ```
 
 ### Import a specific symbol
@@ -33,7 +33,7 @@ Alias a module:
 ```python
 import util.math as m
 
-var result := m.min(1, 2)
+var result := m::min(1, 2)
 ```
 
 Alias a symbol:
