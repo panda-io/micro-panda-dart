@@ -5,6 +5,7 @@ import '../ast/module.dart';
 import '../generator/c/generator.dart';
 import '../parser/parser.dart';
 import '../token/position.dart';
+import '../validator/validator.dart';
 import 'project.dart';
 
 /// Drives the full build pipeline for a single [Target].
@@ -20,13 +21,14 @@ class Builder {
     _log('Generating C for target "${target.name}"...');
     final modules = _parseModules();
     if (modules == null) return null;
+    if (!_validate(modules)) return null;
     final cCode = _generateC(modules);
     final cFile = _writeCFile(cCode);
     if (cFile != null) _log('Done: ${p.relative(cFile.path, from: project.rootDir)}');
     return cFile;
   }
 
-  /// Run the full pipeline: discover → parse → generate C → compile/build.
+  /// Run the full pipeline: discover → parse → validate → generate C → compile/build.
   /// Returns true on success.
   Future<bool> build() async {
     _log('Building target "${target.name}"...');
@@ -35,14 +37,17 @@ class Builder {
     final modules = _parseModules();
     if (modules == null) return false;
 
-    // 2. Generate C.
+    // 2. Validate.
+    if (!_validate(modules)) return false;
+
+    // 3. Generate C.
     final cCode = _generateC(modules);
 
-    // 3. Write generated C to output directory.
+    // 4. Write generated C to output directory.
     final cFile = _writeCFile(cCode);
     if (cFile == null) return false;
 
-    // 4. Compile or delegate to custom build system.
+    // 5. Compile or delegate to custom build system.
     if (target.isCustomMode) {
       return await _runBuildCmd();
     } else {
@@ -110,7 +115,18 @@ class Builder {
     return p.withoutExtension(rel).replaceAll(p.separator, '.');
   }
 
-  // ── step 2: generate C ────────────────────────────────────────────────────
+  // ── step 2: validate ──────────────────────────────────────────────────────
+
+  bool _validate(List<Module> modules) {
+    _log('  Validating...');
+    final errors = Validator().validate(modules);
+    for (final e in errors) {
+      _error(e.toString());
+    }
+    return errors.isEmpty;
+  }
+
+  // ── step 3: generate C ────────────────────────────────────────────────────
 
   String _generateC(List<Module> modules) {
     _log('  Generating C...');

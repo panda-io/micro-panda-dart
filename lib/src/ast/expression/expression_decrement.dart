@@ -9,5 +9,8 @@ class Decrement extends Expression {
   Decrement(this.expression, super.position);
 
   @override
-  void validate(Context context, Type? expected) {}
+  void validate(Context context, Type? expected) {
+    expression.validate(context, expected);
+    type = expression.type;
+  }
 }

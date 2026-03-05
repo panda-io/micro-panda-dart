@@ -2,7 +2,7 @@ import '../context.dart';
 import '../type/type.dart';
 import 'expression.dart';
 
-/// Explicit type cast: i64(x), f32(val)
+/// Explicit type cast: i64(x), f32(val), &T(expr)
 class Conversion extends Expression {
   final Type targetType;
   final Expression value;
@@ -10,5 +10,8 @@ class Conversion extends Expression {
   Conversion(this.targetType, this.value, super.position);
 
   @override
-  void validate(Context context, Type? expected) {}
+  void validate(Context context, Type? expected) {
+    value.validate(context, null);
+    type = targetType;
+  }
 }

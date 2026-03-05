@@ -8,5 +8,7 @@ class ExpressionStatement extends Statement {
   ExpressionStatement(this.expression, super.position);
 
   @override
-  void validate(Context context) {}
+  void validate(Context context) {
+    expression.validate(context, null);
+  }
 }

@@ -15,5 +15,19 @@ class DeclarationStatement extends Statement {
   DeclarationStatement(this.keyword, this.name, this.type, this.value, super.position);
 
   @override
-  void validate(Context context) {}
+  void validate(Context context) {
+    Type? resolvedType = type;
+    if (value != null) {
+      value!.validate(context, type);
+      // Infer type from initializer if not explicit
+      resolvedType ??= value!.type;
+      // Check compatibility if both are known
+      if (type != null && !context.typesCompatible(type, value!.type)) {
+        context.error(position,
+            "cannot assign ${Context.typeName(value!.type)} "
+            "to ${Context.typeName(type)}");
+      }
+    }
+    context.declare(name, resolvedType, position);
+  }
 }

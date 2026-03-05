@@ -7,5 +7,10 @@ class Block extends Statement {
   Block(this.statements, super.position);
 
   @override
-  void validate(Context context) {}
+  void validate(Context context) {
+    final blockCtx = context.childScope();
+    for (final s in statements) {
+      s.validate(blockCtx);
+    }
+  }
 }

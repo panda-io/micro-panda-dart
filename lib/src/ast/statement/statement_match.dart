@@ -38,5 +38,16 @@ class MatchStatement extends Statement {
   MatchStatement(this.expression, this.arms, super.position);
 
   @override
-  void validate(Context context) {}
+  void validate(Context context) {
+    expression.validate(context, null);
+    for (final arm in arms) {
+      final armCtx = context.childScope();
+      // Validate pattern expressions
+      final pat = arm.pattern;
+      if (pat is ExpressionPattern) {
+        pat.expression.validate(armCtx, expression.type);
+      }
+      arm.body.validate(armCtx);
+    }
+  }
 }
