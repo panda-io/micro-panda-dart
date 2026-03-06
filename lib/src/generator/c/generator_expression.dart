@@ -32,10 +32,10 @@ extension GeneratorExpression on CGenerator {
       TokenType.charLiteral   => "'${lit.value}'",
       TokenType.stringLiteral => '(__Slice_uint8_t){(uint8_t*)"${lit.value}", sizeof("${lit.value}") - 1}',
       TokenType.floatLiteral  => isFixed
-          ? '((int32_t)(${lit.value} * 65536.0))'
+          ? '${(double.parse(lit.value) * 65536.0).round()}'
           : '${lit.value}f',
       TokenType.intLiteral    => isFixed
-          ? '(${lit.value} << 16)'
+          ? '${int.parse(lit.value) << 16}'
           : lit.value,
       _                       => lit.value,
     };

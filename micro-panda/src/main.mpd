@@ -14,6 +14,6 @@ fun main() i32
     println()
     print_float(3.14159, 2)
     println()
-    print_fixed(1.231, 2)
+    print_fixed(-1.231, 2)
     println()
     return 0
