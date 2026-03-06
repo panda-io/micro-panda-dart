@@ -4,3 +4,5 @@
 .claude/
 reference/**
 bin/mpd
+micro-panda/bin/**
+micro-panda/out/**

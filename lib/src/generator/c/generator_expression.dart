@@ -28,7 +28,7 @@ extension GeneratorExpression on CGenerator {
       TokenType.typeNull      => 'NULL',
       TokenType.boolLiteral   => lit.value,
       TokenType.charLiteral   => "'${lit.value}'",
-      TokenType.stringLiteral => '"${lit.value}"',
+      TokenType.stringLiteral => '(__Slice_uint8_t){(uint8_t*)"${lit.value}", sizeof("${lit.value}") - 1}',
       TokenType.floatLiteral  => '${lit.value}f',
       _                       => lit.value, // int literals
     };
@@ -136,9 +136,9 @@ extension GeneratorExpression on CGenerator {
 
   /// Emit a call to an @extern function using its template.
   ///
-  ///   @extern                      → fn_name(args...)
-  ///   @extern("malloc")            → malloc(args...)
-  ///   @extern("assert($a == $b)")  → assert(x == y)
+  ///   @extern                       → fn_name(args...)
+  ///   @extern("malloc")             → malloc(args...)
+  ///   @extern("assert({a} == {b})") → assert(x == y)
   String _applyExtern(FunctionDecl fn, List<Expression> callArgs) {
     final template = fn.externAnnotation!.template;
     final args = callArgs.map(_expr).toList();
@@ -147,14 +147,14 @@ extension GeneratorExpression on CGenerator {
       // No template: call by the function's own name
       return '${fn.name}(${args.join(', ')})';
     }
-    if (!template.contains('\$')) {
+    if (!template.contains('{')) {
       // C rename (no placeholders): pass args in order
       return '$template(${args.join(', ')})';
     }
-    // Named placeholder substitution: $paramName → evaluated arg expression
+    // Named placeholder substitution: {paramName} → evaluated arg expression
     var result = template;
     for (int i = 0; i < fn.parameters.length && i < args.length; i++) {
-      result = result.replaceAll('\$${fn.parameters[i].name}', args[i]);
+      result = result.replaceAll('{${fn.parameters[i].name}}', args[i]);
     }
     return result;
   }

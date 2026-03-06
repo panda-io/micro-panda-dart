@@ -316,14 +316,14 @@ fun main()
     });
 
     test('@extern with named placeholder: substitutes arg expressions', () {
-      final src = '@extern("assert(\$condition)")\nfun assert_true(condition: bool)\nfun main()\n    assert_true(1 == 1)\n';
+      final src = '@extern("assert({condition})")\nfun assert_true(condition: bool)\nfun main()\n    assert_true(1 == 1)\n';
       final c = gen(src);
       expect(c, contains('assert((1 == 1))'));
       expect(c, isNot(contains('assert_true(')));
     });
 
     test('@extern with two placeholders: assert_eq style', () {
-      final src = '@extern("assert(\$a == \$b)")\nfun assert_i32_equal(a: i32, b: i32)\nfun main()\n    assert_i32_equal(result, 42)\n';
+      final src = '@extern("assert({a} == {b})")\nfun assert_i32_equal(a: i32, b: i32)\nfun main()\n    assert_i32_equal(result, 42)\n';
       final c = gen(src);
       expect(c, contains('assert(result == 42)'));
       expect(c, isNot(contains('assert_i32_equal(')));

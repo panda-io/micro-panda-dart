@@ -119,7 +119,9 @@ enum TokenType {
 
   static final Map<String, TokenType> _stringToToken = {
     for (var type in TokenType.values)
-      if (type.literal != null) type.literal!: type
+      if (type.literal != null) type.literal!: type,
+    'true': TokenType.boolLiteral,
+    'false': TokenType.boolLiteral,
   };
 
   static TokenType fromString(String text) {

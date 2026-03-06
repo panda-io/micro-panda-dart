@@ -237,7 +237,8 @@ class CGenerator {
   }
 
   void _emitSliceTypedefs() {
-    if (_sliceElementTypes.isEmpty) return;
+    // uint8_t slice is always needed for string literals.
+    _sliceElementTypes.add('uint8_t');
     for (final elemCType in _sliceElementTypes) {
       _writeln('typedef struct { $elemCType* ptr; size_t size; } __Slice_$elemCType;');
     }

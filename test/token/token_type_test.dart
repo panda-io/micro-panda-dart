@@ -27,7 +27,8 @@ void main() {
       expect(TokenType.fromString(':='), TokenType.inferAssign);
       expect(TokenType.fromString('i32'), TokenType.typeInt32);
       expect(TokenType.fromString('match'), TokenType.kMatch);
-      expect(TokenType.fromString('true'), TokenType.identifier); // booleans handled in the scanner
+      expect(TokenType.fromString('true'), TokenType.boolLiteral);
+      expect(TokenType.fromString('false'), TokenType.boolLiteral);
     });
   });
 }

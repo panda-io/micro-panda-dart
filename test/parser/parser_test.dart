@@ -313,9 +313,9 @@ void main() {
     });
 
     test('@extern with template string', () {
-      final m = parse('@extern("assert(\$a == \$b)")\nfun assert_eq(a: i32, b: i32)\n');
+      final m = parse('@extern("assert({a} == {b})")\nfun assert_eq(a: i32, b: i32)\n');
       final f = m.functions[0];
-      expect(f.annotations[0].template, 'assert(\$a == \$b)');
+      expect(f.annotations[0].template, 'assert({a} == {b})');
     });
 
     test('function without annotation has empty list', () {
