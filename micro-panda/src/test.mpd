@@ -1,0 +1,71 @@
+import io::*
+
+// ── global counters (test-level, not assert-level) ────────────────────────────
+
+var _succeeded: u32 = 0
+var _failed: u32 = 0
+
+// ── per-test state ────────────────────────────────────────────────────────────
+
+var _current_name: u8[] = ""
+var _current_failed: u32 = 0
+
+// failure buffer: up to 8 failures per test
+var _buf_count: u32 = 0
+var _buf_lines: u32[8]
+var _buf_files: u8[][8]
+var _buf_exprs: u8[][8]
+
+// ── called by generated assert code ──────────────────────────────────────────
+
+fun _test_pass()
+    // counted at test level in _test_end, nothing to do per assert
+
+fun _test_fail(file: u8[], line: u32, expr: u8[])
+    if _buf_count < 8
+        _buf_files[_buf_count] = file
+        _buf_lines[_buf_count] = line
+        _buf_exprs[_buf_count] = expr
+        _buf_count += 1
+    _current_failed += 1
+
+// ── called by generated test main() ──────────────────────────────────────────
+
+fun _test_begin(name: u8[])
+    _current_name = name
+    _current_failed = 0
+    _buf_count = 0
+
+fun _test_end()
+    if _current_failed == 0
+        print_str("\x1b[32mP:")
+        print_str(_current_name)
+        print_str("\x1b[0m")
+        println()
+        _succeeded += 1
+    else
+        print_str("\x1b[31mF:")
+        print_str(_current_name)
+        print_str("\x1b[0m")
+        println()
+        var i: u32 = 0
+        while i < _buf_count
+            print_str("  ")
+            print_str(_buf_files[i])
+            print_str(":")
+            print_u32(_buf_lines[i])
+            print_str(": ")
+            print_str(_buf_exprs[i])
+            println()
+            i += 1
+        _failed += 1
+
+fun _report() i32
+    print_str("DONE ")
+    print_u32(_succeeded)
+    print_str("/")
+    print_u32(_succeeded + _failed)
+    println()
+    if _failed > 0
+        return 1
+    return 0

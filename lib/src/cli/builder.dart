@@ -169,10 +169,9 @@ class Builder {
     _log('  Compiling: $cc ${args.join(' ')}');
     final result = await Process.run(cc, args, workingDirectory: project.rootDir);
 
-    if (result.stdout.toString().isNotEmpty) stdout.write(result.stdout);
-    if (result.stderr.toString().isNotEmpty) stderr.write(result.stderr);
-
     if (result.exitCode != 0) {
+      if (result.stdout.toString().isNotEmpty) stdout.write(result.stdout);
+      if (result.stderr.toString().isNotEmpty) stderr.write(result.stderr);
       _error('Compilation failed (exit ${result.exitCode})');
       return false;
     }

@@ -48,6 +48,8 @@ extension GeneratorStatement on CGenerator {
       _line('continue;');
     } else if (stmt is DeclarationStatement) {
       _emitLocalDecl(stmt);
+    } else if (stmt is AssertStatement) {
+      _emitAssert(stmt);
     } else if (stmt is ExpressionStatement) {
       _line('${_expr(stmt.expression)};');
     } else if (stmt is Block) {
@@ -56,6 +58,31 @@ extension GeneratorStatement on CGenerator {
       _emitBlock(stmt);
       _line('}');
     }
+  }
+
+  // ── assert ────────────────────────────────────────────────────────────────────
+
+  void _emitAssert(AssertStatement stmt) {
+    // Escape backslashes and quotes in the source text for embedding in C string.
+    final text = stmt.sourceText
+        .replaceAll(r'\', r'\\')
+        .replaceAll('"', r'\"');
+    final file = stmt.sourceFile
+        .replaceAll(r'\', r'\\')
+        .replaceAll('"', r'\"');
+    _line('if (!(${_expr(stmt.condition)})) {');
+    _indent++;
+    _line('_test_fail('
+        '(__Slice_uint8_t){(uint8_t*)"$file", ${file.length}}, '
+        '${stmt.sourceLine}, '
+        '(__Slice_uint8_t){(uint8_t*)"$text", ${text.length}}'
+        ');');
+    _indent--;
+    _line('} else {');
+    _indent++;
+    _line('_test_pass();');
+    _indent--;
+    _line('}');
   }
 
   // ── if / else ─────────────────────────────────────────────────────────────────

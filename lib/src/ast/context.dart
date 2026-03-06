@@ -31,6 +31,7 @@ class Context {
   final Map<String, ClassDecl> classes;
   final Map<String, EnumDecl> enums;
   final Map<String, FunctionDecl> globalFunctions;
+  final Map<String, Type?> globalVariables;
 
   // ── current file (for error location) ────────────────────────────────────────
   final SourceFile? currentFile;
@@ -53,6 +54,7 @@ class Context {
     required this.classes,
     required this.enums,
     required this.globalFunctions,
+    required this.globalVariables,
     required this.currentFile,
     required this.returnType,
     required this.typeParams,
@@ -66,6 +68,7 @@ class Context {
     final classes = <String, ClassDecl>{};
     final enums = <String, EnumDecl>{};
     final functions = <String, FunctionDecl>{};
+    final variables = <String, Type?>{};
     for (final mod in modules) {
       for (final cls in mod.classes) {
         classes[cls.name] = cls;
@@ -76,11 +79,15 @@ class Context {
       for (final fn in mod.functions) {
         functions[fn.name] = fn;
       }
+      for (final v in mod.variables) {
+        variables[v.name] = v.type;
+      }
     }
     return Context._(
       classes: classes,
       enums: enums,
       globalFunctions: functions,
+      globalVariables: variables,
       currentFile: null,
       returnType: null,
       typeParams: [],
@@ -95,6 +102,7 @@ class Context {
         classes: classes,
         enums: enums,
         globalFunctions: globalFunctions,
+        globalVariables: globalVariables,
         currentFile: file,
         returnType: null,
         typeParams: [],
@@ -108,6 +116,7 @@ class Context {
         classes: classes,
         enums: enums,
         globalFunctions: globalFunctions,
+        globalVariables: globalVariables,
         currentFile: currentFile,
         returnType: returnType,
         typeParams: typeParams,
@@ -121,6 +130,7 @@ class Context {
         classes: classes,
         enums: enums,
         globalFunctions: globalFunctions,
+        globalVariables: globalVariables,
         currentFile: currentFile,
         returnType: fn.returnType,
         typeParams: fn.typeParams,
@@ -141,10 +151,11 @@ class Context {
 
   // ── variable lookup ───────────────────────────────────────────────────────────
 
-  /// Look up a variable's type in the scope chain (locals only).
+  /// Look up a variable's type: locals first, then global variables.
   Type? lookupVar(String name) {
     if (_locals.containsKey(name)) return _locals[name];
     if (_parent != null) return _parent.lookupVar(name);
+    if (globalVariables.containsKey(name)) return globalVariables[name];
     return null;
   }
 
@@ -152,6 +163,7 @@ class Context {
   bool isDeclaredVar(String name) {
     if (_locals.containsKey(name)) return true;
     if (_parent != null) return _parent.isDeclaredVar(name);
+    if (globalVariables.containsKey(name)) return true;
     return false;
   }
 

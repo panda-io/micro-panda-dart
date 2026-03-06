@@ -21,6 +21,7 @@ import '../../ast/expression/expression_this.dart';
 import '../../ast/expression/expression_unary.dart';
 import '../../ast/statement/statement.dart';
 import '../../ast/statement/statement_block.dart';
+import '../../ast/statement/statement_assert.dart';
 import '../../ast/statement/statement_break.dart';
 import '../../ast/statement/statement_continue.dart';
 import '../../ast/statement/statement_declaration.dart';

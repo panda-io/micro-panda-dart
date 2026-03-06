@@ -52,6 +52,10 @@ extension ParserStatement on Parser {
       case TokenType.kConst:
         return _parseDeclarationStatement();
       default:
+        if (_current.type == TokenType.identifier &&
+            _current.literal == 'assert') {
+          return _parseAssertStatement();
+        }
         final expr = _parseExpression();
         _expectNewline();
         return ExpressionStatement(expr, pos);
@@ -214,6 +218,24 @@ extension ParserStatement on Parser {
     // Literal pattern
     final expr = _parseExpression();
     return ExpressionPattern(expr);
+  }
+
+  // ── assert ───────────────────────────────────────────────────────────────────
+
+  AssertStatement _parseAssertStatement() {
+    final pos = _current.offset;
+    _advance(); // consume 'assert'
+    _expect(TokenType.leftParen);
+    final exprStart = _current.offset;
+    final condition = _parseExpression();
+    final exprEnd = _current.offset; // points at ')'
+    _expect(TokenType.rightParen);
+    _expectNewline();
+
+    final exprText = _source.substring(exprStart, exprEnd).trim();
+    final sourceText = 'assert($exprText)';
+    final (line, _) = file.getLocation(pos);
+    return AssertStatement(condition, sourceText, file.name, line, pos);
   }
 
   // ── local declaration ────────────────────────────────────────────────────────

@@ -6,3 +6,4 @@ reference/**
 bin/mpd
 micro-panda/bin/**
 micro-panda/out/**
+micro-panda/.micro-panda/**

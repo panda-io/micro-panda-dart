@@ -48,19 +48,42 @@ extension ParserTypes on Parser {
     _error('expected type, found ${_current.type.name}');
   }
 
-  /// Wrap [base] in TypeArray if '[' follows. Supports multi-dimensional: T[M][N].
+  /// Wrap [base] in TypeArray if '[' follows.
+  ///
+  /// Leading slice suffix `[]` produces a nested TypeArray so that the element
+  /// type is preserved correctly:
+  ///   u8[]    → TypeArray(u8,   [0])          — slice
+  ///   u8[8]   → TypeArray(u8,   [8])          — fixed array
+  ///   u8[8][4]→ TypeArray(u8,   [8,4])        — flat 2-D fixed array
+  ///   u8[][8] → TypeArray(TypeArray(u8,[0]), [8]) — fixed array of slices
   Type _parseArraySuffix(Type base) {
     if (_current.type != TokenType.leftBracket) return base;
     final pos = base.position;
-    final array = TypeArray(base, pos);
+    _advance(); // consume '['
+    final int firstDim;
+    if (_current.type == TokenType.intLiteral) {
+      firstDim = int.parse(_current.literal);
+      _advance();
+    } else {
+      firstDim = 0; // unsized / slice
+    }
+    _expect(TokenType.rightBracket);
+
+    if (firstDim == 0) {
+      // Leading [] — build TypeArray(base,[0]) then recurse so further [N]
+      // suffixes wrap the slice rather than being added to the same flat list.
+      final slice = TypeArray(base, pos)..dimension.add(0);
+      return _parseArraySuffix(slice);
+    }
+
+    // Fixed leading dimension — collect remaining fixed dims into flat list.
+    final array = TypeArray(base, pos)..dimension.add(firstDim);
     while (_current.type == TokenType.leftBracket) {
-      _advance(); // consume '['
+      _advance();
       if (_current.type == TokenType.intLiteral) {
-        final size = int.parse(_current.literal);
+        array.dimension.add(int.parse(_current.literal));
         _advance();
-        array.dimension.add(size);
       } else {
-        // Unsized dimension (e.g. slice / parameter passing)
         array.dimension.add(0);
       }
       _expect(TokenType.rightBracket);

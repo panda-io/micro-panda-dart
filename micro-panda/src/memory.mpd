@@ -3,10 +3,10 @@
 @include("stdlib.h")
 
 @extern("malloc")
-fun malloc(size: u64): &u8
+fun _malloc(size: u64): &u8
 
 @extern("realloc")
-fun realloc(ptr: &u8, newSize: u64): &u8
+fun _realloc(ptr: &u8, newSize: u64): &u8
 
 class Allocator()
     var _ptr: &u8 = null
@@ -14,14 +14,14 @@ class Allocator()
     var _cursor: u64 = 0
 
     fun init(capacity: u64)
-        _ptr = malloc(capacity)
+        _ptr = _malloc(capacity)
         _capacity = capacity
 
     fun allocate<T>(): &T
         val size := sizeof<T>()
         if _cursor + size > _capacity
             _capacity = _capacity * 2
-            _ptr = realloc(_ptr, _capacity)
+            _ptr = _realloc(_ptr, _capacity)
             if _ptr == null
                 return null
         val ptr := &T(&_ptr[_cursor])

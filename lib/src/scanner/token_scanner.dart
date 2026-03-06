@@ -205,6 +205,13 @@ extension ScannerTokens on Scanner {
     const escapes = {39, 34, 92, 48, 97, 98, 101, 102, 110, 114, 116, 118};
     if (escapes.contains(r)) {
       _reader.consume();
+    } else if (r == 120) { // 'x' — hex escape \xHH, passed through to C
+      _reader.consume(); // consume 'x'
+      var c = _reader.peek();
+      while ((c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102)) {
+        _reader.consume();
+        c = _reader.peek();
+      }
     } else {
       _error(offset, r < 0 ? "Escape sequence not terminated" : "Unknown escape sequence");
     }

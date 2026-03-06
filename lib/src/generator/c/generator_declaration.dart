@@ -108,10 +108,13 @@ extension GeneratorDeclaration on CGenerator {
   // ── function prototypes ───────────────────────────────────────────────────────
 
   void _emitFunctionPrototypes(List<Module> modules) {
+    final isTestMode = modules
+        .any((m) => m.functions.any((fn) => fn.isTest));
     var any = false;
     for (final mod in modules) {
       for (final fn in mod.functions) {
-        if (fn.isExtern) continue; // externally defined — no prototype needed
+        if (fn.isExtern) continue;
+        if (isTestMode && fn.name == 'main') continue;
         final isPrivate = fn.name.startsWith('_');
         _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, null)};');
         any = true;
@@ -172,8 +175,20 @@ extension GeneratorDeclaration on CGenerator {
   // ── function definitions ──────────────────────────────────────────────────────
 
   void _emitFunctionDefs(List<Module> modules) {
+    // First pass: collect all @test functions across all modules.
+    final testFns = <FunctionDecl>[];
     for (final mod in modules) {
       for (final fn in mod.functions) {
+        if (fn.isTest) testFns.add(fn);
+      }
+    }
+    final isTestMode = testFns.isNotEmpty;
+
+    // Second pass: emit non-test functions (suppressing main() in test mode).
+    for (final mod in modules) {
+      for (final fn in mod.functions) {
+        if (fn.isTest) continue;
+        if (isTestMode && fn.name == 'main') continue; // test runner provides main
         _emitFunctionDef(fn, null);
       }
       for (final cls in mod.classes) {
@@ -182,6 +197,31 @@ extension GeneratorDeclaration on CGenerator {
         }
       }
     }
+
+    if (isTestMode) {
+      _emitTestFunctions(testFns);
+      _emitTestMain(testFns);
+    }
+  }
+
+  void _emitTestFunctions(List<FunctionDecl> testFns) {
+    for (final fn in testFns) {
+      _emitFunctionDef(fn, null);
+    }
+  }
+
+  void _emitTestMain(List<FunctionDecl> testFns) {
+    _writeln('int main(void) {');
+    for (final fn in testFns) {
+      final nameSlice =
+          '(__Slice_uint8_t){(uint8_t*)"${fn.name}", ${fn.name.length}}';
+      _writeln('    _test_begin($nameSlice);');
+      _writeln('    ${fn.name}();');
+      _writeln('    _test_end();');
+    }
+    _writeln('    return _report();');
+    _writeln('}');
+    _writeln();
   }
 
   void _emitFunctionDef(FunctionDecl fn, String? className) {

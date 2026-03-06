@@ -82,10 +82,14 @@ extension ParserModule on Parser {
     String? symbol;
     String? alias;
 
-    // Optional symbol: ::min
+    // Optional symbol: ::min  or wildcard ::*
     if (_current.type == TokenType.doubleColon) {
       _advance();
-      symbol = _expectIdentifier();
+      if (_current.type == TokenType.mul) {
+        _advance(); // wildcard — import all symbols; symbol stays null
+      } else {
+        symbol = _expectIdentifier();
+      }
     }
 
     // Optional alias: as m

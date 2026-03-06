@@ -31,6 +31,7 @@ import '../ast/statement/statement_expression.dart';
 import '../ast/statement/statement_for.dart';
 import '../ast/statement/statement_if.dart';
 import '../ast/statement/statement_match.dart';
+import '../ast/statement/statement_assert.dart';
 import '../ast/statement/statement_return.dart';
 import '../ast/statement/statement_while.dart';
 import '../ast/type/type.dart';
@@ -51,11 +52,13 @@ part 'parser_types.dart';
 class Parser {
   final Scanner _scanner;
   final SourceFile file;
+  final String _source;
   late Token _current;
   final _peekBuffer = Queue<Token>();
 
   Parser(SourceFile file, String source, Set<String> flags)
       : _scanner = Scanner(file, source, HashSet.of(flags)),
+        _source = source,
         file = file {
     _advance();
   }

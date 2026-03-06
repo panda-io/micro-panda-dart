@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:path/path.dart' as p;
 import 'package:micro_panda/src/cli/builder.dart';
 import 'package:micro_panda/src/cli/project.dart';
 
@@ -12,6 +13,7 @@ Commands:
   gen   [target]   Generate C only (no compilation)
   build [target]   Generate C then compile to executable
   run   <target>   Build then run the target executable
+  test  [file]     Compile and run test files (*_test.mpd)
   clean            Delete generated C files and binaries
 
 Options:
@@ -24,6 +26,8 @@ Examples:
   mpd build                 Build all targets
   mpd build firmware        Build a specific target
   mpd run main              Build and run the main target
+  mpd test                  Run all *_test.mpd files
+  mpd test main_test.mpd    Run a specific test file
   mpd clean
 ''';
 
@@ -46,6 +50,8 @@ Future<void> main(List<String> args) async {
       await _cmdBuild(targetArg, verbose: verbose);
     case 'run':
       await _cmdRun(targetArg, verbose: verbose);
+    case 'test':
+      await _cmdTest(targetArg, verbose: verbose);
     case 'clean':
       await _cmdClean(verbose: verbose);
     default:
@@ -109,6 +115,71 @@ Future<void> _cmdRun(String? targetName, {required bool verbose}) async {
   stdout.write(result.stdout);
   stderr.write(result.stderr);
   exit(result.exitCode);
+}
+
+Future<void> _cmdTest(String? fileArg, {required bool verbose}) async {
+  final project = _loadProject();
+
+  // Discover test files: explicit arg or all *_test.mpd in src/.
+  final testFiles = <File>[];
+  if (fileArg != null) {
+    // Accept "main_test.mpd", "main_test", or a path.
+    var path = fileArg.endsWith('.mpd') ? fileArg : '$fileArg.mpd';
+    if (!p.isAbsolute(path)) path = p.join(project.src, path);
+    final f = File(path);
+    if (!f.existsSync()) {
+      stderr.writeln('error: test file not found: ${f.path}');
+      exit(1);
+    }
+    testFiles.add(f);
+  } else {
+    final srcDir = Directory(project.src);
+    if (srcDir.existsSync()) {
+      testFiles.addAll(srcDir
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('_test.mpd')));
+    }
+  }
+
+  if (testFiles.isEmpty) {
+    stdout.writeln('No test files found.');
+    exit(0);
+  }
+
+  // Reference target for cc/cflags — use first defined target as template.
+  final refTarget = project.targets.values.firstOrNull;
+
+  var allPassed = true;
+  for (final file in testFiles) {
+    final name = p.basenameWithoutExtension(file.path);
+    final testTarget = Target(
+      name: name,
+      entry: p.withoutExtension(
+          p.relative(file.path, from: project.src)),
+      flags: [
+        ...?refTarget?.flags.where((f) => f != 'RELEASE' && f != 'DEBUG'),
+        'STDC_HOSTED',
+      ],
+      cc: refTarget?.cc ?? 'gcc',
+      ccPath: refTarget?.ccPath,
+      cflags: refTarget?.cflags ?? ['-O0'],
+      out: p.join(project.rootDir, '.micro-panda', 'test'),
+      output: p.join('.micro-panda', 'test', name),
+    );
+
+    final ok = await Builder(project, testTarget, verbose: verbose).build();
+    if (!ok) { allPassed = false; continue; }
+
+    final binary = p.join(project.rootDir, '.micro-panda', 'test', name);
+    final result = await Process.run(binary, [],
+        workingDirectory: project.rootDir);
+    stdout.write(result.stdout);
+    if (result.stderr.toString().isNotEmpty) stderr.write(result.stderr);
+    if (result.exitCode != 0) allPassed = false;
+  }
+
+  exit(allPassed ? 0 : 1);
 }
 
 Future<void> _cmdClean({required bool verbose}) async {

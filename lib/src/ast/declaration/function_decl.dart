@@ -17,4 +17,6 @@ class FunctionDecl extends Declaration {
   bool get isExtern => annotations.any((a) => a.name == 'extern');
   Annotation? get externAnnotation =>
       annotations.where((a) => a.name == 'extern').firstOrNull;
+
+  bool get isTest => annotations.any((a) => a.name == 'test');
 }

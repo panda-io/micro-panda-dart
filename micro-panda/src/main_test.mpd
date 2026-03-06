@@ -4,8 +4,9 @@ import io::print_bool
 import io::print_float
 import io::print_fixed
 import io::println
+import test::*
 
-fun main() i32
+fun print_something()
     print_str("Hello, World!")
     println()
     print_i32(123)
@@ -20,4 +21,12 @@ fun main() i32
     val b: fixed = 2
     print_fixed(a / b, 2)
     println()
-    return 0
+
+@test
+fun add_int()
+    assert(1 + 2 == 3)
+
+@test
+fun sub_int()
+    // check failed assertion is reported correctly
+    assert(3 - 1 == 3)

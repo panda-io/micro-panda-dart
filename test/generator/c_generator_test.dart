@@ -368,6 +368,19 @@ fun main()
       expect(c, contains('this->data.size'));
     });
 
+    test('fixed array of slices u8[][N] emits __Slice_T name[N]', () {
+      final c = gen('var bufs: u8[][8]\n');
+      expect(c, contains('__Slice_uint8_t bufs[8]'));
+    });
+
+    test('subscript on u8[][N] returns slice type', () {
+      final src = '''fun get(bufs: u8[][8], i: i32) u8[]
+    return bufs[i]
+''';
+      final c = gen(src);
+      expect(c, contains('bufs[i]'));
+    });
+
     test('.size() on fixed array emits literal', () {
       final src = '''class Buf(val data: u8[32])
     fun len() u32
@@ -450,6 +463,40 @@ fun use(p: &Pool)
       expect(c, contains('return NULL;'));
       // cursor increment
       expect(c, contains('this->_cursor += size'));
+    });
+  });
+
+  group('Generator – test mode', () {
+    test('assert emits conditional _test_fail / _test_pass', () {
+      final src = '@test\nfun my_test()\n    assert(1 == 1)\n';
+      final c = gen(src);
+      expect(c, contains('if (!('));
+      expect(c, contains('_test_fail('));
+      expect(c, contains('_test_pass()'));
+      expect(c, contains('assert(1 == 1)'));
+    });
+
+    test('@test functions generate test main()', () {
+      final src = '@test\nfun addition()\n    assert(1 == 1)\n';
+      final c = gen(src);
+      expect(c, contains('int main(void)'));
+      expect(c, contains('_test_begin('));
+      expect(c, contains('addition()'));
+      expect(c, contains('_test_end()'));
+      expect(c, contains('_report()'));
+    });
+
+    test('assert captures source text', () {
+      final src = '@test\nfun my_test()\n    assert(2 + 2 == 4)\n';
+      final c = gen(src);
+      expect(c, contains('assert(2 + 2 == 4)'));
+    });
+
+    test('assert captures file and line', () {
+      final src = '@test\nfun my_test()\n    assert(1 == 1)\n';
+      final c = gen(src);
+      expect(c, contains('"test"'));  // file name
+      expect(c, contains('3'));       // line number
     });
   });
 }
