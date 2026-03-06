@@ -214,6 +214,22 @@ fun main()
     });
   });
 
+  group('Validator – return type', () {
+    test('return value in void function', () {
+      expectError('''
+fun f()
+    return 42
+''', 'return value in void function');
+    });
+
+    test('no error when return type matches', () {
+      expectNoErrors('''
+fun f(): i32
+    return 42
+''');
+    });
+  });
+
   group('Validator – for loop', () {
     test('for range loop variable scoped', () {
       expectNoErrors('''

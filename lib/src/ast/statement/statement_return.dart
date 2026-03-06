@@ -11,8 +11,10 @@ class ReturnStatement extends Statement {
   void validate(Context context) {
     if (value != null) {
       value!.validate(context, context.returnType);
-      if (context.returnType != null &&
-          !context.typesCompatible(value!.type, context.returnType)) {
+      if (context.returnType == null) {
+        context.error(position,
+            "return value in void function: add a return type annotation");
+      } else if (!context.typesCompatible(value!.type, context.returnType)) {
         context.error(position,
             "return type mismatch: expected ${Context.typeName(context.returnType)}, "
             "got ${Context.typeName(value!.type)}");
