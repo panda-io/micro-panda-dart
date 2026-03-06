@@ -1,0 +1,141 @@
+// ── transport ────────────────────────────────────────────────────────────────
+//
+// STDC_HOSTED: write_byte maps to putchar.
+// MCU:         platform module must provide write_byte(b: u8).
+
+#if STDC_HOSTED
+
+@include("stdio.h")
+
+@extern("putchar({b})")
+fun write_byte(b: u8)
+
+#else
+
+// Forward declaration — linker resolves from platform code (UART, UDP, etc.)
+fun write_byte(b: u8)
+
+#end
+
+// ── primitives ───────────────────────────────────────────────────────────────
+
+fun println()
+    write_byte(10)
+
+fun print_str(s: u8[])
+    var i: i32 = 0
+    while i < s.size()
+        write_byte(s[i])
+        i += 1
+
+fun print_bool(v: bool)
+    if v
+        write_byte('t')
+        write_byte('r')
+        write_byte('u')
+        write_byte('e')
+    else
+        write_byte('f')
+        write_byte('a')
+        write_byte('l')
+        write_byte('s')
+        write_byte('e')
+
+// ── unsigned integers ─────────────────────────────────────────────────────────
+
+fun print_u64(v: u64)
+    var buf: u8[20]
+    var i: i32 = 19
+    if v == 0
+        write_byte('0')
+        return
+    while v > 0
+        buf[i] = u8(v % 10 + 48)
+        v = v / 10
+        i -= 1
+    var j: i32 = i + 1
+    while j < 20
+        write_byte(buf[j])
+        j += 1
+
+fun print_u32(v: u32)
+    print_u64(u64(v))
+
+fun print_u16(v: u16)
+    print_u64(u64(v))
+
+fun print_u8(v: u8)
+    print_u64(u64(v))
+
+// ── signed integers ───────────────────────────────────────────────────────────
+
+fun print_i64(v: i64)
+    if v < 0
+        write_byte('-')
+        print_u64(u64(0 - v))
+    else
+        print_u64(u64(v))
+
+fun print_i32(v: i32)
+    print_i64(i64(v))
+
+fun print_i16(v: i16)
+    print_i64(i64(v))
+
+fun print_i8(v: i8)
+    print_i64(i64(v))
+
+// ── float ─────────────────────────────────────────────────────────────────────
+//
+// Naive f32 print: separates integer and fractional parts, extracts decimal
+// digits by successive * 10. Accurate to ~6 significant digits (f32 precision).
+// Does not handle NaN or Inf.
+
+fun print_f32(v: f32, decimals: u32)
+    var abs: f32 = v
+    if v < 0
+        write_byte('-')
+        abs = 0.0 - v
+    val int_part := i32(abs)
+    print_i32(int_part)
+    if decimals > 0
+        write_byte('.')
+        var frac: f32 = abs - f32(int_part)
+        var i: u32 = 0
+        while i < decimals
+            frac = frac * 10.0
+            val digit := i32(frac)
+            write_byte(u8(digit + 48))
+            frac = frac - f32(digit)
+            i += 1
+
+// ── fixed-point ───────────────────────────────────────────────────────────────
+//
+// 16.16 fixed-point: high 16 bits = integer part, low 16 bits = fractional part.
+// e.g. print_fixed(0x00018000, 2) → "1.50"   (1 + 32768/65536)
+//      print_fixed(0xFFFE8000, 2) → "-1.50"
+//
+// decimals: how many fractional decimal digits to emit (0 = integer only).
+
+fun print_fixed(v: i32, decimals: u32)
+    var abs: u32 = 0
+    if v < 0
+        write_byte('-')
+        abs = u32(0 - v)
+    else
+        abs = u32(v)
+
+    // integer part: high 16 bits
+    print_u32(abs >> 16)
+
+    if decimals > 0
+        write_byte('.')
+        // fractional part: low 16 bits
+        // extract each decimal digit: multiply frac by 10, digit = high 16 bits
+        var frac: u32 = abs & 0xFFFF
+        var i: u32 = 0
+        while i < decimals
+            frac *= 10
+            write_byte(u8((frac >> 16) + 48))
+            frac = frac & 0xFFFF
+            i += 1

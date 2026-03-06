@@ -19,7 +19,6 @@ extension GeneratorType on CGenerator {
         TokenType.typeUint32  => 'uint32_t',
         TokenType.typeUint64  => 'uint64_t',
         TokenType.typeFloat32 => 'float',
-        TokenType.typeFloat64 => 'double',
         TokenType.typeVoid    => 'void',
         _                     => 'void',
       };
