@@ -178,6 +178,8 @@ class CGenerator {
   /// Best-effort type inference from a literal initializer (for := declarations).
   Type? _inferVarType(Expression? value) {
     if (value == null) return null;
+    // Use the type already resolved by the validator when available.
+    if (value.type != null) return value.type;
     if (value is Literal) {
       return switch (value.tokenType) {
         TokenType.intLiteral => TypeBuiltin(TokenType.typeInt32),
