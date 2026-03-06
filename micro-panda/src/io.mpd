@@ -117,7 +117,7 @@ fun print_float(v: float, decimals: u32)
 //
 // decimals: how many fractional decimal digits to emit (0 = integer only).
 
-fun print_fixed(v: i32, decimals: u32)
+fun print_fixed(v: fixed, decimals: u32)
     var abs: u32 = 0
     if v < 0
         write_byte('-')

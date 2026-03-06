@@ -45,6 +45,12 @@ class Binary extends Expression {
         // Arithmetic / bitwise
         left.validate(context, expected);
         right.validate(context, left.type ?? expected);
+        // If left resolved to a default type and right has a different type,
+        // re-validate left with right's type so untyped literals can adopt it.
+        // e.g. `0 - v` where v: fixed → 0 should become fixed, not i32.
+        if (!context.typesCompatible(left.type, right.type) && right.type != null) {
+          left.validate(context, right.type);
+        }
         if (!context.typesCompatible(left.type, right.type)) {
           context.error(position,
               "type mismatch in '${operator_.literal}': "

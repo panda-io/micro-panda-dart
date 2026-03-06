@@ -18,23 +18,22 @@ class Invocation extends Expression {
   void validate(Context context, Type? expected) {
     function.validate(context, null);
 
-    // Validate each argument
-    for (final arg in arguments) {
-      arg.validate(context, null);
-    }
+    // Determine return type from context and collect parameter types for
+    // argument validation (so literals adopt the parameter type, e.g. fixed).
+    List<Type?>? paramTypes;
 
-    // Determine return type from context
     if (function is Identifier) {
       final name = (function as Identifier).name;
-      // Constructor call
       if (context.classes.containsKey(name)) {
+        _validateArgs(context, null);
         type = TypeName(name);
         return;
       }
-      // Global function
       final fn = context.globalFunctions[name];
       if (fn != null) {
         _checkArgCount(context, fn.parameters.length, name);
+        paramTypes = fn.parameters.map((p) => p.type).toList();
+        _validateArgs(context, paramTypes);
         type = _resolveReturnType(fn, context);
         return;
       }
@@ -42,7 +41,6 @@ class Invocation extends Expression {
 
     if (function is MemberAccess) {
       final ma = function as MemberAccess;
-      // Get receiver class
       var receiverType = ma.parent.type;
       if (receiverType is TypeRef) receiverType = receiverType.elementType;
       if (receiverType is TypeName) {
@@ -55,12 +53,16 @@ class Invocation extends Expression {
             // Could be .size() on array — allowed, skip
           } else {
             _checkArgCount(context, method.parameters.length, ma.member);
+            paramTypes = method.parameters.map((p) => p.type).toList();
+            _validateArgs(context, paramTypes);
             type = _resolveReturnType(method, context);
             return;
           }
         }
       }
     }
+
+    _validateArgs(context, null);
 
     // Generic call: return type is pointer to typeArg
     if (typeArgs.isNotEmpty) {
@@ -69,6 +71,15 @@ class Invocation extends Expression {
     }
 
     type = null; // unknown return type
+  }
+
+  void _validateArgs(Context context, List<Type?>? paramTypes) {
+    for (int i = 0; i < arguments.length; i++) {
+      final expectedType = (paramTypes != null && i < paramTypes.length)
+          ? paramTypes[i]
+          : null;
+      arguments[i].validate(context, expectedType);
+    }
   }
 
   void _checkArgCount(Context context, int expected, String name) {
