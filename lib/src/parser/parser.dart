@@ -114,7 +114,16 @@ class Parser {
   }
 
   /// Consume a newline token (end of statement/header).
-  void _expectNewline() => _expect(TokenType.newline);
+  /// Also accepts dedent/eof as implicit statement terminators (handles files
+  /// without a trailing newline).
+  void _expectNewline() {
+    if (_current.type == TokenType.newline) {
+      _advance();
+    } else if (_current.type != TokenType.dedent &&
+        _current.type != TokenType.eof) {
+      _expect(TokenType.newline); // triggers proper error message
+    }
+  }
 
   /// Consume an indent token (start of indented block).
   void _expectIndent() => _expect(TokenType.indent);
@@ -132,7 +141,8 @@ class Parser {
   // ── error handling ───────────────────────────────────────────────────────────
 
   Never _error(String message) {
-    throw Exception('Parse error at offset ${_current.offset}: $message');
+    final (line, col) = file.getLocation(_current.offset);
+    throw CompileException(file.name, line, col, message);
   }
 
   // ── annotations ──────────────────────────────────────────────────────────────

@@ -120,7 +120,8 @@ class Scanner {
   }
 
   void _error(int offset, String message) {
-    throw Exception("Error: ${_file.getPosition(offset)} $message");
+    final (line, col) = _file.getLocation(offset);
+    throw CompileException(_file.name, line, col, message);
   }
 }
 

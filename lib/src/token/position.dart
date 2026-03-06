@@ -1,3 +1,17 @@
+/// Thrown by the scanner and parser for source-level errors.
+/// Formats as `filename:line:col: error: message` — matches the VSCode problem matcher.
+class CompileException implements Exception {
+  final String filePath;
+  final int line;
+  final int col;
+  final String message;
+
+  CompileException(this.filePath, this.line, this.col, this.message);
+
+  @override
+  String toString() => '$filePath:$line:$col: error: $message';
+}
+
 class Position {
   final SourceFile file;
   final int offset;

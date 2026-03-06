@@ -90,7 +90,7 @@ class Builder {
           if (importedFile != null) queue.add(importedFile);
         }
       } catch (e) {
-        _error('Parse error in ${p.relative(absPath, from: project.rootDir)}: $e');
+        stderr.writeln(e.toString());
         return null;
       }
     }
@@ -121,7 +121,7 @@ class Builder {
     _log('  Validating...');
     final errors = Validator().validate(modules);
     for (final e in errors) {
-      _error(e.toString());
+      stderr.writeln(e.toString());
     }
     return errors.isEmpty;
   }

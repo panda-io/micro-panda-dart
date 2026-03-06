@@ -130,6 +130,7 @@ extension ParserDeclaration on Parser {
 
     if (_current.type == TokenType.newline) {
       _advance();
+      _skipNewlines(); // skip any blank lines between header and body
       if (_current.type == TokenType.indent) {
         _advance(); // consume indent
         _skipNewlines();
