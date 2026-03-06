@@ -2,6 +2,7 @@ import 'declaration/class_decl.dart';
 import 'declaration/enum_decl.dart';
 import 'declaration/function_decl.dart';
 import 'declaration/variable_decl.dart';
+import '../token/position.dart';
 
 /// A single import statement.
 class Import {
@@ -33,6 +34,9 @@ class Module {
   /// File path used as module identifier.
   final String path;
 
+  /// Source file — used to resolve offsets to line:column for error reporting.
+  final SourceFile sourceFile;
+
   /// C headers requested via @include("header") at module level.
   final List<String> includes;
 
@@ -42,5 +46,5 @@ class Module {
   final List<ClassDecl> classes;
   final List<EnumDecl> enums;
 
-  Module(this.path, this.includes, this.imports, this.variables, this.functions, this.classes, this.enums);
+  Module(this.path, this.sourceFile, this.includes, this.imports, this.variables, this.functions, this.classes, this.enums);
 }

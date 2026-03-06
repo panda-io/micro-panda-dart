@@ -7,15 +7,23 @@ import 'type/type_array.dart';
 import 'type/type_builtin.dart';
 import 'type/type_name.dart';
 import 'type/type_ref.dart';
+import '../token/position.dart';
 import '../token/token_type.dart';
 
 class ValidationError {
+  final SourceFile? file;
   final int position;
   final String message;
-  const ValidationError(this.position, this.message);
+  const ValidationError(this.position, this.message, {this.file});
 
   @override
-  String toString() => 'error at offset $position: $message';
+  String toString() {
+    if (file != null) {
+      final (line, col) = file!.getLocation(position);
+      return '${file!.name}:$line:$col: error: $message';
+    }
+    return 'error at offset $position: $message';
+  }
 }
 
 class Context {
@@ -23,6 +31,9 @@ class Context {
   final Map<String, ClassDecl> classes;
   final Map<String, EnumDecl> enums;
   final Map<String, FunctionDecl> globalFunctions;
+
+  // ── current file (for error location) ────────────────────────────────────────
+  final SourceFile? currentFile;
 
   // ── current function context ──────────────────────────────────────────────────
   final Type? returnType;          // null = void
@@ -42,6 +53,7 @@ class Context {
     required this.classes,
     required this.enums,
     required this.globalFunctions,
+    required this.currentFile,
     required this.returnType,
     required this.typeParams,
     required this.currentClass,
@@ -69,6 +81,7 @@ class Context {
       classes: classes,
       enums: enums,
       globalFunctions: functions,
+      currentFile: null,
       returnType: null,
       typeParams: [],
       currentClass: null,
@@ -77,11 +90,25 @@ class Context {
     );
   }
 
+  /// Child scope for a module (sets source file for error location).
+  Context forModule(SourceFile file) => Context._(
+        classes: classes,
+        enums: enums,
+        globalFunctions: globalFunctions,
+        currentFile: file,
+        returnType: null,
+        typeParams: [],
+        currentClass: null,
+        parent: this,
+        errors: _errors,
+      );
+
   /// Child scope for a block (inherits function context).
   Context childScope() => Context._(
         classes: classes,
         enums: enums,
         globalFunctions: globalFunctions,
+        currentFile: currentFile,
         returnType: returnType,
         typeParams: typeParams,
         currentClass: currentClass,
@@ -94,6 +121,7 @@ class Context {
         classes: classes,
         enums: enums,
         globalFunctions: globalFunctions,
+        currentFile: currentFile,
         returnType: fn.returnType,
         typeParams: fn.typeParams,
         currentClass: className,
@@ -154,7 +182,7 @@ class Context {
   // ── error reporting ───────────────────────────────────────────────────────────
 
   void error(int position, String message) {
-    _errors.add(ValidationError(position, message));
+    _errors.add(ValidationError(position, message, file: currentFile));
   }
 
   // ── type utilities ────────────────────────────────────────────────────────────

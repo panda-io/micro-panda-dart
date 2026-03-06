@@ -65,7 +65,7 @@ extension ParserModule on Parser {
       }
     }
 
-    return Module(path, includes, imports, variables, functions, classes, enums);
+    return Module(path, file, includes, imports, variables, functions, classes, enums);
   }
 
   Import _parseImport() {

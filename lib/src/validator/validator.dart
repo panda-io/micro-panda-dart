@@ -13,14 +13,15 @@ class Validator {
   List<ValidationError> validate(List<Module> modules) {
     final ctx = Context.root(modules);
     for (final mod in modules) {
+      final modCtx = ctx.forModule(mod.sourceFile);
       for (final v in mod.variables) {
-        _validateGlobalVar(v, ctx);
+        _validateGlobalVar(v, modCtx);
       }
       for (final fn in mod.functions) {
-        _validateFunction(fn, null, ctx);
+        _validateFunction(fn, null, modCtx);
       }
       for (final cls in mod.classes) {
-        _validateClass(cls, ctx);
+        _validateClass(cls, modCtx);
       }
     }
     return ctx.errors;
