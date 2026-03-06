@@ -66,6 +66,7 @@ class CGenerator {
   List<String> _typeParams = [];
 
   // ── symbol tables (populated before generation) ───────────────────────────────
+  final Map<String, Module> _moduleByPath = {};
   final Map<String, ClassDecl> _classes = {};
   final Map<String, EnumDecl> _enums = {};
 
@@ -82,15 +83,81 @@ class CGenerator {
   final List<String> _moduleIncludes = [];
 
   // ── type-tracking scope ───────────────────────────────────────────────────────
-  /// Types of global variables (name → Type).
+  /// Types of global variables (bare name → Type, best-effort for type inference).
   final Map<String, Type?> _globals = {};
 
   /// Types of variables in the current function scope (name → Type).
   final Map<String, Type?> _scope = {};
 
+  // ── namespace / per-module call resolution ────────────────────────────────────
+  /// C name prefix of the module containing the test utilities (_test_begin, etc.).
+  String? _testModulePrefix;
+
+  /// Active per-module name → C name maps, rebuilt by [_setupModuleContext].
+  Map<String, String> _localCallMap = {};   // bare fn name → C name
+  Map<String, String> _localVarMap = {};    // bare var name → C name
+  Map<String, String> _qualifierToModPath = {}; // import qualifier → module path
+
+  // ── namespace helpers ─────────────────────────────────────────────────────────
+
+  /// Convert a dot-separated module path to a C identifier prefix.
+  /// e.g. "util.math" → "util__math"
+  String _modulePrefix(String modPath) => modPath.replaceAll('.', '__');
+
+  /// The C name for a module-level function.
+  String _cFnName(String modPath, String fnName) =>
+      '${_modulePrefix(modPath)}__$fnName';
+
+  /// Set up per-module name resolution tables before emitting a module's code.
+  void _setupModuleContext(Module mod) {
+    _localCallMap = {};
+    _localVarMap = {};
+    _qualifierToModPath = {};
+
+    // Own module-level functions (non-extern).
+    for (final fn in mod.functions) {
+      if (!fn.isExtern) {
+        _localCallMap[fn.name] = _cFnName(mod.path, fn.name);
+      }
+    }
+    // Own global variables.
+    for (final v in mod.variables) {
+      _localVarMap[v.name] = '${_modulePrefix(mod.path)}__${v.name}';
+    }
+
+    // Resolve imports.
+    for (final imp in mod.imports) {
+      if (imp.isWildcard) {
+        // `import io::*` — bring all symbols of that module into local scope.
+        final srcMod = _moduleByPath[imp.path];
+        if (srcMod != null) {
+          for (final fn in srcMod.functions) {
+            if (!fn.isExtern) {
+              _localCallMap[fn.name] = _cFnName(imp.path, fn.name);
+            }
+          }
+          for (final v in srcMod.variables) {
+            _localVarMap[v.name] = '${_modulePrefix(imp.path)}__${v.name}';
+          }
+        }
+      } else if (imp.symbol != null) {
+        // `import io::print_str` — single symbol (with optional alias).
+        final targetName = imp.alias ?? imp.symbol!;
+        _localCallMap[targetName] = _cFnName(imp.path, imp.symbol!);
+      } else {
+        // `import io` or `import io as m` — module-level import.
+        // Accessed as `io.fn()` or `m.fn()` (MemberAccess).
+        _qualifierToModPath[imp.qualifier] = imp.path;
+      }
+    }
+  }
+
   // ── entry point ───────────────────────────────────────────────────────────────
 
-  String generate(List<Module> modules) {
+  /// [entryModPath] is the module path of the entry module (e.g. "firmware.main").
+  /// A thin C `main` wrapper is emitted in non-test builds so user code can call
+  /// `main()` without any namespace qualifier.
+  String generate(List<Module> modules, {String? entryModPath}) {
     _buildSymbolTables(modules);
     _emitIncludes();
     _emitSliceTypedefs();
@@ -99,7 +166,7 @@ class CGenerator {
     _emitStructDefs(modules);
     _emitFunctionPrototypes(modules);
     _emitGlobalVars(modules);
-    _emitFunctionDefs(modules);
+    _emitFunctionDefs(modules, entryModPath: entryModPath);
     return _out.toString();
   }
 
@@ -107,6 +174,7 @@ class CGenerator {
 
   void _buildSymbolTables(List<Module> modules) {
     for (final mod in modules) {
+      _moduleByPath[mod.path] = mod;
       for (final cls in mod.classes) {
         _classes[cls.name] = cls;
       }
@@ -123,6 +191,10 @@ class CGenerator {
       }
       for (final fn in mod.functions) {
         if (fn.isExtern) _externFns[fn.name] = fn;
+        // Detect the module that contains the test utilities.
+        if (fn.name == '_test_begin') {
+          _testModulePrefix = _modulePrefix(mod.path);
+        }
       }
       for (final cls in mod.classes) {
         for (final fn in cls.methods) {

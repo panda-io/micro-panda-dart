@@ -6,8 +6,8 @@ import io::print_fixed
 import io::println
 import test::*
 
-fun print_something()
-    print_str("Hello, World!")
+fun main() i32
+    print_str("Hello, Micro-Panda!")
     println()
     print_i32(123)
     println()
@@ -22,11 +22,4 @@ fun print_something()
     print_fixed(a / b, 2)
     println()
 
-@test
-fun add_int()
-    assert(1 + 2 == 3)
-
-@test
-fun sub_int()
-    // check failed assertion is reported correctly
-    assert(3 - 1 == 3)
+    return 0

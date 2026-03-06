@@ -116,7 +116,7 @@ extension GeneratorDeclaration on CGenerator {
         if (fn.isExtern) continue;
         if (isTestMode && fn.name == 'main') continue;
         final isPrivate = fn.name.startsWith('_');
-        _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, null)};');
+        _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, null, modPath: mod.path)};');
         any = true;
       }
       for (final cls in mod.classes) {
@@ -136,15 +136,17 @@ extension GeneratorDeclaration on CGenerator {
   void _emitGlobalVars(List<Module> modules) {
     var any = false;
     for (final mod in modules) {
+      _setupModuleContext(mod);
       for (final v in mod.variables) {
-        _emitGlobalVar(v);
+        _emitGlobalVar(v, mod.path);
         any = true;
       }
     }
     if (any) _writeln();
   }
 
-  void _emitGlobalVar(VariableDecl v) {
+  void _emitGlobalVar(VariableDecl v, String modPath) {
+    final cVarName = '${_modulePrefix(modPath)}__${v.name}';
     final isPrivate = v.name.startsWith('_');
     final isConst = v.isConst || v.keyword == TokenType.kVal;
     final prefix =
@@ -161,39 +163,40 @@ extension GeneratorDeclaration on CGenerator {
           final name = (inv.function as Identifier).name;
           if (_classes.containsKey(name)) {
             final effType = type ?? TypeName(name);
-            _writeln('$prefix${_varDecl(v.name, effType)} = {0};');
+            _writeln('$prefix${_varDecl(cVarName, effType)} = {0};');
             return;
           }
         }
       }
-      _writeln('$prefix${_varDecl(v.name, type)} = ${_expr(v.value!)};');
+      _writeln('$prefix${_varDecl(cVarName, type)} = ${_expr(v.value!)};');
     } else {
-      _writeln('$prefix${_varDecl(v.name, type)};');
+      _writeln('$prefix${_varDecl(cVarName, type)};');
     }
   }
 
   // ── function definitions ──────────────────────────────────────────────────────
 
-  void _emitFunctionDefs(List<Module> modules) {
-    // First pass: collect all @test functions across all modules.
-    final testFns = <FunctionDecl>[];
+  void _emitFunctionDefs(List<Module> modules, {String? entryModPath}) {
+    // First pass: collect all @test functions across all modules (with their module).
+    final testFns = <(Module, FunctionDecl)>[];
     for (final mod in modules) {
       for (final fn in mod.functions) {
-        if (fn.isTest) testFns.add(fn);
+        if (fn.isTest) testFns.add((mod, fn));
       }
     }
     final isTestMode = testFns.isNotEmpty;
 
     // Second pass: emit non-test functions (suppressing main() in test mode).
     for (final mod in modules) {
+      _setupModuleContext(mod);
       for (final fn in mod.functions) {
         if (fn.isTest) continue;
         if (isTestMode && fn.name == 'main') continue; // test runner provides main
-        _emitFunctionDef(fn, null);
+        _emitFunctionDef(fn, null, mod.path);
       }
       for (final cls in mod.classes) {
         for (final fn in cls.methods) {
-          _emitFunctionDef(fn, cls.name);
+          _emitFunctionDef(fn, cls.name, mod.path);
         }
       }
     }
@@ -201,30 +204,47 @@ extension GeneratorDeclaration on CGenerator {
     if (isTestMode) {
       _emitTestFunctions(testFns);
       _emitTestMain(testFns);
+    } else if (entryModPath != null) {
+      _emitMainWrapper(entryModPath);
     }
   }
 
-  void _emitTestFunctions(List<FunctionDecl> testFns) {
-    for (final fn in testFns) {
-      _emitFunctionDef(fn, null);
+  void _emitTestFunctions(List<(Module, FunctionDecl)> testFns) {
+    for (final (mod, fn) in testFns) {
+      _setupModuleContext(mod);
+      _emitFunctionDef(fn, null, mod.path);
     }
   }
 
-  void _emitTestMain(List<FunctionDecl> testFns) {
+  void _emitTestMain(List<(Module, FunctionDecl)> testFns) {
+    final tpfx = _testModulePrefix != null ? '${_testModulePrefix}__' : '';
     _writeln('int main(void) {');
-    for (final fn in testFns) {
+    for (final (mod, fn) in testFns) {
+      final cName = _cFnName(mod.path, fn.name);
       final nameSlice =
           '(__Slice_uint8_t){(uint8_t*)"${fn.name}", ${fn.name.length}}';
-      _writeln('    _test_begin($nameSlice);');
-      _writeln('    ${fn.name}();');
-      _writeln('    _test_end();');
+      _writeln('    ${tpfx}_test_begin($nameSlice);');
+      _writeln('    $cName();');
+      _writeln('    ${tpfx}_test_end();');
     }
-    _writeln('    return _report();');
+    _writeln('    return ${tpfx}_report();');
     _writeln('}');
     _writeln();
   }
 
-  void _emitFunctionDef(FunctionDecl fn, String? className) {
+  /// Emit a thin C `main` that calls the entry module's namespaced main.
+  void _emitMainWrapper(String entryModPath) {
+    final entryMod = _moduleByPath[entryModPath];
+    if (entryMod == null) return;
+    final hasMain = entryMod.functions.any(
+        (fn) => fn.name == 'main' && !fn.isExtern && !fn.isTest);
+    if (!hasMain) return;
+    final entryFnCName = _cFnName(entryModPath, 'main');
+    _writeln('int main(void) { return $entryFnCName(); }');
+    _writeln();
+  }
+
+  void _emitFunctionDef(FunctionDecl fn, String? className, String modPath) {
     if (fn.body == null || fn.isExtern) return; // forward declaration or extern
 
     // Set member-function context and reset scope.
@@ -241,7 +261,7 @@ extension GeneratorDeclaration on CGenerator {
 
     final isPrivate = fn.name.startsWith('_');
     final prefix = isPrivate ? 'static ' : '';
-    _writeln('$prefix${_fnSignature(fn, className)} {');
+    _writeln('$prefix${_fnSignature(fn, className, modPath: modPath)} {');
     _emitBlock(fn.body!);
     _writeln('}');
     _writeln();
@@ -254,7 +274,8 @@ extension GeneratorDeclaration on CGenerator {
   // ── helpers ───────────────────────────────────────────────────────────────────
 
   /// Build the C function signature (without trailing `;` or `{`).
-  String _fnSignature(FunctionDecl fn, String? className) {
+  /// [modPath] prefixes the function name for module-level functions.
+  String _fnSignature(FunctionDecl fn, String? className, {String? modPath}) {
     // Generic function: if return type is &T where T is a type param → void*
     String ret;
     final retType = fn.returnType;
@@ -266,7 +287,8 @@ extension GeneratorDeclaration on CGenerator {
     } else {
       ret = _cType(retType);
     }
-    final name = className != null ? '${className}_${fn.name}' : fn.name;
+    final rawName = className != null ? '${className}_${fn.name}' : fn.name;
+    final name = modPath != null ? '${_modulePrefix(modPath)}__$rawName' : rawName;
     final params = _buildParamList(fn, className);
     return '$ret $name($params)';
   }

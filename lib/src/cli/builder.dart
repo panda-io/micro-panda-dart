@@ -130,7 +130,7 @@ class Builder {
 
   String _generateC(List<Module> modules) {
     _log('  Generating C...');
-    return CGenerator().generate(modules);
+    return CGenerator().generate(modules, entryModPath: target.entry);
   }
 
   // ── step 3: write C file ──────────────────────────────────────────────────

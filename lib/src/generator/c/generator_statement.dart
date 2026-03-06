@@ -70,9 +70,13 @@ extension GeneratorStatement on CGenerator {
     final file = stmt.sourceFile
         .replaceAll(r'\', r'\\')
         .replaceAll('"', r'\"');
+    // Resolve test utility C names (prefer per-module map, fall back to prefix).
+    final tpfx = _testModulePrefix != null ? '${_testModulePrefix}__' : '';
+    final testFail = _localCallMap['_test_fail'] ?? '${tpfx}_test_fail';
+    final testPass = _localCallMap['_test_pass'] ?? '${tpfx}_test_pass';
     _line('if (!(${_expr(stmt.condition)})) {');
     _indent++;
-    _line('_test_fail('
+    _line('$testFail('
         '(__Slice_uint8_t){(uint8_t*)"$file", ${file.length}}, '
         '${stmt.sourceLine}, '
         '(__Slice_uint8_t){(uint8_t*)"$text", ${text.length}}'
@@ -80,7 +84,7 @@ extension GeneratorStatement on CGenerator {
     _indent--;
     _line('} else {');
     _indent++;
-    _line('_test_pass();');
+    _line('$testPass();');
     _indent--;
     _line('}');
   }

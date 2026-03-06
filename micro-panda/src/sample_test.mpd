@@ -1,0 +1,10 @@
+import test::*
+
+@test
+fun add_int()
+    assert(1 + 2 == 3)
+
+@test
+fun sub_int()
+    // check failed assertion is reported correctly
+    assert(3 - 1 == 3)

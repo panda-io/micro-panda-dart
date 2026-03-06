@@ -81,12 +81,14 @@ extension ParserModule on Parser {
 
     String? symbol;
     String? alias;
+    var isWildcard = false;
 
     // Optional symbol: ::min  or wildcard ::*
     if (_current.type == TokenType.doubleColon) {
       _advance();
       if (_current.type == TokenType.mul) {
         _advance(); // wildcard — import all symbols; symbol stays null
+        isWildcard = true;
       } else {
         symbol = _expectIdentifier();
       }
@@ -99,7 +101,7 @@ extension ParserModule on Parser {
     }
 
     _expectNewline();
-    return Import(path, symbol: symbol, alias: alias, position: pos);
+    return Import(path, symbol: symbol, alias: alias, isWildcard: isWildcard, position: pos);
   }
 
   String _expectIdentifier() {

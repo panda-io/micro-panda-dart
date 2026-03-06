@@ -99,6 +99,11 @@ extension GeneratorExpression on CGenerator {
         if (isField) return 'this->${id.name}';
       }
     }
+    // Global variable reference → use namespaced C name.
+    if (!_scope.containsKey(id.name)) {
+      final cName = _localVarMap[id.name];
+      if (cName != null) return cName;
+    }
     return id.name;
   }
 
@@ -119,6 +124,16 @@ extension GeneratorExpression on CGenerator {
     // Method call: receiver.method(args) → ClassName_method(ref, args)
     if (inv.function is MemberAccess) {
       final ma = inv.function as MemberAccess;
+
+      // Check if receiver is a module qualifier (e.g. `io.print_str()`).
+      if (ma.parent is Identifier) {
+        final receiverName = (ma.parent as Identifier).name;
+        if (_qualifierToModPath.containsKey(receiverName)) {
+          final modPath = _qualifierToModPath[receiverName]!;
+          final cName = _cFnName(modPath, ma.member);
+          return _callByCName(cName, inv.arguments, inv.typeArgs);
+        }
+      }
 
       // Built-in .size() on arrays/slices
       if (ma.member == 'size' && inv.arguments.isEmpty) {
@@ -143,9 +158,12 @@ extension GeneratorExpression on CGenerator {
       }
       // Class constructor call in expression position: VM() → {0}
       if (_classes.containsKey(name)) return '{0}';
+      // Resolve to namespaced C name via per-module call map.
+      final cName = _localCallMap[name];
+      if (cName != null) return _callByCName(cName, inv.arguments, inv.typeArgs);
     }
 
-    // Regular (possibly generic) function call
+    // Fallback: emit as-is (e.g. function pointer calls, unresolved names).
     final fn = _expr(inv.function);
     final regularArgs = inv.arguments.map(_expr).join(', ');
     final sizeofArgs = inv.typeArgs.map((t) => 'sizeof(${_cType(t)})').join(', ');
@@ -157,6 +175,19 @@ extension GeneratorExpression on CGenerator {
 
     // Cast return value when type args present
     if (inv.typeArgs.length == 1) return '(${_cType(inv.typeArgs.first)}*)$call';
+    return call;
+  }
+
+  /// Emit a call to a function whose C name is already known.
+  String _callByCName(String cName, List<Expression> args, List<Type> typeArgs) {
+    final regularArgs = args.map(_expr).join(', ');
+    final sizeofArgs = typeArgs.map((t) => 'sizeof(${_cType(t)})').join(', ');
+    final allArgs = [
+      if (regularArgs.isNotEmpty) regularArgs,
+      if (sizeofArgs.isNotEmpty) sizeofArgs,
+    ].join(', ');
+    final call = '$cName($allArgs)';
+    if (typeArgs.length == 1) return '(${_cType(typeArgs.first)}*)$call';
     return call;
   }
 

@@ -17,9 +17,12 @@ class Import {
   /// When null and symbol is null, the last path segment is used as alias.
   final String? alias;
 
+  /// True when the import uses the wildcard form: `import util.math::*`
+  final bool isWildcard;
+
   final int position;
 
-  Import(this.path, {this.symbol, this.alias, required this.position});
+  Import(this.path, {this.symbol, this.alias, this.isWildcard = false, required this.position});
 
   /// The qualifier used to reference this import in code.
   String get qualifier {
