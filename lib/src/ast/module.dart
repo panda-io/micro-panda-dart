@@ -33,11 +33,14 @@ class Module {
   /// File path used as module identifier.
   final String path;
 
+  /// C headers requested via @include("header") at module level.
+  final List<String> includes;
+
   final List<Import> imports;
   final List<VariableDecl> variables;
   final List<FunctionDecl> functions;
   final List<ClassDecl> classes;
   final List<EnumDecl> enums;
 
-  Module(this.path, this.imports, this.variables, this.functions, this.classes, this.enums);
+  Module(this.path, this.includes, this.imports, this.variables, this.functions, this.classes, this.enums);
 }

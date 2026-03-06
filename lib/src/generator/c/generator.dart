@@ -77,6 +77,9 @@ class CGenerator {
   /// C element type strings for which a __Slice_T typedef must be emitted.
   final Set<String> _sliceElementTypes = {};
 
+  /// C headers requested via @include("header") across all modules.
+  final List<String> _moduleIncludes = [];
+
   // ── type-tracking scope ───────────────────────────────────────────────────────
   /// Types of global variables (name → Type).
   final Map<String, Type?> _globals = {};
@@ -127,6 +130,13 @@ class CGenerator {
       }
     }
     _collectSliceTypes(modules);
+    // Collect @include directives, preserving order and deduplicating
+    final seen = <String>{};
+    for (final mod in modules) {
+      for (final inc in mod.includes) {
+        if (seen.add(inc)) _moduleIncludes.add(inc);
+      }
+    }
   }
 
   /// Scan all type annotations and register slice element types for typedef emission.
@@ -216,6 +226,11 @@ class CGenerator {
     _writeln('#include <stdint.h>');
     _writeln('#include <stdbool.h>');
     _writeln('#include <stddef.h>');
+    for (final inc in _moduleIncludes) {
+      // system header (no path separator) → <header>, local → "header"
+      final tag = inc.contains('/') || inc.contains('\\') ? '"$inc"' : '<$inc>';
+      _writeln('#include $tag');
+    }
     _writeln();
   }
 

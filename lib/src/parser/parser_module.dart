@@ -2,6 +2,7 @@ part of 'parser.dart';
 
 extension ParserModule on Parser {
   Module _parseModule(String path) {
+    final includes = <String>[];
     final imports = <Import>[];
     final variables = <VariableDecl>[];
     final functions = <FunctionDecl>[];
@@ -21,7 +22,20 @@ extension ParserModule on Parser {
       _skipNewlines();
       if (_current.type == TokenType.eof) break;
 
-      final annotations = _parseAnnotations();
+      final allAnnotations = _parseAnnotations();
+
+      // Extract @include("header") — can appear before any declaration
+      final annotations = <Annotation>[];
+      for (final a in allAnnotations) {
+        if (a.name == 'include' && a.template != null) {
+          includes.add(a.template!);
+        } else {
+          annotations.add(a);
+        }
+      }
+
+      // @include may appear standalone (no following declaration)
+      if (_current.type == TokenType.eof) break;
 
       switch (_current.type) {
         case TokenType.kVar:
@@ -43,13 +57,15 @@ extension ParserModule on Parser {
             _error('annotations are not supported on enum declarations');
           }
           enums.add(_parseEnumDecl());
+        case TokenType.newline:
+          break; // standalone @include with only newlines remaining
         default:
           _error('expected top-level declaration (var, val, const, fun, class, enum), '
               'found ${_current.type.name}');
       }
     }
 
-    return Module(path, imports, variables, functions, classes, enums);
+    return Module(path, includes, imports, variables, functions, classes, enums);
   }
 
   Import _parseImport() {

@@ -1,0 +1,50 @@
+#if STDC_HOSTED
+
+@include("stdlib.h")
+
+@extern("malloc")
+fun malloc(size: u64): &u8
+
+@extern("realloc")
+fun realloc(ptr: &u8, newSize: u64): &u8
+
+class Allocator()
+    var _ptr: &u8 = null
+    var _capacity: u64 = 0
+    var _cursor: u64 = 0
+
+    fun init(capacity: u64)
+        _ptr = malloc(capacity)
+        _capacity = capacity
+
+    fun allocate<T>(): &T
+        val size := sizeof<T>()
+        if _cursor + size > _capacity
+            _capacity = _capacity * 2
+            _ptr = realloc(_ptr, _capacity)
+            if _ptr == null
+                return null
+        val ptr := &T(&_ptr[_cursor])
+        _cursor += size
+        return ptr
+
+    fun reset()
+        _cursor = 0
+
+#else
+
+class Allocator(val _memory: u8[])
+    var _cursor: i32 = 0
+
+    fun allocate<T>(): &T
+        val size := sizeof<T>()
+        if _cursor + size > _memory.size()
+            return null
+        val ptr := &T(&_memory[_cursor])
+        _cursor += size
+        return ptr
+
+    fun reset()
+        _cursor = 0
+
+#end
