@@ -13,7 +13,7 @@
 | `u32` | 32-bit unsigned integer |
 | `i64` | 64-bit signed integer |
 | `u64` | 64-bit unsigned integer |
-| `f32` | 32-bit float (default float) |
+| `float` | 32-bit float (default float) |
 | `fixed` | 16.16 fixed-point number |
 | `void` | No value / absent return type |
 
@@ -53,4 +53,4 @@ const nanosecond = 0.000_000_001
 When no type is specified:
 
 - Integer literals default to `i32`
-- Float literals default to `f32`
+- Float literals default to `float`

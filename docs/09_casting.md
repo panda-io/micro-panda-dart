@@ -23,7 +23,7 @@ var uint  := u32(int32)   # signed → unsigned
 ## Float Casting
 
 ```python
-var float32: f32 = 1.0
+var float32: float = 1.0
 
 var float64 := f64(float32)   # widen to 64-bit
 ```
@@ -31,7 +31,7 @@ var float64 := f64(float32)   # widen to 64-bit
 ## Integer ↔ Float
 
 ```python
-var f := f32(42)       # integer to float
+var f := float(42)       # integer to float
 var i := i32(3.14)     # float to integer (truncates)
 ```
 

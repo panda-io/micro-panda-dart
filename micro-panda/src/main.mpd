@@ -1,7 +1,7 @@
 import io::print_i32
 import io::print_str
 import io::print_bool
-import io::print_f32
+import io::print_float
 import io::print_fixed
 import io::println
 
@@ -12,8 +12,8 @@ fun main() i32
     println()
     print_bool(true)
     println()
-    print_f32(3.14159, 2)
+    print_float(3.14159, 2)
     println()
-    // print_fixed(1.231, 2)
+    print_fixed(1.231, 2)
     println()
     return 0

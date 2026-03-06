@@ -55,7 +55,8 @@ enum TokenType {
   typeUint16('u16'),
   typeUint32('u32'),
   typeUint64('u64'),
-  typeFloat32('f32'),
+  typeFloat('float'),
+  typeFixed('fixed'),
   typeVoid('void'),
   typeNull('null'),
   scalarEnd,
@@ -157,13 +158,15 @@ enum TokenType {
     _ => false,
   };
 
-  bool get isFloatType => this == typeFloat32;
+  bool get isFloatType => this == typeFloat;
+
+  bool get isFixedType => this == typeFixed;
 
   int get bits => switch (this) {
     typeBool => 1,
     typeInt8 || typeUint8 => 8,
     typeInt16 || typeUint16 => 16,
-    typeInt32 || typeUint32 || typeFloat32 => 32,
+    typeInt32 || typeUint32 || typeFloat || typeFixed => 32,
     typeInt64 || typeUint64 => 64,
     _ => 0,
   };
@@ -171,7 +174,7 @@ enum TokenType {
   int get size => switch (this) {
     typeBool || typeInt8 || typeUint8 => 1,
     typeInt16 || typeUint16 => 2,
-    typeInt32 || typeUint32 || typeFloat32 => 4,
+    typeInt32 || typeUint32 || typeFloat || typeFixed => 4,
     typeInt64 || typeUint64 => 8,
     _ => 0,
   };

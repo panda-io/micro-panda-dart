@@ -27,7 +27,7 @@ void main() {
     test('Builtin equality', () {
       final t1 = TypeBuiltin(TokenType.typeInt32);
       final t2 = TypeBuiltin(TokenType.typeInt32);
-      final t3 = TypeBuiltin(TokenType.typeFloat32);
+      final t3 = TypeBuiltin(TokenType.typeFloat);
 
       expect(t1.equal(t2), isTrue);
       expect(t1.equal(t3), isFalse);

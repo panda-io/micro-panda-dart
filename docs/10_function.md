@@ -32,7 +32,7 @@ fun greet(name: u8[]) void
 fun add(x: i32, y: i32) i32
     return x + y
 
-fun max(a: f32, b: f32) f32
+fun max(a: float, b: float) float
     if a > b
         return a
     return b

@@ -27,18 +27,20 @@ class Literal extends Expression {
         // null is valid for any reference type; default to &void
         type = expected is TypeRef ? expected : TypeRef(TypeBuiltin(TokenType.typeVoid));
       case TokenType.intLiteral:
-        // infer from expected if numeric, else default to i32
+        // adopt expected if integer or fixed, else default to i32
         if (expected is TypeBuiltin &&
-            (expected.token.isIntegerType || expected.token.isFloatType)) {
+            (expected.token.isIntegerType || expected.token.isFixedType)) {
           type = expected;
         } else {
           type = TypeBuiltin(TokenType.typeInt32);
         }
       case TokenType.floatLiteral:
-        if (expected is TypeBuiltin && expected.token.isFloatType) {
+        // adopt expected if f32 or fixed, else default to f32
+        if (expected is TypeBuiltin &&
+            (expected.token.isFloatType || expected.token.isFixedType)) {
           type = expected;
         } else {
-          type = TypeBuiltin(TokenType.typeFloat32);
+          type = TypeBuiltin(TokenType.typeFloat);
         }
       default:
         type = null;

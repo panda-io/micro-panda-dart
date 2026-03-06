@@ -24,13 +24,20 @@ extension GeneratorExpression on CGenerator {
   // ── primary helpers ───────────────────────────────────────────────────────────
 
   String _literal(Literal lit) {
+    final isFixed = lit.type is TypeBuiltin &&
+        (lit.type as TypeBuiltin).token == TokenType.typeFixed;
     return switch (lit.tokenType) {
       TokenType.typeNull      => 'NULL',
       TokenType.boolLiteral   => lit.value,
       TokenType.charLiteral   => "'${lit.value}'",
       TokenType.stringLiteral => '(__Slice_uint8_t){(uint8_t*)"${lit.value}", sizeof("${lit.value}") - 1}',
-      TokenType.floatLiteral  => '${lit.value}f',
-      _                       => lit.value, // int literals
+      TokenType.floatLiteral  => isFixed
+          ? '((int32_t)(${lit.value} * 65536.0))'
+          : '${lit.value}f',
+      TokenType.intLiteral    => isFixed
+          ? '(${lit.value} << 16)'
+          : lit.value,
+      _                       => lit.value,
     };
   }
 

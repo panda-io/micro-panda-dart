@@ -99,10 +99,10 @@ There are no interfaces. Use **tagged enums** to achieve polymorphic dispatch:
 
 ```python
 enum Shape
-    Circle(radius: f32)
-    Rectangle(width: f32, height: f32)
+    Circle(radius: float)
+    Rectangle(width: float, height: float)
 
-fun area(shape: &Shape) f32
+fun area(shape: &Shape) float
     match shape
         Circle(r):
             return 3.14159 * r * r

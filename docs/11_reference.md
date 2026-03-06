@@ -26,7 +26,7 @@ Prefix any type with `&` to get its reference type:
 
 ## Passing Rules
 
-### Scalar types (`bool`, `i8`–`u64`, `f32`, `f64`, `fixed`)
+### Scalar types (`bool`, `i8`–`u64`, `float`, `f64`, `fixed`)
 
 Can be passed **by value** or **by reference**:
 

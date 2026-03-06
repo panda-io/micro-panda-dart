@@ -192,12 +192,6 @@ class Context {
   bool typesCompatible(Type? a, Type? b) {
     if (a == null || b == null) return true;
     if (a.equal(b)) return true;
-    // numeric widening: any numeric type is compatible with any other
-    if (a is TypeBuiltin && b is TypeBuiltin) {
-      final aNum = a.token.isIntegerType || a.token.isFloatType;
-      final bNum = b.token.isIntegerType || b.token.isFloatType;
-      if (aNum && bNum) return true;
-    }
     // void* is compatible with any pointer
     if (a is TypeRef && b is TypeRef) {
       if (_isVoidPtr(a) || _isVoidPtr(b)) return true;

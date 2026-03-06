@@ -23,7 +23,7 @@ void main() {
 
   group('Generator – types', () {
     test('builtin type mapping', () {
-      final c = gen('var a: i32\nvar b: u8\nvar d: f32\nvar e: bool\n');
+      final c = gen('var a: i32\nvar b: u8\nvar d: float\nvar e: bool\n');
       expect(c, contains('int32_t a'));
       expect(c, contains('uint8_t b'));
       expect(c, contains('float d'));

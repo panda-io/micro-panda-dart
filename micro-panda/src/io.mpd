@@ -72,7 +72,7 @@ fun print_u8(v: u8)
 fun print_i64(v: i64)
     if v < 0
         write_byte('-')
-        print_u64(u64(0 - v))
+        print_u64(u64(i64(0) - v))
     else
         print_u64(u64(v))
 
@@ -87,12 +87,12 @@ fun print_i8(v: i8)
 
 // ── float ─────────────────────────────────────────────────────────────────────
 //
-// Naive f32 print: separates integer and fractional parts, extracts decimal
-// digits by successive * 10. Accurate to ~6 significant digits (f32 precision).
+// Naive float print: separates integer and fractional parts, extracts decimal
+// digits by successive * 10. Accurate to ~6 significant digits (float precision).
 // Does not handle NaN or Inf.
 
-fun print_f32(v: f32, decimals: u32)
-    var abs: f32 = v
+fun print_float(v: float, decimals: u32)
+    var abs: float = v
     if v < 0
         write_byte('-')
         abs = 0.0 - v
@@ -100,13 +100,13 @@ fun print_f32(v: f32, decimals: u32)
     print_i32(int_part)
     if decimals > 0
         write_byte('.')
-        var frac: f32 = abs - f32(int_part)
+        var frac: float = abs - float(int_part)
         var i: u32 = 0
         while i < decimals
             frac = frac * 10.0
             val digit := i32(frac)
             write_byte(u8(digit + 48))
-            frac = frac - f32(digit)
+            frac = frac - float(digit)
             i += 1
 
 // ── fixed-point ───────────────────────────────────────────────────────────────

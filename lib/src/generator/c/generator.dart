@@ -183,7 +183,7 @@ class CGenerator {
     if (value is Literal) {
       return switch (value.tokenType) {
         TokenType.intLiteral => TypeBuiltin(TokenType.typeInt32),
-        TokenType.floatLiteral => TypeBuiltin(TokenType.typeFloat32),
+        TokenType.floatLiteral => TypeBuiltin(TokenType.typeFloat),
         TokenType.boolLiteral => TypeBuiltin(TokenType.typeBool),
         TokenType.charLiteral => TypeBuiltin(TokenType.typeUint8),
         _ => null,
