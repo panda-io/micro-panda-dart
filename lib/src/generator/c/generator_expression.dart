@@ -7,7 +7,7 @@ extension GeneratorExpression on CGenerator {
     if (expr is Literal)          return _literal(expr);
     if (expr is Identifier)       return _identifier(expr);
     if (expr is This)             return 'this';
-    if (expr is Binary)           return '(${_expr(expr.left)} ${_opStr(expr.operator_)} ${_expr(expr.right)})';
+    if (expr is Binary)           return _binary(expr);
     if (expr is Unary)            return '(${_unaryOpStr(expr.operator_)}${_expr(expr.expression)})';
     if (expr is Increment)        return '${_expr(expr.expression)}++';
     if (expr is Decrement)        return '${_expr(expr.expression)}--';
@@ -39,6 +39,25 @@ extension GeneratorExpression on CGenerator {
           : lit.value,
       _                       => lit.value,
     };
+  }
+
+  bool _isFixedExpr(Expression e) =>
+      e.type is TypeBuiltin &&
+      (e.type as TypeBuiltin).token == TokenType.typeFixed;
+
+  String _binary(Binary expr) {
+    final op = expr.operator_;
+    if (_isFixedExpr(expr.left) && _isFixedExpr(expr.right)) {
+      final l = _expr(expr.left);
+      final r = _expr(expr.right);
+      if (op == TokenType.mul) {
+        return '((int32_t)(((int64_t)($l) * ($r)) >> 16))';
+      }
+      if (op == TokenType.div) {
+        return '((int32_t)(((int64_t)($l) << 16) / ($r)))';
+      }
+    }
+    return '(${_expr(expr.left)} ${_opStr(expr.operator_)} ${_expr(expr.right)})';
   }
 
   String _subscript(Subscript sub) {

@@ -16,4 +16,8 @@ fun main() i32
     println()
     print_fixed(-1.231, 2)
     println()
+    val a: fixed = 3
+    val b: fixed = 2
+    print_fixed(a / b, 2)
+    println()
     return 0
