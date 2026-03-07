@@ -28,8 +28,20 @@ class Allocator()
         _cursor += size
         return ptr
 
+    fun allocate_array<T>(length: i32): T[]
+        val size := sizeof<T>() * length
+        if _cursor + size > _capacity
+            _capacity = (_capacity + size) * 2
+            _ptr = _realloc(_ptr, _capacity)
+            if _ptr == null
+                return null
+        val ptr := &T(&_ptr[_cursor])
+        _cursor += size
+        return ptr
+
     fun reset()
         _cursor = 0
+
 
 #else
 

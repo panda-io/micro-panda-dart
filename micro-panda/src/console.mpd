@@ -93,7 +93,7 @@ fun print_i8(v: i8)
 
 fun print_float(v: float, decimals: u32)
     var abs: float = v
-    if v < 0
+    if v < 0.0
         write_byte('-')
         abs = 0.0 - v
     val int_part := i32(abs)

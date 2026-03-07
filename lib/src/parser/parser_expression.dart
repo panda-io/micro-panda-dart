@@ -188,6 +188,11 @@ extension ParserExpression on Parser {
       return _parseArrayInitializer();
     }
 
+    // Slice literal: {ptr, len}
+    if (_current.type == TokenType.leftBrace) {
+      return _parseSliceLiteral();
+    }
+
     // Grouped expression: (expr)
     if (_current.type == TokenType.leftParen) {
       _advance();
@@ -238,5 +243,20 @@ extension ParserExpression on Parser {
     }
     _expect(TokenType.rightBracket);
     return ArrayInitializer(elements, pos);
+  }
+
+  ArrayInitializer _parseSliceLiteral() {
+    final pos = _current.offset;
+    _expect(TokenType.leftBrace);
+    final elements = <Expression>[];
+    if (_current.type != TokenType.rightBrace) {
+      elements.add(_parseExpression());
+      while (_current.type == TokenType.comma) {
+        _advance();
+        elements.add(_parseExpression());
+      }
+    }
+    _expect(TokenType.rightBrace);
+    return ArrayInitializer(elements, pos, isSliceLiteral: true);
   }
 }

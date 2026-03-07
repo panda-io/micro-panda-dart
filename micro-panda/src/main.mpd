@@ -1,9 +1,9 @@
-import io::print_i32
-import io::print_str
-import io::print_bool
-import io::print_float
-import io::print_fixed
-import io::println
+import console::print_i32
+import console::print_str
+import console::print_bool
+import console::print_float
+import console::print_fixed
+import console::println
 import test::*
 
 fun main() i32

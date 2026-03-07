@@ -1,4 +1,4 @@
-import io::*
+import console::*
 
 // ── global counters (test-level, not assert-level) ────────────────────────────
 

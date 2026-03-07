@@ -38,7 +38,11 @@ class Binary extends Expression {
             TokenType.lessEqual || TokenType.greaterEqual:
         left.validate(context, expected);
         right.validate(context, left.type);
-        // Both operands should be comparable (numeric or pointer)
+        if (!context.typesCompatible(left.type, right.type)) {
+          context.error(position,
+              "type mismatch in '${operator_.literal}': "
+              "${Context.typeName(left.type)} vs ${Context.typeName(right.type)}");
+        }
         type = TypeBuiltin(TokenType.typeBool);
 
       default:

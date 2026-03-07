@@ -17,7 +17,7 @@ extension GeneratorExpression on CGenerator {
     if (expr is RefExpression)    return '(&${_expr(expr.expression)})';
     if (expr is Conversion)       return _conversion(expr);
     if (expr is Sizeof)           return _sizeof(expr);
-    if (expr is ArrayInitializer) return '{${expr.elements.map(_expr).join(', ')}}';
+    if (expr is ArrayInitializer) return _arrayInit(expr);
     return '/* unknown expr */';
   }
 
@@ -76,6 +76,15 @@ extension GeneratorExpression on CGenerator {
       if (_typeParams.contains(name)) return '__sizeof_$name';
     }
     return 'sizeof(${_cType(expr.target)})';
+  }
+
+  String _arrayInit(ArrayInitializer expr) {
+    final elems = expr.elements.map(_expr).join(', ');
+    // Slice literal {ptr, len} — always emit compound literal for correct C
+    if (expr.isSliceLiteral && expr.type is TypeArray) {
+      return '(${_cType(expr.type!)}){$elems}';
+    }
+    return '{$elems}';
   }
 
   String _conversion(Conversion expr) {

@@ -3,11 +3,13 @@ import 'package:test/test.dart';
 import 'package:micro_panda/src/generator/c/generator.dart';
 import 'package:micro_panda/src/parser/parser.dart';
 import 'package:micro_panda/src/token/position.dart' show SourceFile;
+import 'package:micro_panda/src/validator/validator.dart';
 
-/// Parse [source] and generate C.
+/// Parse [source], validate, and generate C.
 String gen(String source) {
   final file = SourceFile('test', 0, source.length);
   final module = Parser(file, source, {}).parseModule('test');
+  Validator().validate([module]); // populate expression types
   return CGenerator().generate([module]);
 }
 
@@ -24,47 +26,47 @@ void main() {
   group('Generator – types', () {
     test('builtin type mapping', () {
       final c = gen('var a: i32\nvar b: u8\nvar d: float\nvar e: bool\n');
-      expect(c, contains('int32_t a'));
-      expect(c, contains('uint8_t b'));
-      expect(c, contains('float d'));
-      expect(c, contains('bool e'));
+      expect(c, contains('int32_t test__a'));
+      expect(c, contains('uint8_t test__b'));
+      expect(c, contains('float test__d'));
+      expect(c, contains('bool test__e'));
     });
 
     test('reference type becomes pointer', () {
       final c = gen('var p: &i32\n');
-      expect(c, contains('int32_t* p'));
+      expect(c, contains('int32_t* test__p'));
     });
 
     test('array type', () {
       final c = gen('var buf: u8[32]\n');
-      expect(c, contains('uint8_t buf[32]'));
+      expect(c, contains('uint8_t test__buf[32]'));
     });
   });
 
   group('Generator – global variables', () {
     test('var with literal value', () {
       final c = gen('var x: i32 = 42\n');
-      expect(c, contains('int32_t x = 42'));
+      expect(c, contains('int32_t test__x = 42'));
     });
 
     test('val becomes const', () {
       final c = gen('val MAX: i32 = 100\n');
-      expect(c, contains('const int32_t MAX = 100'));
+      expect(c, contains('const int32_t test__MAX = 100'));
     });
 
     test('private var gets static', () {
       final c = gen('var _count: i32 = 0\n');
-      expect(c, contains('static int32_t _count = 0'));
+      expect(c, contains('static int32_t test___count = 0'));
     });
 
     test('const becomes const', () {
       final c = gen('const LIMIT = 256\n');
-      expect(c, contains('const int32_t LIMIT = 256'));
+      expect(c, contains('const int32_t test__LIMIT = 256'));
     });
 
     test('private const becomes static const', () {
       final c = gen('const _LIMIT = 256\n');
-      expect(c, contains('static const int32_t _LIMIT = 256'));
+      expect(c, contains('static const int32_t test___LIMIT = 256'));
     });
   });
 
@@ -140,27 +142,27 @@ void main() {
     test('simple function signature and body', () {
       final src = 'fun add(a: i32, b: i32) i32\n    return a\n';
       final c = gen(src);
-      expect(c, contains('int32_t add(int32_t a, int32_t b)'));
+      expect(c, contains('int32_t test__add(int32_t a, int32_t b)'));
       expect(c, contains('return a;'));
     });
 
     test('void function (no return type)', () {
       final src = 'fun tick()\n    return\n';
       final c = gen(src);
-      expect(c, contains('void tick(void)'));
+      expect(c, contains('void test__tick(void)'));
     });
 
     test('private function gets static', () {
       final src = 'fun _helper() i32\n    return 0\n';
       final c = gen(src);
-      expect(c, contains('static int32_t _helper(void)'));
+      expect(c, contains('static int32_t test___helper(void)'));
     });
 
     test('function prototype emitted before definition', () {
       final src = 'fun add(a: i32, b: i32) i32\n    return a\n';
       final c = gen(src);
-      final protoIdx = c.indexOf('int32_t add(int32_t a, int32_t b);');
-      final defIdx   = c.indexOf('int32_t add(int32_t a, int32_t b) {');
+      final protoIdx = c.indexOf('int32_t test__add(int32_t a, int32_t b);');
+      final defIdx   = c.indexOf('int32_t test__add(int32_t a, int32_t b) {');
       expect(protoIdx, isNonNegative);
       expect(defIdx, isNonNegative);
       expect(protoIdx, lessThan(defIdx));
@@ -370,7 +372,7 @@ fun main()
 
     test('fixed array of slices u8[][N] emits __Slice_T name[N]', () {
       final c = gen('var bufs: u8[][8]\n');
-      expect(c, contains('__Slice_uint8_t bufs[8]'));
+      expect(c, contains('__Slice_uint8_t test__bufs[8]'));
     });
 
     test('subscript on u8[][N] returns slice type', () {
@@ -388,6 +390,23 @@ fun main()
 ''';
       final c = gen(src);
       expect(c, contains('32'));
+    });
+
+    test('slice construction {ptr, len} in declaration', () {
+      final src = '''fun make(p: &u8, n: u32) u8[]
+    val s: u8[] = {p, n}
+    return s
+''';
+      final c = gen(src);
+      expect(c, contains('(__Slice_uint8_t){p, n}'));
+    });
+
+    test('slice construction {ptr, len} in expression emits compound literal', () {
+      final src = '''fun wrap(p: &u8, n: u32) u8[]
+    return {p, n}
+''';
+      final c = gen(src);
+      expect(c, contains('(__Slice_uint8_t){p, n}'));
     });
   });
 

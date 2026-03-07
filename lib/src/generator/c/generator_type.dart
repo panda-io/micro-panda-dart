@@ -43,6 +43,11 @@ extension GeneratorType on CGenerator {
 
   /// Full C variable declaration fragment: "int32_t name" or "uint8_t buf[32]".
   String _varDecl(String name, Type? type) {
+    // Erase generic type parameters: &T → void*, T → void
+    if (type is TypeRef && type.elementType is TypeName) {
+      final n = (type.elementType as TypeName).name;
+      if (n != null && _typeParams.contains(n)) return 'void* $name';
+    }
     if (type is TypeArray) {
       if (type.isSlice) return '${_cType(type)} $name'; // __Slice_T name
       return '${_cType(type.elementType)} $name${_arrayDims(type)}'; // fixed array
