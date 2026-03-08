@@ -4,6 +4,7 @@
 .claude/
 reference/**
 bin/mpd
-micro-panda/bin/**
-micro-panda/out/**
-micro-panda/.micro-panda/**
+micro-panda/std/bin/**
+micro-panda/std/out/**
+micro-panda/std/test/**
+micro-panda/std/.micro-panda/**

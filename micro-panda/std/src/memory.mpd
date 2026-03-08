@@ -31,12 +31,11 @@ class Allocator()
             val ptr := &T(&_ptr[_cursor])
             _cursor += size
             return {ptr, length}
-        return null
+        return {null, 0}
 
     fun reset()
         _cursor = 0
 
-    @inline
     fun _check_buffer(size: u32) bool
         if _cursor + size > _capacity
             _capacity = _capacity * 2
@@ -61,7 +60,7 @@ class Allocator(val _memory: u8[])
     fun allocate_array<T>(length: u32): T[]
         val size := sizeof<T>() * length
         if _cursor + size > _memory.size()
-            return null
+            return {null, 0}
         val ptr := &T(&_memory[_cursor])
         _cursor += size
         return {ptr, length}

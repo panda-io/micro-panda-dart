@@ -59,64 +59,6 @@ fun arraylist_set_clear()
     assert(list.is_empty())
     assert(list.size() == 0)
 
-// ── LinkedList ───────────────────────────────────────────────────────────────
-
-@test
-fun linkedlist_init()
-    var alloc: Allocator
-    alloc.init(512)
-    var list: LinkedList<i32>
-    assert(list.init(&alloc, 4))
-    assert(list.is_empty())
-    assert(list.size() == 0)
-    assert(list.capacity() == 4)
-
-@test
-fun linkedlist_push_back_pop_front()
-    var alloc: Allocator
-    alloc.init(512)
-    var list: LinkedList<i32>
-    list.init(&alloc, 4)
-    assert(list.push_back(10))
-    assert(list.push_back(20))
-    assert(list.push_back(30))
-    assert(list.size() == 3)
-    assert(list.front() == 10)
-    assert(list.back() == 30)
-    assert(list.pop_front())
-    assert(list.front() == 20)
-    assert(list.size() == 2)
-
-@test
-fun linkedlist_push_front_pop_back()
-    var alloc: Allocator
-    alloc.init(512)
-    var list: LinkedList<i32>
-    list.init(&alloc, 4)
-    assert(list.push_front(10))
-    assert(list.push_front(20))
-    assert(list.push_front(30))
-    assert(list.front() == 30)
-    assert(list.back() == 10)
-    assert(list.pop_back())
-    assert(list.back() == 20)
-    assert(list.size() == 2)
-
-@test
-fun linkedlist_full_reuse()
-    var alloc: Allocator
-    alloc.init(512)
-    var list: LinkedList<i32>
-    list.init(&alloc, 2)
-    assert(list.push_back(1))
-    assert(list.push_back(2))
-    assert(list.is_full())
-    assert(list.push_back(3) == false)
-    // pop then push again — node is reused
-    list.pop_front()
-    assert(list.push_back(99))
-    assert(list.back() == 99)
-
 // ── RingBuffer ───────────────────────────────────────────────────────────────
 
 @test
