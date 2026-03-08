@@ -25,9 +25,18 @@ class ArrayList<T>()
         _size -= 1
         return true
 
-    //TO-DO
-    //fun insert(i: u32, value: T) bool
-
+    fun insert(i: u32, value: T) bool
+        if _size >= _buffer.size()
+            return false
+        if i > _size
+            return false
+        var j: u32 = _size
+        while j > i
+            _buffer[j] = _buffer[j - 1]
+            j -= 1
+        _buffer[i] = value
+        _size += 1
+        return true
 
     @inline
     fun get(i: u32) T
@@ -108,4 +117,4 @@ class RingBuffer<T>()
 
     @inline
     fun is_full() bool
-        return _size >= _buffer.size()
+        return _size >= _buffer.size()        
