@@ -160,9 +160,15 @@ class CGenerator {
           }
         }
       } else if (imp.symbol != null) {
-        // `import io::print_str` — single symbol (with optional alias).
+        // `import io::print_str` or `import io::MY_CONST` — single symbol.
         final targetName = imp.alias ?? imp.symbol!;
-        _localCallMap[targetName] = _cFnName(imp.path, imp.symbol!);
+        final srcMod = _moduleByPath[imp.path];
+        final isVar = srcMod?.variables.any((v) => v.name == imp.symbol) ?? false;
+        if (isVar) {
+          _localVarMap[targetName] = '${_modulePrefix(imp.path)}__${imp.symbol}';
+        } else {
+          _localCallMap[targetName] = _cFnName(imp.path, imp.symbol!);
+        }
       } else {
         // `import io` or `import io as m` — module-level import.
         // Accessed as `io.fn()` or `m.fn()` (MemberAccess).
@@ -416,13 +422,52 @@ class CGenerator {
       }
       return t;
     }
-    if (value is Invocation && value.function is Identifier) {
-      final name = (value.function as Identifier).name;
-      if (_classes.containsKey(name)) return TypeName(name);
-      // Generic call with type args → return type is pointer to first type arg
-      if (value.typeArgs.isNotEmpty) return TypeRef(value.typeArgs.first);
+    if (value is Invocation) {
+      // Method call with type args: look up method return type and substitute.
+      if (value.function is MemberAccess && value.typeArgs.isNotEmpty) {
+        final ma = value.function as MemberAccess;
+        final receiverType = _inferType(ma.parent);
+        String? className;
+        if (receiverType is TypeName) {
+          className = receiverType.name;
+        } else if (receiverType is TypeRef && receiverType.elementType is TypeName) {
+          className = (receiverType.elementType as TypeName).name;
+        }
+        if (className != null) {
+          final cls = _classes[className];
+          if (cls != null) {
+            final method = cls.methods.where((m) => m.name == ma.member).firstOrNull;
+            if (method != null && method.returnType != null && method.typeParams.isNotEmpty) {
+              final subst = {
+                for (var i = 0; i < method.typeParams.length && i < value.typeArgs.length; i++)
+                  method.typeParams[i]: value.typeArgs[i]
+              };
+              return _substituteType(method.returnType!, subst);
+            }
+          }
+        }
+      }
+      if (value.function is Identifier) {
+        final name = (value.function as Identifier).name;
+        if (_classes.containsKey(name)) return TypeName(name);
+        // Generic call with type args → return type is pointer to first type arg
+        if (value.typeArgs.isNotEmpty) return TypeRef(value.typeArgs.first);
+      }
     }
     return null;
+  }
+
+  /// Substitute type parameters in [type] according to [subst].
+  Type _substituteType(Type type, Map<String, Type> subst) {
+    if (subst.isEmpty) return type;
+    if (type is TypeName && subst.containsKey(type.name)) return subst[type.name]!;
+    if (type is TypeRef) return TypeRef(_substituteType(type.elementType, subst));
+    if (type is TypeArray) {
+      final arr = TypeArray(_substituteType(type.elementType, subst));
+      arr.dimension = List.of(type.dimension);
+      return arr;
+    }
+    return type;
   }
 
   // ── low-level output helpers ──────────────────────────────────────────────────

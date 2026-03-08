@@ -104,12 +104,14 @@ class Invocation extends Expression {
       final substituted = _substituteType(retType, classTypeSubst);
       if (substituted != retType) return substituted;
     }
-    // Existing logic for function-level type params (e.g. alloc<T>() → &T)
-    if (typeArgs.isNotEmpty &&
-        retType is TypeRef &&
-        retType.elementType is TypeName &&
-        fn.typeParams.contains((retType.elementType as TypeName).name)) {
-      return TypeRef(typeArgs.first);
+    // Apply function-level type param substitution (e.g. allocate_array<u8>() → u8[])
+    if (typeArgs.isNotEmpty && fn.typeParams.isNotEmpty) {
+      final callSubst = {
+        for (var i = 0; i < fn.typeParams.length && i < typeArgs.length; i++)
+          fn.typeParams[i]: typeArgs[i]
+      };
+      final substituted = _substituteType(retType, callSubst);
+      if (substituted != null && substituted != retType) return substituted;
     }
     return retType;
   }

@@ -1,0 +1,82 @@
+@include("stdio.h")
+
+@extern("(uint8_t*)fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
+fun _fopen(path: u8[], mode: u8[]): &u8
+
+@extern("fclose((FILE*){handle})")
+fun _fclose(handle: &u8)
+
+@extern("(uint32_t)fread({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
+fun _fread(buf: u8[], handle: &u8): u32
+
+@extern("(uint32_t)fwrite({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
+fun _fwrite(buf: u8[], handle: &u8): u32
+
+@extern("(fgets((char*){buf}.ptr, (int){buf}.size, (FILE*){handle}) != NULL)")
+fun _fgets(buf: u8[], handle: &u8): bool
+
+@extern("fflush((FILE*){handle})")
+fun _fflush(handle: &u8)
+
+@extern("fseek((FILE*){handle}, (long){pos}, 0)")
+fun _fseek(handle: &u8, pos: u32)
+
+@extern("(uint32_t)ftell((FILE*){handle})")
+fun _ftell(handle: &u8): u32
+
+@extern("(({handle}) != NULL)")
+fun _ptr_valid(handle: &u8): bool
+
+const READ        = "r"
+const WRITE       = "w"
+const APPEND      = "a"
+const READ_WRITE  = "r+"
+const WRITE_READ  = "w+"
+const APPEND_READ = "a+"
+
+class File()
+    var _handle: &u8
+    var _open: bool
+
+    fun open(path: u8[], mode: u8[]): bool
+        _handle = _fopen(path, mode)
+        _open = _ptr_valid(_handle)
+        return _open
+
+    fun close()
+        if _open
+            _fclose(_handle)
+            _open = false
+
+    @inline
+    fun is_open(): bool
+        return _open
+
+    fun read_bytes(buf: u8[]): u32
+        return _fread(buf, _handle)
+
+    fun write_bytes(buf: u8[]): u32
+        return _fwrite(buf, _handle)
+
+    @inline
+    fun write_str(s: u8[])
+        _fwrite(s, _handle)
+
+    fun read_line(buf: u8[]): u32
+        if _fgets(buf, _handle) == false
+            return 0
+        var i: u32 = 0
+        while i < buf.size()
+            if buf[i] == 0
+                return i
+            i += 1
+        return buf.size()
+
+    fun flush()
+        _fflush(_handle)
+
+    fun seek(pos: u32)
+        _fseek(_handle, pos)
+
+    fun tell(): u32
+        return _ftell(_handle)
