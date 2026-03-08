@@ -49,6 +49,7 @@ class Allocator()
 class Allocator(val _memory: u8[])
     var _cursor: u32 = 0
 
+    @inline
     fun allocate<T>(): &T
         val size := sizeof<T>()
         if _cursor + size > _memory.size()
@@ -57,6 +58,7 @@ class Allocator(val _memory: u8[])
         _cursor += size
         return ptr
 
+    @inline
     fun allocate_array<T>(length: u32): T[]
         val size := sizeof<T>() * length
         if _cursor + size > _memory.size()
@@ -65,6 +67,7 @@ class Allocator(val _memory: u8[])
         _cursor += size
         return {ptr, length}
 
+    @inline
     fun reset()
         _cursor = 0
 

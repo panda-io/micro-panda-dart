@@ -10,6 +10,7 @@ class ArrayList<T>()
             return false
         return true
 
+    @inline
     fun push(value: T) bool
         if _size >= _buffer.size()
             return false
@@ -17,6 +18,7 @@ class ArrayList<T>()
         _size += 1
         return true
 
+    @inline
     fun pop() bool
         if _size == 0
             return false
@@ -27,28 +29,35 @@ class ArrayList<T>()
     //fun insert(i: u32, value: T) bool
 
 
-
+    @inline
     fun get(i: u32) T
         return _buffer[i]
 
+    @inline
     fun set(i: u32, value: T)
         _buffer[i] = value
 
+    @inline
     fun top() T
         return _buffer[_size - 1]
 
+    @inline
     fun size() u32
         return _size
 
+    @inline
     fun capacity() u32
         return _buffer.size()
 
+    @inline
     fun is_empty() bool
         return _size == 0
 
+    @inline
     fun is_full() bool
         return _size >= _buffer.size()
 
+    @inline
     fun clear()
         _size = 0
 
@@ -64,6 +73,7 @@ class RingBuffer<T>()
             return false
         return true
 
+    @inline
     fun push(value: T) bool
         if _size >= _buffer.size()
             return false
@@ -72,6 +82,7 @@ class RingBuffer<T>()
         _size += 1
         return true
 
+    @inline
     fun pop() bool
         if _size == 0
             return false
@@ -79,17 +90,22 @@ class RingBuffer<T>()
         _size -= 1
         return true
 
+    @inline
     fun peek() T
         return _buffer[_head]
 
+    @inline
     fun size() u32
         return _size
 
+    @inline
     fun capacity() u32
         return _buffer.size()
 
+    @inline
     fun is_empty() bool
         return _size == 0
 
+    @inline
     fun is_full() bool
         return _size >= _buffer.size()

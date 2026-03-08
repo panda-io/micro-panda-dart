@@ -62,12 +62,35 @@ Each `$paramName` in the template is replaced by the corresponding argument expr
 | `assert_true(x > 0)` | `assert((x > 0))` |
 | `assert_i32_equal(result, 42)` | `assert(result == 42)` |
 
+## `@inline`
+
+Marks a function for inlining. The compiler emits `static inline` in C and lets
+the C compiler (gcc/clang) decide whether to actually inline each call site.
+
+```bash
+@inline
+fun min(a: i32, b: i32): i32
+    if a < b
+        return a
+    return b
+```
+
+Generated C:
+
+```c
+static inline int32_t min(int32_t a, int32_t b) {
+    if (a < b) return a;
+    return b;
+}
+```
+
+`@inline` implies `static` linkage, which is correct for single-file C output.
+
 ## Future annotations (planned)
 
 | Annotation | Intended use |
 | --- | --- |
 | `@test` | Mark test functions; collected by the test runner |
-| `@inline` | Emit `static inline` |
 | `@packed` | Emit `__attribute__((packed))` on a struct |
 
 ## Annotation type definitions (future — self-hosting)

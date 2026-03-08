@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-INSTALL_DIR="${1:-/usr/local/bin}"
+INSTALL_DIR="${1:-$HOME/.local/bin}"
+mkdir -p "$INSTALL_DIR"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "Building mpd..."

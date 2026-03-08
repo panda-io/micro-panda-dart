@@ -19,4 +19,5 @@ class FunctionDecl extends Declaration {
       annotations.where((a) => a.name == 'extern').firstOrNull;
 
   bool get isTest => annotations.any((a) => a.name == 'test');
+  bool get isInline => annotations.any((a) => a.name == 'inline');
 }

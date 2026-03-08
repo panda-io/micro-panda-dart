@@ -139,8 +139,7 @@ extension GeneratorDeclaration on CGenerator {
         if (fn.isExtern) continue;
         if (isTestMode && fn.name == 'main') continue;
         if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
-        final isPrivate = fn.name.startsWith('_');
-        _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, null, modPath: mod.path)};');
+        _writeln('${_fnPrefix(fn)}${_fnSignature(fn, null, modPath: mod.path)};');
         any = true;
       }
       for (final cls in mod.classes) {
@@ -148,8 +147,7 @@ extension GeneratorDeclaration on CGenerator {
           for (final fn in cls.methods) {
             if (fn.isExtern) continue;
             if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
-            final isPrivate = fn.name.startsWith('_');
-            _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, cls.name)};');
+            _writeln('${_fnPrefix(fn)}${_fnSignature(fn, cls.name)};');
             any = true;
           }
         } else {
@@ -159,8 +157,7 @@ extension GeneratorDeclaration on CGenerator {
             _setTypeSubstitution(cls, typeArgs);
             for (final fn in cls.methods) {
               if (fn.isExtern) continue;
-              final isPrivate = fn.name.startsWith('_');
-              _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, specName)};');
+              _writeln('${_fnPrefix(fn)}${_fnSignature(fn, specName)};');
               any = true;
             }
             _typeSubstitution = {};
@@ -176,8 +173,7 @@ extension GeneratorDeclaration on CGenerator {
           for (var i = 0; i < info.fn.typeParams.length && i < typeArgs.length; i++)
             info.fn.typeParams[i]: typeArgs[i]
         };
-        final isPrivate = info.fn.name.startsWith('_');
-        _writeln('${isPrivate ? 'static ' : ''}${_fnSignatureSpecialized(info.fn, info.className, info.modPath, typeArgs)};');
+        _writeln('${_fnPrefix(info.fn)}${_fnSignatureSpecialized(info.fn, info.className, info.modPath, typeArgs)};');
         _typeSubstitution = {};
         any = true;
       }
@@ -331,9 +327,7 @@ extension GeneratorDeclaration on CGenerator {
       _scope[p.name] = p.type;
     }
 
-    final isPrivate = fn.name.startsWith('_');
-    final prefix = isPrivate ? 'static ' : '';
-    _writeln('$prefix${_fnSignature(fn, className, modPath: modPath)} {');
+    _writeln('${_fnPrefix(fn)}${_fnSignature(fn, className, modPath: modPath)} {');
     _emitBlock(fn.body!);
     _writeln('}');
     _writeln();
@@ -365,9 +359,7 @@ extension GeneratorDeclaration on CGenerator {
       _scope[p.name] = p.type;
     }
 
-    final isPrivate = fn.name.startsWith('_');
-    final prefix = isPrivate ? 'static ' : '';
-    _writeln('$prefix${_fnSignatureSpecialized(fn, className, modPath, typeArgs)} {');
+    _writeln('${_fnPrefix(fn)}${_fnSignatureSpecialized(fn, className, modPath, typeArgs)} {');
     _emitBlock(fn.body!);
     _writeln('}');
     _writeln();
@@ -415,6 +407,14 @@ extension GeneratorDeclaration on CGenerator {
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────────
+
+  /// Return the C storage/qualifier prefix for a function (`static inline `,
+  /// `static `, or empty string).
+  String _fnPrefix(FunctionDecl fn) {
+    if (fn.isInline) return 'static inline ';
+    if (fn.name.startsWith('_')) return 'static ';
+    return '';
+  }
 
   /// Build the C function signature (without trailing `;` or `{`).
   /// [modPath] prefixes the function name for module-level functions.

@@ -520,4 +520,26 @@ fun use(p: &Pool)
       expect(c, contains('3'));       // line number
     });
   });
+
+  group('Generator – @inline annotation', () {
+    test('@inline emits static inline on prototype and definition', () {
+      final src = '@inline\nfun min(a: i32, b: i32) i32\n    return a\n';
+      final c = gen(src);
+      expect(c, contains('static inline int32_t test__min(int32_t a, int32_t b);'));
+      expect(c, contains('static inline int32_t test__min(int32_t a, int32_t b) {'));
+    });
+
+    test('@inline on private function still emits static inline', () {
+      final src = '@inline\nfun _clamp(v: i32) i32\n    return v\n';
+      final c = gen(src);
+      expect(c, contains('static inline int32_t test___clamp(int32_t v);'));
+      expect(c, contains('static inline int32_t test___clamp(int32_t v) {'));
+    });
+
+    test('non-inline function does not have inline keyword', () {
+      final src = 'fun add(a: i32, b: i32) i32\n    return a\n';
+      final c = gen(src);
+      expect(c, isNot(contains('inline')));
+    });
+  });
 }
