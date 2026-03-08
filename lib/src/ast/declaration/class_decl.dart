@@ -37,11 +37,15 @@ class ClassDecl extends Declaration {
   /// Member functions declared in the class body.
   final List<FunctionDecl> methods;
 
+  /// Generic type parameter names, e.g. ['T', 'U'].
+  final List<String> typeParams;
+
   ClassDecl(
     super.name,
     this.constructorFields,
     this.bodyFields,
     this.methods,
-    super.position,
-  );
+    super.position, {
+    this.typeParams = const [],
+  });
 }

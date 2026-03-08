@@ -126,18 +126,26 @@ class Context {
       );
 
   /// Child scope for a function body (sets new function context).
-  Context forFunction(FunctionDecl fn, String? className) => Context._(
+  Context forFunction(FunctionDecl fn, String? className) {
+    // Merge class-level type params with function-level type params so that
+    // class generics (e.g. T in ArrayList<T>) are visible inside methods.
+    final classTypeParams = className != null
+        ? (classes[className]?.typeParams ?? const <String>[])
+        : const <String>[];
+    final mergedTypeParams = [...classTypeParams, ...fn.typeParams];
+    return Context._(
         classes: classes,
         enums: enums,
         globalFunctions: globalFunctions,
         globalVariables: globalVariables,
         currentFile: currentFile,
         returnType: fn.returnType,
-        typeParams: fn.typeParams,
+        typeParams: mergedTypeParams,
         currentClass: className,
         parent: this,
         errors: _errors,
       );
+  }
 
   // ── variable declarations ─────────────────────────────────────────────────────
 

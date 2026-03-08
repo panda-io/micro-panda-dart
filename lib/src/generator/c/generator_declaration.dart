@@ -84,7 +84,14 @@ extension GeneratorDeclaration on CGenerator {
   void _emitStructDefs(List<Module> modules) {
     for (final mod in modules) {
       for (final cls in mod.classes) {
-        _emitStructDef(cls);
+        if (cls.typeParams.isEmpty) {
+          _emitStructDef(cls);
+        } else {
+          // Generic class: emit one struct per instantiation.
+          for (final typeArgs in _genericInstantiations[cls.name] ?? <List<Type>>[]) {
+            _emitSpecializedStructDef(cls, typeArgs);
+          }
+        }
       }
     }
   }
@@ -105,6 +112,22 @@ extension GeneratorDeclaration on CGenerator {
     _writeln();
   }
 
+  /// Emit a specialized struct for a generic class with concrete type args.
+  void _emitSpecializedStructDef(ClassDecl cls, List<Type> typeArgs) {
+    final specName = _specializedCName(cls.name, typeArgs);
+    _setTypeSubstitution(cls, typeArgs);
+    _writeln('struct $specName {');
+    for (final f in cls.constructorFields) {
+      _writeln('  ${_varDecl(f.name, f.type)};');
+    }
+    for (final f in cls.bodyFields) {
+      _writeln('  ${_varDecl(f.name, f.type)};');
+    }
+    _writeln('};');
+    _writeln();
+    _typeSubstitution = {};
+  }
+
   // ── function prototypes ───────────────────────────────────────────────────────
 
   void _emitFunctionPrototypes(List<Module> modules) {
@@ -115,17 +138,48 @@ extension GeneratorDeclaration on CGenerator {
       for (final fn in mod.functions) {
         if (fn.isExtern) continue;
         if (isTestMode && fn.name == 'main') continue;
+        if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
         final isPrivate = fn.name.startsWith('_');
         _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, null, modPath: mod.path)};');
         any = true;
       }
       for (final cls in mod.classes) {
-        for (final fn in cls.methods) {
-          if (fn.isExtern) continue;
-          final isPrivate = fn.name.startsWith('_');
-          _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, cls.name)};');
-          any = true;
+        if (cls.typeParams.isEmpty) {
+          for (final fn in cls.methods) {
+            if (fn.isExtern) continue;
+            if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
+            final isPrivate = fn.name.startsWith('_');
+            _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, cls.name)};');
+            any = true;
+          }
+        } else {
+          // Generic class: one set of prototypes per instantiation.
+          for (final typeArgs in _genericInstantiations[cls.name] ?? <List<Type>>[]) {
+            final specName = _specializedCName(cls.name, typeArgs);
+            _setTypeSubstitution(cls, typeArgs);
+            for (final fn in cls.methods) {
+              if (fn.isExtern) continue;
+              final isPrivate = fn.name.startsWith('_');
+              _writeln('${isPrivate ? 'static ' : ''}${_fnSignature(fn, specName)};');
+              any = true;
+            }
+            _typeSubstitution = {};
+          }
         }
+      }
+    }
+    // Emit specialized (monomorphized) function prototypes.
+    for (final entry in _fnInstantiations.entries) {
+      final info = _fnDeclByKey[entry.key]!;
+      for (final typeArgs in entry.value) {
+        _typeSubstitution = {
+          for (var i = 0; i < info.fn.typeParams.length && i < typeArgs.length; i++)
+            info.fn.typeParams[i]: typeArgs[i]
+        };
+        final isPrivate = info.fn.name.startsWith('_');
+        _writeln('${isPrivate ? 'static ' : ''}${_fnSignatureSpecialized(info.fn, info.className, info.modPath, typeArgs)};');
+        _typeSubstitution = {};
+        any = true;
       }
     }
     if (any) _writeln();
@@ -192,14 +246,31 @@ extension GeneratorDeclaration on CGenerator {
       for (final fn in mod.functions) {
         if (fn.isTest) continue;
         if (isTestMode && fn.name == 'main') continue; // test runner provides main
+        if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
         _emitFunctionDef(fn, null, mod.path);
       }
       for (final cls in mod.classes) {
-        for (final fn in cls.methods) {
-          _emitFunctionDef(fn, cls.name, mod.path);
+        if (cls.typeParams.isEmpty) {
+          for (final fn in cls.methods) {
+            if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
+            _emitFunctionDef(fn, cls.name, null);
+          }
+        } else {
+          // Generic class: emit one set of method definitions per instantiation.
+          for (final typeArgs in _genericInstantiations[cls.name] ?? <List<Type>>[]) {
+            final specName = _specializedCName(cls.name, typeArgs);
+            _setTypeSubstitution(cls, typeArgs);
+            for (final fn in cls.methods) {
+              _emitFunctionDef(fn, specName, null);
+            }
+            _typeSubstitution = {};
+          }
         }
       }
     }
+
+    // Emit all specialized (monomorphized) function definitions.
+    _emitFunctionDefsSpecialized();
 
     if (isTestMode) {
       _emitTestFunctions(testFns);
@@ -244,13 +315,14 @@ extension GeneratorDeclaration on CGenerator {
     _writeln();
   }
 
-  void _emitFunctionDef(FunctionDecl fn, String? className, String modPath) {
+  void _emitFunctionDef(FunctionDecl fn, String? className, String? modPath) {
     if (fn.body == null || fn.isExtern) return; // forward declaration or extern
 
     // Set member-function context and reset scope.
     _currentClass = className;
     _typeParams = fn.typeParams;
     _scope.clear();
+    _currentFnReturnType = fn.returnType;
 
     if (className != null) {
       _scope['this'] = TypeRef(TypeName(className));
@@ -269,6 +341,77 @@ extension GeneratorDeclaration on CGenerator {
     _currentClass = null;
     _typeParams = [];
     _scope.clear();
+    _currentFnReturnType = null;
+  }
+
+  /// Emit a monomorphized copy of a generic function for a specific type-arg set.
+  void _emitFunctionDefSpecialized(
+      FunctionDecl fn, String? className, String? modPath, List<Type> typeArgs) {
+    if (fn.body == null || fn.isExtern) return;
+
+    _currentClass = className;
+    _typeParams = []; // no erasure — all types are concrete via substitution
+    _scope.clear();
+    _typeSubstitution = {
+      for (var i = 0; i < fn.typeParams.length && i < typeArgs.length; i++)
+        fn.typeParams[i]: typeArgs[i]
+    };
+    _currentFnReturnType = fn.returnType;
+
+    if (className != null) {
+      _scope['this'] = TypeRef(TypeName(className));
+    }
+    for (final p in fn.parameters) {
+      _scope[p.name] = p.type;
+    }
+
+    final isPrivate = fn.name.startsWith('_');
+    final prefix = isPrivate ? 'static ' : '';
+    _writeln('$prefix${_fnSignatureSpecialized(fn, className, modPath, typeArgs)} {');
+    _emitBlock(fn.body!);
+    _writeln('}');
+    _writeln();
+
+    _currentClass = null;
+    _typeParams = [];
+    _typeSubstitution = {};
+    _scope.clear();
+    _currentFnReturnType = null;
+  }
+
+  /// Emit all specialized function definitions collected during instantiation analysis.
+  void _emitFunctionDefsSpecialized() {
+    for (final entry in _fnInstantiations.entries) {
+      final info = _fnDeclByKey[entry.key]!;
+      for (final typeArgs in entry.value) {
+        if (info.modPath != null) {
+          final mod = _moduleByPath[info.modPath!];
+          if (mod != null) _setupModuleContext(mod);
+        }
+        _emitFunctionDefSpecialized(info.fn, info.className, info.modPath, typeArgs);
+      }
+    }
+  }
+
+  String _fnSignatureSpecialized(
+      FunctionDecl fn, String? className, String? modPath, List<Type> typeArgs) {
+    final baseKey = className != null
+        ? '${className}_${fn.name}'
+        : _cFnName(modPath!, fn.name);
+    final specName = _fnSpecializedCName(baseKey, typeArgs);
+    final ret = _cType(fn.returnType); // _typeSubstitution active → T→concrete
+    final params = _buildParamListSpecialized(fn, className);
+    return '$ret $specName($params)';
+  }
+
+  String _buildParamListSpecialized(FunctionDecl fn, String? className) {
+    final parts = <String>[];
+    if (className != null) parts.add('$className* this');
+    for (final p in fn.parameters) {
+      parts.add(_paramDecl(p));
+    }
+    // No __sizeof_T params for specialized (concrete) functions.
+    return parts.isEmpty ? 'void' : parts.join(', ');
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────────

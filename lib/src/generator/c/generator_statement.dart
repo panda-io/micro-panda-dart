@@ -41,7 +41,17 @@ extension GeneratorStatement on CGenerator {
     } else if (stmt is MatchStatement) {
       _emitMatch(stmt);
     } else if (stmt is ReturnStatement) {
-      _line(stmt.value != null ? 'return ${_expr(stmt.value!)};' : 'return;');
+      if (stmt.value != null) {
+        final v = stmt.value!;
+        // `return null` in a slice-returning specialized fn → zero-initialize struct.
+        if (v is Literal && v.tokenType == TokenType.typeNull && _isSliceReturnType()) {
+          _line('return (${_cType(_currentFnReturnType)}){0};');
+        } else {
+          _line('return ${_expr(v)};');
+        }
+      } else {
+        _line('return;');
+      }
     } else if (stmt is BreakStatement) {
       _line('break;');
     } else if (stmt is ContinueStatement) {
@@ -243,7 +253,16 @@ extension GeneratorStatement on CGenerator {
     if (stmt.value != null) {
       _line('$prefix${_varDecl(stmt.name, type)} = ${_expr(stmt.value!)};');
     } else {
-      _line('$prefix${_varDecl(stmt.name, type)};');
+      // Zero-initialize class-typed locals (fields have declared defaults).
+      final isClassType = type is TypeName &&
+          (type.typeArgs.isNotEmpty
+              ? _classes.containsKey(type.name)   // generic instantiation
+              : _classes.containsKey(type.name));  // plain class
+      if (isClassType) {
+        _line('$prefix${_varDecl(stmt.name, type)} = {0};');
+      } else {
+        _line('$prefix${_varDecl(stmt.name, type)};');
+      }
     }
     // Track for type lookups in the remainder of this scope.
     _scope[stmt.name] = type;

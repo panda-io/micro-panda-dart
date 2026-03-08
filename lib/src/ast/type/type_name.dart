@@ -6,11 +6,13 @@ class TypeName extends Type {
   @override
   bool isEnum = false;
   String? selector;
+  List<Type> typeArgs;  // concrete type arguments for generic class instantiation
 
   TypeName(this.name, {
     this.qualifiedName,
     this.isEnum = false,
     this.selector,
+    this.typeArgs = const [],
     int position = 0,
   }) : super(position);
 

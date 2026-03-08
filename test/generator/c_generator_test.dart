@@ -446,7 +446,7 @@ fun main()
       expect(c, contains('return NULL;'));
     });
 
-    test('generic call site casts return and adds sizeof arg', () {
+    test('generic call site uses specialized function (monomorphization)', () {
       final src = '''class Pool(val buf: u8[])
     fun alloc<T>(): &T
         return null
@@ -454,7 +454,9 @@ fun use(p: &Pool)
     val x := p.alloc<u8>()
 ''';
       final c = gen(src);
-      expect(c, contains('(uint8_t*)Pool_alloc(p, sizeof(uint8_t))'));
+      // Specialized prototype and call — no sizeof arg, no cast needed.
+      expect(c, contains('uint8_t* Pool_alloc_uint8_t(Pool* this)'));
+      expect(c, contains('Pool_alloc_uint8_t(p)'));
     });
   });
 

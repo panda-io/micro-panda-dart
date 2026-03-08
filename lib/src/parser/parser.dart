@@ -56,10 +56,9 @@ class Parser {
   late Token _current;
   final _peekBuffer = Queue<Token>();
 
-  Parser(SourceFile file, String source, Set<String> flags)
+  Parser(this.file, String source, Set<String> flags)
       : _scanner = Scanner(file, source, HashSet.of(flags)),
-        _source = source,
-        file = file {
+        _source = source {
     _advance();
   }
 

@@ -33,7 +33,7 @@ extension ParserTypes on Parser {
       return TypeBuiltin(token, pos);
     }
 
-    // Named type (class or enum): Point, util.Color
+    // Named type (class or enum): Point, util.Color, ArrayList<i32>
     if (_current.type == TokenType.identifier) {
       final name = _expectIdentifier();
       if (_current.type == TokenType.dot) {
@@ -41,6 +41,17 @@ extension ParserTypes on Parser {
         final typeName = _expectIdentifier();
         return TypeName(typeName,
             qualifiedName: '$name.$typeName', position: pos);
+      }
+      // optional generic type args: ArrayList<i32>, Map<K, V>
+      if (_current.type == TokenType.less) {
+        _advance();
+        final typeArgs = <Type>[_parseType()];
+        while (_current.type == TokenType.comma) {
+          _advance();
+          typeArgs.add(_parseType());
+        }
+        _expect(TokenType.greater);
+        return TypeName(name, typeArgs: typeArgs, position: pos);
       }
       return TypeName(name, position: pos);
     }

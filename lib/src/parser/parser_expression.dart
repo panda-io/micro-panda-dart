@@ -180,7 +180,7 @@ extension ParserExpression on Parser {
           return Conversion(targetType, val, pos);
         }
       }
-      return RefExpression(_parsePrimary(), pos);
+      return RefExpression(_parsePostfix(), pos);
     }
 
     // Array initializer: [expr, ...]

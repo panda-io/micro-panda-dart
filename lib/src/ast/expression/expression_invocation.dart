@@ -1,6 +1,8 @@
 import '../context.dart';
+import '../declaration/class_decl.dart';
 import '../declaration/function_decl.dart';
 import '../type/type.dart';
+import '../type/type_array.dart';
 import '../type/type_name.dart';
 import '../type/type_ref.dart';
 import 'expression.dart';
@@ -46,6 +48,8 @@ class Invocation extends Expression {
       if (receiverType is TypeName) {
         final cls = context.classes[receiverType.name];
         if (cls != null) {
+          // Build class type substitution for generic classes (e.g. ArrayList<i32>).
+          final classTypeSubst = _buildClassTypeSubst(cls, receiverType.typeArgs);
           final method = cls.methods
               .where((m) => m.name == ma.member)
               .firstOrNull;
@@ -53,9 +57,12 @@ class Invocation extends Expression {
             // Could be .size() on array — allowed, skip
           } else {
             _checkArgCount(context, method.parameters.length, ma.member);
-            paramTypes = method.parameters.map((p) => p.type).toList();
+            paramTypes = method.parameters
+                .map((p) => _substituteType(p.type, classTypeSubst))
+                .toList();
             _validateArgs(context, paramTypes);
-            type = _resolveReturnType(method, context);
+            type = _resolveReturnType(method, context,
+                classTypeSubst: classTypeSubst);
             return;
           }
         }
@@ -89,8 +96,15 @@ class Invocation extends Expression {
     }
   }
 
-  Type? _resolveReturnType(FunctionDecl fn, Context context) {
+  Type? _resolveReturnType(FunctionDecl fn, Context context,
+      {Map<String, Type> classTypeSubst = const {}}) {
     final retType = fn.returnType;
+    // Apply class type substitution first (for generic class methods, e.g. get() → T → i32)
+    if (classTypeSubst.isNotEmpty) {
+      final substituted = _substituteType(retType, classTypeSubst);
+      if (substituted != retType) return substituted;
+    }
+    // Existing logic for function-level type params (e.g. alloc<T>() → &T)
     if (typeArgs.isNotEmpty &&
         retType is TypeRef &&
         retType.elementType is TypeName &&
@@ -98,5 +112,33 @@ class Invocation extends Expression {
       return TypeRef(typeArgs.first);
     }
     return retType;
+  }
+
+  Map<String, Type> _buildClassTypeSubst(ClassDecl cls, List<Type> receiverTypeArgs) {
+    if (receiverTypeArgs.isEmpty || cls.typeParams.isEmpty) return {};
+    return {
+      for (var i = 0; i < cls.typeParams.length && i < receiverTypeArgs.length; i++)
+        cls.typeParams[i]: receiverTypeArgs[i]
+    };
+  }
+
+  Type? _substituteType(Type? type, Map<String, Type> subst) {
+    if (subst.isEmpty || type == null) return type;
+    if (type is TypeName && type.typeArgs.isEmpty) {
+      return subst[type.name] ?? type;
+    }
+    if (type is TypeRef) {
+      final inner = _substituteType(type.elementType, subst);
+      if (inner != null && inner != type.elementType) return TypeRef(inner);
+    }
+    if (type is TypeArray) {
+      final elem = _substituteType(type.elementType, subst);
+      if (elem != null && elem != type.elementType) {
+        final arr = TypeArray(elem, type.position);
+        arr.dimension.addAll(type.dimension);
+        return arr;
+      }
+    }
+    return type;
   }
 }

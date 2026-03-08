@@ -20,6 +20,14 @@ class Identifier extends Expression {
       type = fieldType;
       return;
     }
+    // Class method reference (bare call inside a method body, e.g. _helper(x))
+    if (context.currentClass != null) {
+      final cls = context.classes[context.currentClass];
+      if (cls != null && cls.methods.any((m) => m.name == name)) {
+        type = null; // method reference, type handled at call site
+        return;
+      }
+    }
     // Global function reference
     if (context.globalFunctions.containsKey(name)) {
       type = null; // function reference, type handled at call site

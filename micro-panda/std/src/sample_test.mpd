@@ -1,4 +1,4 @@
-import test::*
+import test::assert
 
 @test
 fun add_int()

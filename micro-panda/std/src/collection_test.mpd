@@ -1,0 +1,165 @@
+import test::assert
+import collection::ArrayList
+import collection::LinkedList
+import collection::RingBuffer
+import memory::Allocator
+
+// ── ArrayList ────────────────────────────────────────────────────────────────
+
+@test
+fun arraylist_init()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    assert(list.init(&alloc, 4))
+    assert(list.is_empty())
+    assert(list.size() == 0)
+    assert(list.capacity() == 4)
+
+@test
+fun arraylist_push_pop()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 4)
+    assert(list.push(10))
+    assert(list.push(20))
+    assert(list.push(30))
+    assert(list.size() == 3)
+    assert(list.get(0) == 10)
+    assert(list.get(1) == 20)
+    assert(list.get(2) == 30)
+    assert(list.top() == 30)
+    assert(list.pop())
+    assert(list.size() == 2)
+    assert(list.top() == 20)
+
+@test
+fun arraylist_full()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 2)
+    assert(list.push(1))
+    assert(list.push(2))
+    assert(list.is_full())
+    assert(list.push(3) == false)
+
+@test
+fun arraylist_set_clear()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 4)
+    list.push(1)
+    list.push(2)
+    list.set(0, 99)
+    assert(list.get(0) == 99)
+    list.clear()
+    assert(list.is_empty())
+    assert(list.size() == 0)
+
+// ── LinkedList ───────────────────────────────────────────────────────────────
+
+@test
+fun linkedlist_init()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: LinkedList<i32>
+    assert(list.init(&alloc, 4))
+    assert(list.is_empty())
+    assert(list.size() == 0)
+    assert(list.capacity() == 4)
+
+@test
+fun linkedlist_push_back_pop_front()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: LinkedList<i32>
+    list.init(&alloc, 4)
+    assert(list.push_back(10))
+    assert(list.push_back(20))
+    assert(list.push_back(30))
+    assert(list.size() == 3)
+    assert(list.front() == 10)
+    assert(list.back() == 30)
+    assert(list.pop_front())
+    assert(list.front() == 20)
+    assert(list.size() == 2)
+
+@test
+fun linkedlist_push_front_pop_back()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: LinkedList<i32>
+    list.init(&alloc, 4)
+    assert(list.push_front(10))
+    assert(list.push_front(20))
+    assert(list.push_front(30))
+    assert(list.front() == 30)
+    assert(list.back() == 10)
+    assert(list.pop_back())
+    assert(list.back() == 20)
+    assert(list.size() == 2)
+
+@test
+fun linkedlist_full_reuse()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: LinkedList<i32>
+    list.init(&alloc, 2)
+    assert(list.push_back(1))
+    assert(list.push_back(2))
+    assert(list.is_full())
+    assert(list.push_back(3) == false)
+    // pop then push again — node is reused
+    list.pop_front()
+    assert(list.push_back(99))
+    assert(list.back() == 99)
+
+// ── RingBuffer ───────────────────────────────────────────────────────────────
+
+@test
+fun ringbuffer_init()
+    var alloc: Allocator
+    alloc.init(512)
+    var rb: RingBuffer<i32>
+    assert(rb.init(&alloc, 4))
+    assert(rb.is_empty())
+    assert(rb.size() == 0)
+    assert(rb.capacity() == 4)
+
+@test
+fun ringbuffer_push_pop()
+    var alloc: Allocator
+    alloc.init(512)
+    var rb: RingBuffer<i32>
+    rb.init(&alloc, 4)
+    assert(rb.push(10))
+    assert(rb.push(20))
+    assert(rb.push(30))
+    assert(rb.size() == 3)
+    assert(rb.peek() == 10)
+    assert(rb.pop())
+    assert(rb.peek() == 20)
+    assert(rb.size() == 2)
+
+@test
+fun ringbuffer_wrap_around()
+    var alloc: Allocator
+    alloc.init(512)
+    var rb: RingBuffer<i32>
+    rb.init(&alloc, 3)
+    rb.push(1)
+    rb.push(2)
+    rb.push(3)
+    assert(rb.is_full())
+    assert(rb.push(4) == false)
+    rb.pop()   // removes 1, head wraps
+    assert(rb.push(4))  // tail wraps around
+    assert(rb.peek() == 2)
+    rb.pop()
+    assert(rb.peek() == 3)
+    rb.pop()
+    assert(rb.peek() == 4)
+    assert(rb.size() == 1)

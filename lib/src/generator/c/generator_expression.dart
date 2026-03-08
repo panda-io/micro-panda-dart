@@ -170,6 +170,13 @@ extension GeneratorExpression on CGenerator {
       // Resolve to namespaced C name via per-module call map.
       final cName = _localCallMap[name];
       if (cName != null) return _callByCName(cName, inv.arguments, inv.typeArgs);
+      // Self method call within same class: _helper() → ClassName_helper(this, ...)
+      if (_currentClass != null) {
+        final cls = _classes[_currentClass];
+        if (cls != null && cls.methods.any((m) => m.name == name)) {
+          return _methodCall(This(inv.position), name, inv.arguments, inv.typeArgs);
+        }
+      }
     }
 
     // Fallback: emit as-is (e.g. function pointer calls, unresolved names).
@@ -189,6 +196,20 @@ extension GeneratorExpression on CGenerator {
 
   /// Emit a call to a function whose C name is already known.
   String _callByCName(String cName, List<Expression> args, List<Type> typeArgs) {
+    // Check for a specialized (monomorphized) version.
+    if (typeArgs.isNotEmpty) {
+      final insts = _fnInstantiations[cName];
+      if (insts != null) {
+        final concreteTypeArgs = typeArgs.map(_applyActiveSubst).toList();
+        final typeKey = concreteTypeArgs.map(_cType).join('_');
+        if (insts.any((a) => a.map(_cType).join('_') == typeKey)) {
+          final specName = _fnSpecializedCName(cName, concreteTypeArgs);
+          final regularArgs = args.map(_expr).join(', ');
+          return regularArgs.isEmpty ? '$specName()' : '$specName($regularArgs)';
+        }
+      }
+    }
+    // Erased version (existing behavior).
     final regularArgs = args.map(_expr).join(', ');
     final sizeofArgs = typeArgs.map((t) => 'sizeof(${_cType(t)})').join(', ');
     final allArgs = [
@@ -235,12 +256,17 @@ extension GeneratorExpression on CGenerator {
     String receiverArg;
 
     if (type is TypeRef && type.elementType is TypeName) {
-      // Already a pointer
-      className = (type.elementType as TypeName).name;
+      // Already a pointer — use specialized name if generic.
+      final tn = type.elementType as TypeName;
+      className = tn.typeArgs.isNotEmpty
+          ? _specializedCName(tn.name!, tn.typeArgs)
+          : tn.name;
       receiverArg = _expr(receiver);
     } else if (type is TypeName && _classes.containsKey(type.name)) {
-      // Value type — take address
-      className = type.name;
+      // Value type — take address; use specialized name if generic.
+      className = type.typeArgs.isNotEmpty
+          ? _specializedCName(type.name!, type.typeArgs)
+          : type.name;
       receiverArg = '(&${_expr(receiver)})';
     } else if (receiver is This) {
       className = _currentClass;
@@ -254,6 +280,22 @@ extension GeneratorExpression on CGenerator {
     if (className == null) {
       final recv = _expr(receiver);
       return argsStr.isEmpty ? '$recv.$method()' : '$recv.$method($argsStr)';
+    }
+
+    // Check for a specialized (monomorphized) version.
+    if (typeArgs.isNotEmpty) {
+      final key = '${className}_$method';
+      final insts = _fnInstantiations[key];
+      if (insts != null) {
+        final concreteTypeArgs = typeArgs.map(_applyActiveSubst).toList();
+        final typeKey = concreteTypeArgs.map(_cType).join('_');
+        if (insts.any((a) => a.map(_cType).join('_') == typeKey)) {
+          final specName = _fnSpecializedCName(key, concreteTypeArgs);
+          final callArgs =
+              [receiverArg, if (argsStr.isNotEmpty) argsStr].join(', ');
+          return '$specName($callArgs)';
+        }
+      }
     }
 
     final allArgs = [

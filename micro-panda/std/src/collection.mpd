@@ -1,0 +1,205 @@
+import memory::Allocator
+
+// used as vector and stack
+class ArrayList<T>()
+    var _buffer: T[]
+    var _size: u32 = 0
+
+    fun init(allocator: &Allocator, capacity: u32) bool
+        _buffer = allocator.allocate_array<T>(capacity)
+        if _buffer.size() == 0
+            return false
+        return true
+
+    fun push(value: T) bool
+        if _size >= _buffer.size()
+            return false
+        _buffer[_size] = value
+        _size += 1
+        return true
+
+    fun pop() bool
+        if _size == 0
+            return false
+        _size -= 1
+        return true
+
+    fun get(i: u32) T
+        return _buffer[i]
+
+    fun set(i: u32, value: T)
+        _buffer[i] = value
+
+    fun top() T
+        return _buffer[_size - 1]
+
+    fun size() u32
+        return _size
+
+    fun capacity() u32
+        return _buffer.size()
+
+    fun is_empty() bool
+        return _size == 0
+
+    fun is_full() bool
+        return _size >= _buffer.size()
+
+    fun clear()
+        _size = 0
+
+
+// double linked list (pool-based: parallel index arrays, _cap = null sentinel)
+class LinkedList<T>()
+    var _next: u32[]
+    var _prev: u32[]
+    var _data: T[]
+    var _head: u32 = 0
+    var _tail: u32 = 0
+    var _free: u32 = 0
+    var _size: u32 = 0
+    var _cap: u32 = 0
+
+    fun init(allocator: &Allocator, capacity: u32) bool
+        _next = allocator.allocate_array<u32>(capacity)
+        if _next.size() == 0
+            return false
+        _prev = allocator.allocate_array<u32>(capacity)
+        if _prev.size() == 0
+            return false
+        _data = allocator.allocate_array<T>(capacity)
+        if _data.size() == 0
+            return false
+        _cap = capacity
+        _head = _cap
+        _tail = _cap
+        // build free list: 0 -> 1 -> 2 -> ... -> capacity-1 -> _cap
+        var i: u32 = 0
+        while i < capacity - 1
+            _next[i] = i + 1
+            i += 1
+        _next[capacity - 1] = _cap
+        _free = 0
+        return true
+
+    fun push_back(value: T) bool
+        if _free == _cap
+            return false
+        val node := _free
+        _free = _next[node]
+        _data[node] = value
+        _next[node] = _cap
+        _prev[node] = _tail
+        if _tail != _cap
+            _next[_tail] = node
+        else
+            _head = node
+        _tail = node
+        _size += 1
+        return true
+
+    fun push_front(value: T) bool
+        if _free == _cap
+            return false
+        val node := _free
+        _free = _next[node]
+        _data[node] = value
+        _prev[node] = _cap
+        _next[node] = _head
+        if _head != _cap
+            _prev[_head] = node
+        else
+            _tail = node
+        _head = node
+        _size += 1
+        return true
+
+    fun pop_front() bool
+        if _head == _cap
+            return false
+        val node := _head
+        _head = _next[node]
+        if _head != _cap
+            _prev[_head] = _cap
+        else
+            _tail = _cap
+        _next[node] = _free
+        _free = node
+        _size -= 1
+        return true
+
+    fun pop_back() bool
+        if _tail == _cap
+            return false
+        val node := _tail
+        _tail = _prev[node]
+        if _tail != _cap
+            _next[_tail] = _cap
+        else
+            _head = _cap
+        _next[node] = _free
+        _free = node
+        _size -= 1
+        return true
+
+    fun front() T
+        return _data[_head]
+
+    fun back() T
+        return _data[_tail]
+
+    fun size() u32
+        return _size
+
+    fun capacity() u32
+        return _cap
+
+    fun is_empty() bool
+        return _head == _cap
+
+    fun is_full() bool
+        return _free == _cap
+
+
+// used as queue
+class RingBuffer<T>()
+    var _buffer: T[]
+    var _head: u32 = 0
+    var _tail: u32 = 0
+    var _size: u32 = 0
+
+    fun init(allocator: &Allocator, capacity: u32) bool
+        _buffer = allocator.allocate_array<T>(capacity)
+        if _buffer.size() == 0
+            return false
+        return true
+
+    fun push(value: T) bool
+        if _size >= _buffer.size()
+            return false
+        _buffer[_tail] = value
+        _tail = (_tail + 1) % _buffer.size()
+        _size += 1
+        return true
+
+    fun pop() bool
+        if _size == 0
+            return false
+        _head = (_head + 1) % _buffer.size()
+        _size -= 1
+        return true
+
+    fun peek() T
+        return _buffer[_head]
+
+    fun size() u32
+        return _size
+
+    fun capacity() u32
+        return _buffer.size()
+
+    fun is_empty() bool
+        return _size == 0
+
+    fun is_full() bool
+        return _size >= _buffer.size()

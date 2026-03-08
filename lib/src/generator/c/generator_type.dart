@@ -25,7 +25,16 @@ extension GeneratorType on CGenerator {
       };
     }
     if (type is TypeRef)  return '${_cType(type.elementType)}*';
-    if (type is TypeName) return type.name ?? 'void';
+    if (type is TypeName) {
+      // Generic instantiation: ArrayList<i32> → ArrayList_int32_t
+      if (type.typeArgs.isNotEmpty) {
+        return _specializedCName(type.name ?? 'void', type.typeArgs);
+      }
+      // Type substitution: T → concrete type (inside specialized method bodies)
+      final sub = _typeSubstitution[type.name];
+      if (sub != null) return _cType(sub);
+      return type.name ?? 'void';
+    }
     if (type is TypeArray) {
       if (type.isSlice) return '__Slice_${_cType(type.elementType)}';
       return _cType(type.elementType); // fixed array: caller appends dims

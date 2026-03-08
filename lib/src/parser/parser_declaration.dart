@@ -121,6 +121,18 @@ extension ParserDeclaration on Parser {
     _expect(TokenType.kClass);
     final name = _expectIdentifier();
 
+    // optional generic type params: class Foo<T, U>
+    final typeParams = <String>[];
+    if (_current.type == TokenType.less) {
+      _advance();
+      typeParams.add(_expectIdentifier());
+      while (_current.type == TokenType.comma) {
+        _advance();
+        typeParams.add(_expectIdentifier());
+      }
+      _expect(TokenType.greater);
+    }
+
     // constructor fields in (...)
     final constructorFields = _parseConstructorFields();
 
@@ -153,7 +165,8 @@ extension ParserDeclaration on Parser {
       _expectNewline();
     }
 
-    return ClassDecl(name, constructorFields, bodyFields, methods, pos);
+    return ClassDecl(name, constructorFields, bodyFields, methods, pos,
+        typeParams: typeParams);
   }
 
   List<ClassField> _parseConstructorFields() {
