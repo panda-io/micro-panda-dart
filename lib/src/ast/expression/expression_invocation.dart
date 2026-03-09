@@ -41,7 +41,7 @@ class Invocation extends Expression {
             for (var i = 0; i < fn.typeParams.length && i < typeArgs.length; i++)
               fn.typeParams[i]: typeArgs[i]
           };
-          paramTypes = paramTypes!
+          paramTypes = paramTypes
               .map((t) => t != null ? _substituteType(t, callSubst) : null)
               .toList();
         }
