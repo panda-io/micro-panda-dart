@@ -1,0 +1,84 @@
+import test::assert
+import math::min
+import math::max
+import math::clamp
+import math::abs
+import math::sin
+import math::cos
+import math::sqrt
+import math::floor
+import math::ceil
+import math::round
+import math::floor_fixed
+import math::ceil_fixed
+import math::round_fixed
+
+@test
+fun test_min()
+    assert(min<i32>(3, 5) == 3)
+    assert(min<i32>(-1, 0) == -1)
+    assert(min<u32>(10, 7) == 7)
+    assert(min<float>(1.5, 2.5) == 1.5)
+    assert(min<fixed>(2.5, 1.5) == 1.5)
+
+@test
+fun test_max()
+    assert(max<i32>(3, 5) == 5)
+    assert(max<i32>(-1, 0) == 0)
+    assert(max<float>(1.5, 2.5) == 2.5)
+    assert(max<fixed>(2.5, 1.5) == 2.5)
+
+@test
+fun test_clamp()
+    assert(clamp<i32>(5, 0, 10) == 5)
+    assert(clamp<i32>(-1, 0, 10) == 0)
+    assert(clamp<i32>(15, 0, 10) == 10)
+    assert(clamp<float>(1.5, 0.0, 2.0) == 1.5)
+    assert(clamp<fixed>(1.5, 0.0, 2.0) == 1.5)
+
+@test
+fun test_abs()
+    assert(abs<i32>(-5) == 5)
+    assert(abs<i32>(5) == 5)
+    assert(abs<i32>(0) == 0)
+    assert(abs<float>(-1.5) == 1.5)
+    assert(abs<fixed>(-1.5) == 1.5)
+
+@test
+fun test_sqrt()
+    val r := sqrt(4.0)
+    assert(r == 2.0)
+
+@test
+fun test_sin_cos()
+    val s := sin(0.0)
+    assert(s == 0.0)
+    val c := cos(0.0)
+    assert(c == 1.0)
+
+@test
+fun test_floor_ceil_round()
+    assert(floor(1.7) == 1.0)
+    assert(ceil(1.2) == 2.0)
+    assert(round(1.5) == 2.0)
+    assert(round(1.4) == 1.0)
+
+@test
+fun test_floor_fixed()
+    // 1.5 in fixed = 0x00018000
+    val v: fixed = 1.5
+    assert(floor_fixed(v) == 1.0)
+
+@test
+fun test_ceil_fixed()
+    val v: fixed = 1.5
+    assert(ceil_fixed(v) == 2.0)
+    val w: fixed = 2.0
+    assert(ceil_fixed(w) == 2.0)
+
+@test
+fun test_round_fixed()
+    val v: fixed = 1.5
+    assert(round_fixed(v) == 2.0)
+    val w: fixed = 1.4
+    assert(round_fixed(w) == 1.0)

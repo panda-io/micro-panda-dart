@@ -35,6 +35,16 @@ class Invocation extends Expression {
       if (fn != null) {
         _checkArgCount(context, fn.parameters.length, name);
         paramTypes = fn.parameters.map((p) => p.type).toList();
+        // Substitute type params so literal arguments adopt the concrete type.
+        if (typeArgs.isNotEmpty && fn.typeParams.isNotEmpty) {
+          final callSubst = {
+            for (var i = 0; i < fn.typeParams.length && i < typeArgs.length; i++)
+              fn.typeParams[i]: typeArgs[i]
+          };
+          paramTypes = paramTypes!
+              .map((t) => t != null ? _substituteType(t, callSubst) : null)
+              .toList();
+        }
         _validateArgs(context, paramTypes);
         type = _resolveReturnType(fn, context);
         return;

@@ -1,0 +1,94 @@
+@include("math.h")
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const PI  := 3.14159265358979323846
+const TAU := 6.28318530717958647692
+const E   := 2.71828182845904523536
+
+// ── Generic min / max / clamp / abs ──────────────────────────────────────────
+
+@inline
+fun min<T>(a: T, b: T): T
+    if a < b
+        return a
+    return b
+
+@inline
+fun max<T>(a: T, b: T): T
+    if a > b
+        return a
+    return b
+
+@inline
+fun clamp<T>(v: T, lo: T, hi: T): T
+    if v < lo
+        return lo
+    if v > hi
+        return hi
+    return v
+
+@inline
+fun abs<T>(v: T): T
+    if v < 0
+        return -v
+    return v
+
+// ── Float trig (radians) ──────────────────────────────────────────────────────
+
+@extern("sinf({x})")
+fun sin(x: float): float
+
+@extern("cosf({x})")
+fun cos(x: float): float
+
+@extern("tanf({x})")
+fun tan(x: float): float
+
+@extern("asinf({x})")
+fun asin(x: float): float
+
+@extern("acosf({x})")
+fun acos(x: float): float
+
+@extern("atanf({x})")
+fun atan(x: float): float
+
+@extern("atan2f({y}, {x})")
+fun atan2(y: float, x: float): float
+
+// ── Float power / root ────────────────────────────────────────────────────────
+
+@extern("sqrtf({x})")
+fun sqrt(x: float): float
+
+@extern("powf({base}, {exp})")
+fun pow(base: float, exp: float): float
+
+// ── Float rounding ────────────────────────────────────────────────────────────
+
+@extern("floorf({x})")
+fun floor(x: float): float
+
+@extern("ceilf({x})")
+fun ceil(x: float): float
+
+@extern("roundf({x})")
+fun round(x: float): float
+
+// ── Fixed-point rounding ──────────────────────────────────────────────────────
+
+@inline
+fun floor_fixed(v: fixed): fixed
+    return v & -1.0
+
+@inline
+fun ceil_fixed(v: fixed): fixed
+    val f := v & -1.0
+    if v != f
+        return f + 1.0
+    return f
+
+@inline
+fun round_fixed(v: fixed): fixed
+    return (v + 0.5) & -1.0

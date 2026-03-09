@@ -247,15 +247,7 @@ extension ParserStatement on Parser {
 
     final name = _expectIdentifier();
 
-    // const must use '= value'
-    if (keyword == TokenType.kConst) {
-      _expect(TokenType.assign);
-      final value = _parseExpression();
-      _expectNewline();
-      return DeclarationStatement(keyword, name, null, value, pos);
-    }
-
-    // := type inference
+    // ':= expr' — infer type
     if (_current.type == TokenType.inferAssign) {
       _advance();
       final value = _parseExpression();
@@ -263,7 +255,15 @@ extension ParserStatement on Parser {
       return DeclarationStatement(keyword, name, null, value, pos);
     }
 
-    // explicit type annotation
+    // 'const NAME = value' — backward-compat (no explicit type)
+    if (keyword == TokenType.kConst && _current.type == TokenType.assign) {
+      _advance();
+      final value = _parseExpression();
+      _expectNewline();
+      return DeclarationStatement(keyword, name, null, value, pos);
+    }
+
+    // ': Type = expr' — explicit type annotation
     _expect(TokenType.colon);
     final type = _parseType();
 
