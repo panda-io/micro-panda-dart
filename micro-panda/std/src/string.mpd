@@ -1,0 +1,144 @@
+// ── Comparison / search ───────────────────────────────────────────────────────
+
+fun equals(a: u8[], b: u8[]): bool
+    if a.size() != b.size()
+        return false
+    var i: u32 = 0
+    while i < a.size()
+        if a[i] != b[i]
+            return false
+        i += 1
+    return true
+
+fun starts_with(s: u8[], prefix: u8[]): bool
+    if prefix.size() > s.size()
+        return false
+    var i: u32 = 0
+    while i < prefix.size()
+        if s[i] != prefix[i]
+            return false
+        i += 1
+    return true
+
+fun ends_with(s: u8[], suffix: u8[]): bool
+    if suffix.size() > s.size()
+        return false
+    val offset := s.size() - suffix.size()
+    var i: u32 = 0
+    while i < suffix.size()
+        if s[offset + i] != suffix[i]
+            return false
+        i += 1
+    return true
+
+fun index_of(s: u8[], c: u8): i32
+    var i: u32 = 0
+    while i < s.size()
+        if s[i] == c
+            return i32(i)
+        i += 1
+    return -1
+
+// ── Slicing ───────────────────────────────────────────────────────────────────
+
+fun sub(s: u8[], start: u32, len: u32): u8[]
+    return {s.ptr + start, len}
+
+fun trim_start(s: u8[]): u8[]
+    var i: u32 = 0
+    while i < s.size()
+        val c := s[i]
+        if c != 32 && c != 9 && c != 10 && c != 13
+            return {s.ptr + i, s.size() - i}
+        i += 1
+    return {s.ptr, 0}
+
+fun trim_end(s: u8[]): u8[]
+    if s.size() == 0
+        return s
+    var i := s.size() - 1
+    while i > 0
+        val c := s[i]
+        if c != 32 && c != 9 && c != 10 && c != 13
+            return {s.ptr, i + 1}
+        i -= 1
+    val c := s[0]
+    if c != 32 && c != 9 && c != 10 && c != 13
+        return {s.ptr, 1}
+    return {s.ptr, 0}
+
+fun trim(s: u8[]): u8[]
+    return trim_end(trim_start(s))
+
+// ── Tokenization ──────────────────────────────────────────────────────────────
+
+// Returns the token starting at `start` up to (not including) the next `delim`
+// or end of string.
+fun token(s: u8[], start: u32, delim: u8): u8[]
+    var i := start
+    while i < s.size()
+        if s[i] == delim
+            return {s.ptr + start, i - start}
+        i += 1
+    return {s.ptr + start, s.size() - start}
+
+// Advances past any `delim` bytes starting at `start`. Use after token() to
+// move to the next field.
+fun skip(s: u8[], start: u32, delim: u8): u32
+    var i := start
+    while i < s.size()
+        if s[i] != delim
+            return i
+        i += 1
+    return s.size()
+
+// ── Number parsing ────────────────────────────────────────────────────────────
+
+fun parse_u32(s: u8[]): u32
+    var result: u32 = 0
+    var i: u32 = 0
+    while i < s.size()
+        val c := s[i]
+        if c < 48 || c > 57
+            return result
+        result = result * 10 + u32(c - 48)
+        i += 1
+    return result
+
+fun parse_i32(s: u8[]): i32
+    if s.size() == 0
+        return 0
+    if s[0] == 45
+        val abs := parse_u32({s.ptr + 1, s.size() - 1})
+        return -i32(abs)
+    return i32(parse_u32(s))
+
+// ── Number formatting ─────────────────────────────────────────────────────────
+
+// Writes decimal representation of `v` into `buf`. Returns number of bytes
+// written. buf must be at least 10 bytes.
+fun format_u32(buf: u8[], v: u32): u32
+    if v == 0
+        buf[0] = 48
+        return 1
+    var tmp: u8[10]
+    var len: u32 = 0
+    var n := v
+    while n > 0
+        tmp[len] = u8(48 + n % 10)
+        n = n / 10
+        len += 1
+    var i: u32 = 0
+    while i < len
+        buf[i] = tmp[len - 1 - i]
+        i += 1
+    return len
+
+// Writes decimal representation of `v` into `buf`. Returns bytes written.
+// buf must be at least 11 bytes.
+fun format_i32(buf: u8[], v: i32): u32
+    if v < 0
+        buf[0] = 45
+        val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-v))
+        return written + 1
+    return format_u32(buf, u32(v))

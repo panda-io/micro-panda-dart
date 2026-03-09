@@ -55,6 +55,12 @@ class Invocation extends Expression {
       final ma = function as MemberAccess;
       var receiverType = ma.parent.type;
       if (receiverType is TypeRef) receiverType = receiverType.elementType;
+      // .size() on a slice or fixed array always returns u32.
+      if (receiverType is TypeArray && ma.member == 'size') {
+        _validateArgs(context, null);
+        type = Type.typeU32;
+        return;
+      }
       if (receiverType is TypeName) {
         final cls = context.classes[receiverType.name];
         if (cls != null) {
