@@ -159,7 +159,7 @@ Future<void> _cmdTest(String? fileArg, {required bool verbose}) async {
           p.relative(file.path, from: project.src)),
       flags: [
         ...?refTarget?.flags.where((f) => f != 'RELEASE' && f != 'DEBUG'),
-        'STDC_HOSTED',
+        'HOSTED',
       ],
       cc: refTarget?.cc ?? 'gcc',
       ccPath: refTarget?.ccPath,

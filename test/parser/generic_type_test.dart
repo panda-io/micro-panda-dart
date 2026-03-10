@@ -9,7 +9,7 @@ void main() {
     final target = Target(
       name: 'collection_test',
       entry: 'collection_test',
-      flags: ['STDC_HOSTED'],
+      flags: ['HOSTED'],
       cc: 'gcc',
       cflags: ['-O0'],
       out: '/tmp/mpd_test_out',

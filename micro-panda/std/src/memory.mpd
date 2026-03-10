@@ -1,4 +1,4 @@
-#if STDC_HOSTED
+#if HOSTED
 
 @include("stdlib.h")
 
@@ -11,7 +11,7 @@ fun _realloc(ptr: &u8, new_size: u32): &u8
 @extern("free")
 fun _free(ptr: &u8)
 
-// Heap allocator for growable containers (STDC_HOSTED only).
+// Heap allocator for growable containers (HOSTED only).
 // Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
 class HeapAllocator()
     var _pad: u8 = 0    // keeps struct non-empty

@@ -1,37 +1,26 @@
 import memory::Allocator
-#if STDC_HOSTED
+#if HOSTED
 import memory::HeapAllocator
 #end
+
+// ── ArrayList ─────────────────────────────────────────────────────────────────
+// Fixed-capacity list backed by an Allocator. Works on MCU and hosted.
+// push/insert return false when full.
 
 class ArrayList<T>()
     var _buffer: T[]
     var _size: u32 = 0
-#if STDC_HOSTED
-    var _heap: &HeapAllocator
-#end
 
-#if STDC_HOSTED
-    fun init(heap: &HeapAllocator, capacity: u32)
-        _heap = heap
-        _buffer = heap.allocate_array<T>(capacity)
-#else
     fun init(alloc: &Allocator, capacity: u32) bool
         _buffer = alloc.allocate_array<T>(capacity)
         if _buffer.size() == 0
             return false
         return true
-#end
 
     @inline
     fun push(value: T) bool
         if _size >= _buffer.size()
-#if STDC_HOSTED
-            _buffer = _heap.realloc_array<T>(_buffer, _buffer.size() * 2)
-            if _buffer.size() == 0
-                return false
-#else
             return false
-#end
         _buffer[_size] = value
         _size += 1
         return true
@@ -44,16 +33,10 @@ class ArrayList<T>()
         return true
 
     fun insert(i: u32, value: T) bool
+        if _size >= _buffer.size()
+            return false
         if i > _size
             return false
-        if _size >= _buffer.size()
-#if STDC_HOSTED
-            _buffer = _heap.realloc_array<T>(_buffer, _buffer.size() * 2)
-            if _buffer.size() == 0
-                return false
-#else
-            return false
-#end
         var j: u32 = _size
         while j > i
             _buffer[j] = _buffer[j - 1]
@@ -93,6 +76,276 @@ class ArrayList<T>()
     @inline
     fun clear()
         _size = 0
+
+// ── HeapList ──────────────────────────────────────────────────────────────────
+// Growable list backed by HeapAllocator. HOSTED only.
+// push/insert auto-grow on full; return false only on allocation failure.
+
+#if HOSTED
+class HeapList<T>()
+    var _buffer: T[]
+    var _size: u32 = 0
+    var _heap: &HeapAllocator
+
+    fun init(heap: &HeapAllocator, capacity: u32)
+        _heap = heap
+        _buffer = heap.allocate_array<T>(capacity)
+
+    @inline
+    fun push(value: T) bool
+        if _size >= _buffer.size()
+            _buffer = _heap.realloc_array<T>(_buffer, _buffer.size() * 2)
+            if _buffer.size() == 0
+                return false
+        _buffer[_size] = value
+        _size += 1
+        return true
+
+    @inline
+    fun pop() bool
+        if _size == 0
+            return false
+        _size -= 1
+        return true
+
+    fun insert(i: u32, value: T) bool
+        if i > _size
+            return false
+        if _size >= _buffer.size()
+            _buffer = _heap.realloc_array<T>(_buffer, _buffer.size() * 2)
+            if _buffer.size() == 0
+                return false
+        var j: u32 = _size
+        while j > i
+            _buffer[j] = _buffer[j - 1]
+            j -= 1
+        _buffer[i] = value
+        _size += 1
+        return true
+
+    @inline
+    fun get(i: u32) T
+        return _buffer[i]
+
+    @inline
+    fun set(i: u32, value: T)
+        _buffer[i] = value
+
+    @inline
+    fun top() T
+        return _buffer[_size - 1]
+
+    @inline
+    fun size() u32
+        return _size
+
+    @inline
+    fun capacity() u32
+        return _buffer.size()
+
+    @inline
+    fun is_empty() bool
+        return _size == 0
+
+    @inline
+    fun clear()
+        _size = 0
+
+    fun free()
+        _heap.free_array<T>(_buffer)
+        _buffer = {null, 0}
+        _size = 0
+#end
+
+// ── HeapMap ───────────────────────────────────────────────────────────────────
+// Hash map with string (u8[]) keys and generic values. HOSTED only.
+// Uses FNV-1a hashing, linear probing, 75% load-factor resize.
+// Keys are copied into an owned flat byte pool — keys need not outlive the map.
+
+class HeapMap<V>()
+    var _key_start: u32[]   // offset into _pool per slot
+    var _key_len: u32[]     // key length per slot
+    var _pool: u8[]         // flat owned key byte storage
+    var _pool_used: u32 = 0
+    var _values: V[]
+    var _state: u8[]        // 0=empty 1=used 2=deleted
+    var _size: u32 = 0
+    var _capacity: u32 = 0
+    var _heap: &HeapAllocator
+
+    fun init(heap: &HeapAllocator, capacity: u32)
+        _heap = heap
+        _capacity = capacity
+        _key_start = heap.allocate_array<u32>(capacity)
+        _key_len = heap.allocate_array<u32>(capacity)
+        _pool = heap.allocate_array<u8>(capacity * 16)
+        _values = heap.allocate_array<V>(capacity)
+        _state = heap.allocate_array<u8>(capacity)
+        var i: u32 = 0
+        while i < capacity
+            _state[i] = 0
+            i += 1
+
+    fun _hash(key: u8[]): u32
+        var h: u32 = 2166136261
+        var i: u32 = 0
+        while i < key.size()
+            h = h ^ u32(key[i])
+            h = h * 16777619
+            i += 1
+        return h % _capacity
+
+    fun _key_eq(slot: u32, key: u8[]): bool
+        if _key_len[slot] != key.size()
+            return false
+        val start := _key_start[slot]
+        var i: u32 = 0
+        while i < key.size()
+            if _pool[start + i] != key[i]
+                return false
+            i += 1
+        return true
+
+    // Returns slot for key (existing) or first available slot (empty/tombstone).
+    // Returns _capacity if the table is completely full with no match.
+    fun _find_slot(key: u8[]): u32
+        var slot := _hash(key)
+        var first_del: u32 = _capacity
+        var i: u32 = 0
+        while i < _capacity
+            if _state[slot] == 0
+                if first_del != _capacity
+                    return first_del
+                return slot
+            if _state[slot] == 2
+                if first_del == _capacity
+                    first_del = slot
+            else
+                if _key_eq(slot, key)
+                    return slot
+            slot = (slot + 1) % _capacity
+            i += 1
+        if first_del != _capacity
+            return first_del
+        return _capacity
+
+    fun contains(key: u8[]): bool
+        if _capacity == 0
+            return false
+        val slot := _find_slot(key)
+        if slot >= _capacity
+            return false
+        return _state[slot] == 1
+
+    // Returns pointer to value, or null if key not found.
+    fun get_ptr(key: u8[]): &V
+        if _capacity == 0
+            return null
+        val slot := _find_slot(key)
+        if slot >= _capacity
+            return null
+        if _state[slot] != 1
+            return null
+        return &_values[slot]
+
+    // Returns value by copy. Caller must check contains() first; behaviour is
+    // undefined when the key is absent.
+    fun get(key: u8[]): V
+        val slot := _find_slot(key)
+        return _values[slot]
+
+    fun set(key: u8[], value: V)
+        if _size * 4 >= _capacity * 3
+            _grow()
+        val slot := _find_slot(key)
+        if slot >= _capacity
+            return
+        if _state[slot] != 1
+            _pool_ensure(key.size())
+            val start := _pool_used
+            var i: u32 = 0
+            while i < key.size()
+                _pool[start + i] = key[i]
+                i += 1
+            _pool_used += key.size()
+            _key_start[slot] = start
+            _key_len[slot] = key.size()
+            _state[slot] = 1
+            _size += 1
+        _values[slot] = value
+
+    fun remove(key: u8[]): bool
+        if _capacity == 0
+            return false
+        val slot := _find_slot(key)
+        if slot >= _capacity
+            return false
+        if _state[slot] != 1
+            return false
+        _state[slot] = 2
+        _size -= 1
+        return true
+
+    fun size(): u32
+        return _size
+
+    fun _pool_ensure(needed: u32)
+        if _pool_used + needed <= _pool.size()
+            return
+        var new_size := _pool.size() * 2
+        if new_size < _pool_used + needed
+            new_size = _pool_used + needed
+        _pool = _heap.realloc_array<u8>(_pool, new_size)
+
+    fun _grow()
+        val old_key_start := _key_start
+        val old_key_len := _key_len
+        val old_pool := _pool
+        val old_values := _values
+        val old_state := _state
+        val old_cap := _capacity
+        _capacity = old_cap * 2
+        _key_start = _heap.allocate_array<u32>(_capacity)
+        _key_len = _heap.allocate_array<u32>(_capacity)
+        _pool = _heap.allocate_array<u8>(_pool_used + 64)
+        _pool_used = 0
+        _values = _heap.allocate_array<V>(_capacity)
+        _state = _heap.allocate_array<u8>(_capacity)
+        _size = 0
+        var i: u32 = 0
+        while i < _capacity
+            _state[i] = 0
+            i += 1
+        i = 0
+        while i < old_cap
+            if old_state[i] == 1
+                val s := old_key_start[i]
+                val l := old_key_len[i]
+                val key := {&old_pool[s], l}
+                set(key, old_values[i])
+            i += 1
+        _heap.free_array<u32>(old_key_start)
+        _heap.free_array<u32>(old_key_len)
+        _heap.free_array<u8>(old_pool)
+        _heap.free_array<V>(old_values)
+        _heap.free_array<u8>(old_state)
+
+    fun free()
+        _heap.free_array<u32>(_key_start)
+        _heap.free_array<u32>(_key_len)
+        _heap.free_array<u8>(_pool)
+        _heap.free_array<V>(_values)
+        _heap.free_array<u8>(_state)
+        _key_start = {null, 0}
+        _key_len = {null, 0}
+        _pool = {null, 0}
+        _values = {null, 0}
+        _state = {null, 0}
+        _size = 0
+        _capacity = 0
+
+// ── RingBuffer ────────────────────────────────────────────────────────────────
+// Fixed-capacity circular buffer backed by an Allocator.
 
 class RingBuffer<T>()
     var _buffer: T[]

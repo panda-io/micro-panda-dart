@@ -1,9 +1,9 @@
 // ── transport ────────────────────────────────────────────────────────────────
 //
-// STDC_HOSTED: write_byte maps to putchar.
+// HOSTED: write_byte maps to putchar.
 // MCU:         platform module must provide write_byte(b: u8).
 
-#if STDC_HOSTED
+#if HOSTED
 
 @include("stdio.h")
 

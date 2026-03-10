@@ -49,6 +49,19 @@ class Invocation extends Expression {
         type = _resolveReturnType(fn, context);
         return;
       }
+      // Self method call inside a class body (e.g. _hash(key) inside _find_slot).
+      // Self method call inside a class body (e.g. _hash(key) inside _find_slot).
+      if (context.currentClass != null) {
+        final cls = context.classes[context.currentClass];
+        final method = cls?.methods.where((m) => m.name == name).firstOrNull;
+        if (method != null) {
+          _checkArgCount(context, method.parameters.length, name);
+          paramTypes = method.parameters.map((p) => p.type).toList();
+          _validateArgs(context, paramTypes);
+          type = _resolveReturnType(method, context);
+          return;
+        }
+      }
     }
 
     if (function is MemberAccess) {

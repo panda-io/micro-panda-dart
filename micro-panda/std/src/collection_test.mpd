@@ -2,7 +2,9 @@ import test::assert
 import collection::ArrayList
 import collection::RingBuffer
 import memory::Allocator
-#if STDC_HOSTED
+#if HOSTED
+import collection::HeapList
+import collection::HeapMap
 import memory::HeapAllocator
 #end
 
@@ -10,17 +12,113 @@ import memory::HeapAllocator
 
 @test
 fun arraylist_init()
-    var heap: HeapAllocator
+    var alloc: Allocator
+    alloc.init(512)
     var list: ArrayList<i32>
-    list.init(&heap, 4)
+    assert(list.init(&alloc, 4))
     assert(list.is_empty())
     assert(list.size() == 0)
     assert(list.capacity() == 4)
 
 @test
 fun arraylist_push_pop()
-    var heap: HeapAllocator
+    var alloc: Allocator
+    alloc.init(512)
     var list: ArrayList<i32>
+    list.init(&alloc, 4)
+    assert(list.push(10))
+    assert(list.push(20))
+    assert(list.push(30))
+    assert(list.size() == 3)
+    assert(list.get(0) == 10)
+    assert(list.get(1) == 20)
+    assert(list.get(2) == 30)
+    assert(list.top() == 30)
+    assert(list.pop())
+    assert(list.size() == 2)
+    assert(list.top() == 20)
+
+@test
+fun arraylist_full()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 2)
+    assert(list.push(1))
+    assert(list.push(2))
+    assert(list.is_full())
+    assert(list.push(3) == false)
+
+@test
+fun arraylist_set_clear()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 4)
+    list.push(1)
+    list.push(2)
+    list.set(0, 99)
+    assert(list.get(0) == 99)
+    list.clear()
+    assert(list.is_empty())
+    assert(list.size() == 0)
+
+@test
+fun arraylist_insert()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 4)
+    list.push(10)
+    list.push(30)
+    assert(list.insert(1, 20))
+    assert(list.size() == 3)
+    assert(list.get(0) == 10)
+    assert(list.get(1) == 20)
+    assert(list.get(2) == 30)
+
+@test
+fun arraylist_insert_front()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 4)
+    list.push(20)
+    list.push(30)
+    assert(list.insert(0, 10))
+    assert(list.get(0) == 10)
+    assert(list.get(1) == 20)
+    assert(list.get(2) == 30)
+
+@test
+fun arraylist_insert_end()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 4)
+    list.push(10)
+    list.push(20)
+    assert(list.insert(2, 30))
+    assert(list.get(2) == 30)
+    assert(list.size() == 3)
+
+@test
+fun arraylist_insert_full()
+    var alloc: Allocator
+    alloc.init(512)
+    var list: ArrayList<i32>
+    list.init(&alloc, 2)
+    list.push(1)
+    list.push(2)
+    assert(list.insert(0, 0) == false)
+
+// ── HeapList ─────────────────────────────────────────────────────────────────
+#if HOSTED
+
+@test
+fun heaplist_push_pop()
+    var heap: HeapAllocator
+    var list: HeapList<i32>
     list.init(&heap, 4)
     assert(list.push(10))
     assert(list.push(20))
@@ -35,21 +133,21 @@ fun arraylist_push_pop()
     assert(list.top() == 20)
 
 @test
-fun arraylist_grow()
+fun heaplist_grow()
     var heap: HeapAllocator
-    var list: ArrayList<i32>
+    var list: HeapList<i32>
     list.init(&heap, 2)
     assert(list.push(1))
     assert(list.push(2))
     assert(list.capacity() == 2)
-    assert(list.push(3))   // triggers grow
+    assert(list.push(3))
     assert(list.size() == 3)
     assert(list.capacity() >= 4)
 
 @test
-fun arraylist_set_clear()
+fun heaplist_set_clear()
     var heap: HeapAllocator
-    var list: ArrayList<i32>
+    var list: HeapList<i32>
     list.init(&heap, 4)
     list.push(1)
     list.push(2)
@@ -60,53 +158,66 @@ fun arraylist_set_clear()
     assert(list.size() == 0)
 
 @test
-fun arraylist_insert()
+fun heaplist_insert()
     var heap: HeapAllocator
-    var list: ArrayList<i32>
+    var list: HeapList<i32>
     list.init(&heap, 4)
     list.push(10)
     list.push(30)
-    assert(list.insert(1, 20))       // insert 20 between 10 and 30
+    assert(list.insert(1, 20))
     assert(list.size() == 3)
     assert(list.get(0) == 10)
     assert(list.get(1) == 20)
     assert(list.get(2) == 30)
 
 @test
-fun arraylist_insert_front()
+fun heaplist_insert_front()
     var heap: HeapAllocator
-    var list: ArrayList<i32>
+    var list: HeapList<i32>
     list.init(&heap, 4)
     list.push(20)
     list.push(30)
-    assert(list.insert(0, 10))       // insert at front
+    assert(list.insert(0, 10))
     assert(list.get(0) == 10)
     assert(list.get(1) == 20)
     assert(list.get(2) == 30)
 
 @test
-fun arraylist_insert_end()
+fun heaplist_insert_end()
     var heap: HeapAllocator
-    var list: ArrayList<i32>
+    var list: HeapList<i32>
     list.init(&heap, 4)
     list.push(10)
     list.push(20)
-    assert(list.insert(2, 30))       // insert at end (same as push)
+    assert(list.insert(2, 30))
     assert(list.get(2) == 30)
     assert(list.size() == 3)
 
 @test
-fun arraylist_insert_grow()
+fun heaplist_insert_grow()
     var heap: HeapAllocator
-    var list: ArrayList<i32>
+    var list: HeapList<i32>
     list.init(&heap, 2)
     list.push(1)
     list.push(2)
-    assert(list.insert(0, 0))   // triggers grow
+    assert(list.insert(0, 0))
     assert(list.size() == 3)
     assert(list.get(0) == 0)
     assert(list.get(1) == 1)
     assert(list.get(2) == 2)
+
+@test
+fun heaplist_free()
+    var heap: HeapAllocator
+    var list: HeapList<i32>
+    list.init(&heap, 4)
+    list.push(1)
+    list.push(2)
+    list.free()
+    assert(list.size() == 0)
+    assert(list.capacity() == 0)
+
+#end
 
 // ── RingBuffer ───────────────────────────────────────────────────────────────
 
@@ -135,6 +246,125 @@ fun ringbuffer_push_pop()
     assert(rb.peek() == 20)
     assert(rb.size() == 2)
 
+// ── HeapMap ──────────────────────────────────────────────────────────────────
+#if HOSTED
+
+@test
+fun heapmap_set_get()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 8)
+    val key1: u8[] = "hello"
+    val key2: u8[] = "world"
+    m.set(key1, 42)
+    m.set(key2, 99)
+    assert(m.get_ptr(key1) != null)
+    assert(m.get_ptr(key2) != null)
+    assert(m.get(key1) == 42)
+    assert(m.get(key2) == 99)
+    assert(m.size() == 2)
+
+@test
+fun heapmap_contains()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 8)
+    val key: u8[] = "foo"
+    assert(m.contains(key) == false)
+    m.set(key, 1)
+    assert(m.contains(key))
+
+@test
+fun heapmap_missing_key()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 8)
+    val key: u8[] = "missing"
+    assert(m.get_ptr(key) == null)
+
+@test
+fun heapmap_overwrite()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 8)
+    val key: u8[] = "k"
+    m.set(key, 10)
+    m.set(key, 20)
+    assert(m.size() == 1)
+    assert(m.get_ptr(key) != null)
+    assert(m.get(key) == 20)
+
+@test
+fun heapmap_remove()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 8)
+    val key: u8[] = "del"
+    m.set(key, 5)
+    assert(m.contains(key))
+    assert(m.remove(key))
+    assert(m.contains(key) == false)
+    assert(m.get_ptr(key) == null)
+    assert(m.size() == 0)
+
+@test
+fun heapmap_remove_missing()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 8)
+    val key: u8[] = "nope"
+    assert(m.remove(key) == false)
+
+@test
+fun heapmap_probe_through_tombstone()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 8)
+    val a: u8[] = "a"
+    val b: u8[] = "b"
+    val c: u8[] = "c"
+    m.set(a, 1)
+    m.set(b, 2)
+    m.set(c, 3)
+    m.remove(b)
+    // c should still be findable after b is tombstoned
+    assert(m.get_ptr(c) != null)
+    assert(m.get(c) == 3)
+
+@test
+fun heapmap_grow()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 4)
+    val k0: u8[] = "k0"
+    val k1: u8[] = "k1"
+    val k2: u8[] = "k2"
+    val k3: u8[] = "k3"
+    val k4: u8[] = "k4"
+    m.set(k0, 0)
+    m.set(k1, 1)
+    m.set(k2, 2)
+    m.set(k3, 3)
+    m.set(k4, 4)
+    assert(m.size() == 5)
+    assert(m.get(k0) == 0)
+    assert(m.get(k1) == 1)
+    assert(m.get(k2) == 2)
+    assert(m.get(k3) == 3)
+    assert(m.get(k4) == 4)
+
+@test
+fun heapmap_free()
+    var heap: HeapAllocator
+    var m: HeapMap<i32>
+    m.init(&heap, 4)
+    val key: u8[] = "x"
+    m.set(key, 7)
+    m.free()
+    assert(m.size() == 0)
+
+#end
+
 @test
 fun ringbuffer_wrap_around()
     var alloc: Allocator
@@ -146,8 +376,8 @@ fun ringbuffer_wrap_around()
     rb.push(3)
     assert(rb.is_full())
     assert(rb.push(4) == false)
-    rb.pop()   // removes 1, head wraps
-    assert(rb.push(4))  // tail wraps around
+    rb.pop()
+    assert(rb.push(4))
     assert(rb.peek() == 2)
     rb.pop()
     assert(rb.peek() == 3)
