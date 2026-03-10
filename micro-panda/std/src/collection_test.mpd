@@ -1,27 +1,27 @@
 import test::assert
 import collection::ArrayList
-import collection::LinkedList
 import collection::RingBuffer
 import memory::Allocator
+#if STDC_HOSTED
+import memory::HeapAllocator
+#end
 
 // ── ArrayList ────────────────────────────────────────────────────────────────
 
 @test
 fun arraylist_init()
-    var alloc: Allocator
-    alloc.init(512)
+    var heap: HeapAllocator
     var list: ArrayList<i32>
-    assert(list.init(&alloc, 4))
+    list.init(&heap, 4)
     assert(list.is_empty())
     assert(list.size() == 0)
     assert(list.capacity() == 4)
 
 @test
 fun arraylist_push_pop()
-    var alloc: Allocator
-    alloc.init(512)
+    var heap: HeapAllocator
     var list: ArrayList<i32>
-    list.init(&alloc, 4)
+    list.init(&heap, 4)
     assert(list.push(10))
     assert(list.push(20))
     assert(list.push(30))
@@ -35,22 +35,22 @@ fun arraylist_push_pop()
     assert(list.top() == 20)
 
 @test
-fun arraylist_full()
-    var alloc: Allocator
-    alloc.init(512)
+fun arraylist_grow()
+    var heap: HeapAllocator
     var list: ArrayList<i32>
-    list.init(&alloc, 2)
+    list.init(&heap, 2)
     assert(list.push(1))
     assert(list.push(2))
-    assert(list.is_full())
-    assert(list.push(3) == false)
+    assert(list.capacity() == 2)
+    assert(list.push(3))   // triggers grow
+    assert(list.size() == 3)
+    assert(list.capacity() >= 4)
 
 @test
 fun arraylist_set_clear()
-    var alloc: Allocator
-    alloc.init(512)
+    var heap: HeapAllocator
     var list: ArrayList<i32>
-    list.init(&alloc, 4)
+    list.init(&heap, 4)
     list.push(1)
     list.push(2)
     list.set(0, 99)
@@ -61,10 +61,9 @@ fun arraylist_set_clear()
 
 @test
 fun arraylist_insert()
-    var alloc: Allocator
-    alloc.init(512)
+    var heap: HeapAllocator
     var list: ArrayList<i32>
-    list.init(&alloc, 4)
+    list.init(&heap, 4)
     list.push(10)
     list.push(30)
     assert(list.insert(1, 20))       // insert 20 between 10 and 30
@@ -75,10 +74,9 @@ fun arraylist_insert()
 
 @test
 fun arraylist_insert_front()
-    var alloc: Allocator
-    alloc.init(512)
+    var heap: HeapAllocator
     var list: ArrayList<i32>
-    list.init(&alloc, 4)
+    list.init(&heap, 4)
     list.push(20)
     list.push(30)
     assert(list.insert(0, 10))       // insert at front
@@ -88,10 +86,9 @@ fun arraylist_insert_front()
 
 @test
 fun arraylist_insert_end()
-    var alloc: Allocator
-    alloc.init(512)
+    var heap: HeapAllocator
     var list: ArrayList<i32>
-    list.init(&alloc, 4)
+    list.init(&heap, 4)
     list.push(10)
     list.push(20)
     assert(list.insert(2, 30))       // insert at end (same as push)
@@ -99,14 +96,17 @@ fun arraylist_insert_end()
     assert(list.size() == 3)
 
 @test
-fun arraylist_insert_full()
-    var alloc: Allocator
-    alloc.init(512)
+fun arraylist_insert_grow()
+    var heap: HeapAllocator
     var list: ArrayList<i32>
-    list.init(&alloc, 2)
+    list.init(&heap, 2)
     list.push(1)
     list.push(2)
-    assert(list.insert(0, 0) == false)  // full
+    assert(list.insert(0, 0))   // triggers grow
+    assert(list.size() == 3)
+    assert(list.get(0) == 0)
+    assert(list.get(1) == 1)
+    assert(list.get(2) == 2)
 
 // ── RingBuffer ───────────────────────────────────────────────────────────────
 

@@ -6,7 +6,28 @@
 fun _malloc(size: u32): &u8
 
 @extern("realloc")
-fun _realloc(ptr: &u8, newSize: u32): &u8
+fun _realloc(ptr: &u8, new_size: u32): &u8
+
+@extern("free")
+fun _free(ptr: &u8)
+
+// Heap allocator for growable containers (STDC_HOSTED only).
+// Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
+class HeapAllocator()
+    var _pad: u8 = 0    // keeps struct non-empty
+
+    fun allocate_array<T>(length: u32): T[]
+        val size := sizeof<T>() * length
+        val ptr := &T(_malloc(size))
+        return {ptr, length}
+
+    fun realloc_array<T>(arr: T[], new_length: u32): T[]
+        val size := sizeof<T>() * new_length
+        val ptr := &T(_realloc(&u8(arr.ptr), size))
+        return {ptr, new_length}
+
+    fun free_array<T>(arr: T[])
+        _free(&u8(arr.ptr))
 
 class Allocator()
     var _ptr: &u8 = null

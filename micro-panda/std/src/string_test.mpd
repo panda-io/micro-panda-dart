@@ -94,6 +94,7 @@ fun test_parse_i32()
     assert(parse_i32("42") == 42)
     assert(parse_i32("-42") == -42)
     assert(parse_i32("0") == 0)
+    assert(parse_i32("-2147483648") == -2147483648)  // INT_MIN
 
 @test
 fun test_format_u32()

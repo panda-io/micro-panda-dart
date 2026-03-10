@@ -165,6 +165,7 @@ extension ParserExpression on Parser {
     }
 
     // &TypeName(expr) → pointer cast to TypeName*  (uppercase identifier + '(')
+    // &scalar(expr)   → pointer cast to scalar*    (e.g. &u8(ptr) → uint8_t*)
     // &expr           → address-of (everything else)
     if (_current.type == TokenType.bitAnd) {
       _advance();
@@ -179,6 +180,19 @@ extension ParserExpression on Parser {
           _expect(TokenType.rightParen);
           return Conversion(targetType, val, pos);
         }
+      }
+      // &scalar_type(expr) → pointer cast to scalar_type* (e.g. &u8(ptr) → uint8_t*)
+      if (_current.type.isScalar &&
+          _current.type != TokenType.typeNull &&
+          _peek1().type == TokenType.leftParen) {
+        final token = _current.type;
+        final typePos = _current.offset;
+        _advance();
+        final targetType = TypeRef(TypeBuiltin(token, typePos), pos);
+        _expect(TokenType.leftParen);
+        final val = _parseExpression();
+        _expect(TokenType.rightParen);
+        return Conversion(targetType, val, pos);
       }
       return RefExpression(_parsePostfix(), pos);
     }

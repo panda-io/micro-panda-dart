@@ -572,20 +572,30 @@ class CGenerator {
     return false;
   }
 
-  /// True when a generic function's return type cannot be type-erased to void*.
-  /// Such functions must only be emitted as specialized (monomorphized) copies.
-  /// (e.g., T[] is unerasable; &T is erasable to void*.)
+  /// True when a generic function cannot be type-erased and must only be emitted
+  /// as specialized (monomorphized) copies.
+  /// Triggered by: T[] return (e.g., allocate_array), T[] params (e.g., free_array).
+  /// &T return/params are erasable to void* and do NOT trigger this.
   bool _fnHasUnerasableReturn(FunctionDecl fn) {
     if (fn.typeParams.isEmpty) return false;
     final retType = fn.returnType;
-    if (retType == null) return false;
-    // &T → void* is erasable
-    if (retType is TypeRef &&
-        retType.elementType is TypeName &&
-        fn.typeParams.contains((retType.elementType as TypeName).name)) {
-      return false;
+    if (retType != null) {
+      // &T → void* is erasable; anything else containing T is not
+      final isErasableRef = retType is TypeRef &&
+          retType.elementType is TypeName &&
+          fn.typeParams.contains((retType.elementType as TypeName).name);
+      if (!isErasableRef && _typeContainsTypeParam(retType, fn.typeParams)) {
+        return true;
+      }
     }
-    return _typeContainsTypeParam(retType, fn.typeParams);
+    // T[] parameter → __Slice_T which has no erased form; needs monomorphization
+    for (final param in fn.parameters) {
+      final pt = param.type;
+      if (pt is TypeArray && _typeContainsTypeParam(pt.elementType, fn.typeParams)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// Walk all function/method bodies to collect generic function instantiations.

@@ -110,7 +110,7 @@ fun parse_i32(s: u8[]): i32
         return 0
     if s[0] == 45
         val abs := parse_u32({s.ptr + 1, s.size() - 1})
-        return -i32(abs)
+        return i32(-abs)
     return i32(parse_u32(s))
 
 // ── Number formatting ─────────────────────────────────────────────────────────

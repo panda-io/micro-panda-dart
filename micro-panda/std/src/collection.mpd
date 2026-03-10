@@ -1,19 +1,37 @@
 import memory::Allocator
+#if STDC_HOSTED
+import memory::HeapAllocator
+#end
 
 class ArrayList<T>()
     var _buffer: T[]
     var _size: u32 = 0
+#if STDC_HOSTED
+    var _heap: &HeapAllocator
+#end
 
-    fun init(allocator: &Allocator, capacity: u32) bool
-        _buffer = allocator.allocate_array<T>(capacity)
+#if STDC_HOSTED
+    fun init(heap: &HeapAllocator, capacity: u32)
+        _heap = heap
+        _buffer = heap.allocate_array<T>(capacity)
+#else
+    fun init(alloc: &Allocator, capacity: u32) bool
+        _buffer = alloc.allocate_array<T>(capacity)
         if _buffer.size() == 0
             return false
         return true
+#end
 
     @inline
     fun push(value: T) bool
         if _size >= _buffer.size()
+#if STDC_HOSTED
+            _buffer = _heap.realloc_array<T>(_buffer, _buffer.size() * 2)
+            if _buffer.size() == 0
+                return false
+#else
             return false
+#end
         _buffer[_size] = value
         _size += 1
         return true
@@ -26,10 +44,16 @@ class ArrayList<T>()
         return true
 
     fun insert(i: u32, value: T) bool
-        if _size >= _buffer.size()
-            return false
         if i > _size
             return false
+        if _size >= _buffer.size()
+#if STDC_HOSTED
+            _buffer = _heap.realloc_array<T>(_buffer, _buffer.size() * 2)
+            if _buffer.size() == 0
+                return false
+#else
+            return false
+#end
         var j: u32 = _size
         while j > i
             _buffer[j] = _buffer[j - 1]
@@ -117,4 +141,4 @@ class RingBuffer<T>()
 
     @inline
     fun is_full() bool
-        return _size >= _buffer.size()        
+        return _size >= _buffer.size()
