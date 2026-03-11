@@ -42,7 +42,7 @@ class Allocator()
         val size := sizeof<T>()
         if _check_buffer(size)
             val ptr := &T(&_ptr[_cursor])
-            _cursor += size
+            _cursor = _align(_cursor + size, 8)
             return ptr
         return null
 
@@ -50,15 +50,19 @@ class Allocator()
         val size := sizeof<T>() * length
         if _check_buffer(size)
             val ptr := &T(&_ptr[_cursor])
-            _cursor += size
+            _cursor = _align(_cursor + size, 8)
             return {ptr, length}
         return {null, 0}
 
     fun reset()
         _cursor = 0
 
+    fun _align(cursor: u32, align: u32): u32
+        return (cursor + align - 1) & ~(align - 1)
+
     fun _check_buffer(size: u32) bool
-        if _cursor + size > _capacity
+        val aligned := _align(_cursor + size, 8)
+        if aligned > _capacity
             _capacity = _capacity * 2
             _ptr = _realloc(_ptr, _capacity)
             if _ptr == null
@@ -76,7 +80,7 @@ class Allocator(val _memory: u8[])
         if _cursor + size > _memory.size()
             return null
         val ptr := &T(&_memory[_cursor])
-        _cursor += size
+        _cursor = (_cursor + size + 3) & ~u32(3)
         return ptr
 
     @inline
@@ -85,7 +89,7 @@ class Allocator(val _memory: u8[])
         if _cursor + size > _memory.size()
             return {null, 0}
         val ptr := &T(&_memory[_cursor])
-        _cursor += size
+        _cursor = (_cursor + size + 3) & ~u32(3)
         return {ptr, length}
 
     @inline

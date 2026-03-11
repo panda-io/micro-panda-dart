@@ -176,11 +176,11 @@ class HeapMap<T>()
     fun init(heap: &HeapAllocator)
         _heap = heap
         _capacity = 8
-        _key_start = heap.allocate_array<u32>(8)
-        _key_len = heap.allocate_array<u32>(8)
+        _key_start = heap.allocate_array<u32>(_capacity)
+        _key_len = heap.allocate_array<u32>(_capacity)
         _pool = heap.allocate_array<u8>(128)
-        _values = heap.allocate_array<T>(8)
-        _state = heap.allocate_array<u8>(8)
+        _values = heap.allocate_array<T>(_capacity)
+        _state = heap.allocate_array<u8>(_capacity)
         var i: u32 = 0
         while i < _capacity
             _state[i] = 0

@@ -45,10 +45,10 @@ extension ParserTypes on Parser {
       // optional generic type args: ArrayList<i32>, Map<K, V>
       if (_current.type == TokenType.less) {
         _advance();
-        final typeArgs = <Type>[_parseType()];
+        final typeArgs = <Type>[_parseTypeArg()];
         while (_current.type == TokenType.comma) {
           _advance();
-          typeArgs.add(_parseType());
+          typeArgs.add(_parseTypeArg());
         }
         _expect(TokenType.greater);
         return TypeName(name, typeArgs: typeArgs, position: pos);
@@ -57,6 +57,17 @@ extension ParserTypes on Parser {
     }
 
     _error('expected type, found ${_current.type.name}');
+  }
+
+  /// Parse a single generic type argument and reject nesting.
+  Type _parseTypeArg() {
+    final t = _parseType();
+    // Reject nested generics: ArrayList<ArrayList<i32>> is not supported.
+    final inner = t is TypeRef ? t.elementType : t;
+    if (inner is TypeName && inner.typeArgs.isNotEmpty) {
+      _error('nested generic type arguments are not supported');
+    }
+    return t;
   }
 
   /// Wrap [base] in TypeArray if '[' follows.
