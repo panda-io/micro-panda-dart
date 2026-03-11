@@ -336,6 +336,20 @@ class CGenerator {
       if (type is TypeArray && !type.isSlice) register(type.elementType);
     }
 
+    void scanStmt(Statement s) {
+      if (s is DeclarationStatement) register(s.type);
+      if (s is Block) {
+        for (final child in s.statements) scanStmt(child);
+      }
+      if (s is IfStatement) {
+        scanStmt(s.body);
+        if (s.else_ != null) scanStmt(s.else_!);
+      }
+      if (s is WhileStatement) scanStmt(s.body);
+      if (s is ForRangeStatement) scanStmt(s.body);
+      if (s is ForInStatement) scanStmt(s.body);
+    }
+
     for (final mod in modules) {
       for (final cls in mod.classes) {
         // Skip generic classes here — they're handled below with type substitution.
@@ -353,6 +367,7 @@ class CGenerator {
           for (final p in fn.parameters) {
             register(p.type);
           }
+          if (fn.body != null) scanStmt(fn.body!);
         }
       }
       for (final fn in mod.functions) {
@@ -360,6 +375,7 @@ class CGenerator {
         if (fn.typeParams.isNotEmpty) continue;
         register(fn.returnType);
         for (final p in fn.parameters) { register(p.type); }
+        if (fn.body != null) scanStmt(fn.body!);
       }
       for (final v in mod.variables) {
         register(v.type);

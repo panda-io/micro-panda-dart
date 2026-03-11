@@ -334,7 +334,8 @@ extension GeneratorExpression on CGenerator {
     if (expr is This && _currentClass != null) {
       return TypeRef(TypeName(_currentClass!));
     }
-    return null;
+    // Fallback: use the type set by the validator on the expression node.
+    return expr.type;
   }
 
   // ── operator strings ──────────────────────────────────────────────────────────

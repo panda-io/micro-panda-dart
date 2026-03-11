@@ -1,0 +1,81 @@
+import test::assert
+
+// ── 1-D fixed arrays ──────────────────────────────────────────────────────────
+
+@test
+fun fixed_1d_read_write()
+    var buf: i32[4]
+    buf[0] = 10
+    buf[1] = 20
+    buf[2] = 30
+    buf[3] = 40
+    assert(buf[0] == 10)
+    assert(buf[1] == 20)
+    assert(buf[2] == 30)
+    assert(buf[3] == 40)
+
+@test
+fun fixed_1d_size()
+    var buf: i32[4]
+    assert(buf.size() == 4)
+
+// ── 2-D fixed arrays ──────────────────────────────────────────────────────────
+
+@test
+fun fixed_2d_read_write()
+    var grid: i32[3][3]
+    grid[0][0] = 1
+    grid[1][1] = 5
+    grid[2][2] = 9
+    assert(grid[0][0] == 1)
+    assert(grid[1][1] == 5)
+    assert(grid[2][2] == 9)
+
+@test
+fun fixed_2d_size()
+    var grid: i32[3][3]
+    assert(grid.size() == 3)
+
+// ── Slices ────────────────────────────────────────────────────────────────────
+
+@test
+fun slice_from_fixed()
+    var buf: i32[4]
+    buf[0] = 10
+    buf[1] = 20
+    buf[2] = 30
+    buf[3] = 40
+    val s: i32[] = {&buf[0], u32(4)}
+    assert(s.size() == 4)
+    assert(s[0] == 10)
+    assert(s[1] == 20)
+    assert(s[2] == 30)
+    assert(s[3] == 40)
+
+@test
+fun slice_write_through()
+    var buf: i32[4]
+    buf[0] = 10
+    val s: i32[] = {&buf[0], u32(4)}
+    s[0] = 99
+    assert(buf[0] == 99)
+
+// ── Fixed array of slices ─────────────────────────────────────────────────────
+
+@test
+fun fixed_array_of_slices()
+    var r0: i32[4]
+    var r1: i32[4]
+    r0[0] = 1
+    r0[1] = 2
+    r1[0] = 3
+    r1[1] = 4
+    var rows: i32[][2]
+    rows[0] = {&r0[0], u32(4)}
+    rows[1] = {&r1[0], u32(4)}
+    assert(rows[0].size() == 4)
+    assert(rows[1].size() == 4)
+    assert(rows[0][0] == 1)
+    assert(rows[0][1] == 2)
+    assert(rows[1][0] == 3)
+    assert(rows[1][1] == 4)
