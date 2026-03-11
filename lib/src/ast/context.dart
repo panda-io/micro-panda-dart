@@ -33,6 +33,9 @@ class Context {
   final Map<String, FunctionDecl> globalFunctions;
   final Map<String, Type?> globalVariables;
 
+  /// Maps class name → module path (used for private member access checks).
+  final Map<String, String> classModules;
+
   // ── current file (for error location) ────────────────────────────────────────
   final SourceFile? currentFile;
 
@@ -55,6 +58,7 @@ class Context {
     required this.enums,
     required this.globalFunctions,
     required this.globalVariables,
+    required this.classModules,
     required this.currentFile,
     required this.returnType,
     required this.typeParams,
@@ -69,9 +73,11 @@ class Context {
     final enums = <String, EnumDecl>{};
     final functions = <String, FunctionDecl>{};
     final variables = <String, Type?>{};
+    final classModules = <String, String>{};
     for (final mod in modules) {
       for (final cls in mod.classes) {
         classes[cls.name] = cls;
+        classModules[cls.name] = mod.path;
       }
       for (final enm in mod.enums) {
         enums[enm.name] = enm;
@@ -88,6 +94,7 @@ class Context {
       enums: enums,
       globalFunctions: functions,
       globalVariables: variables,
+      classModules: classModules,
       currentFile: null,
       returnType: null,
       typeParams: [],
@@ -103,6 +110,7 @@ class Context {
         enums: enums,
         globalFunctions: globalFunctions,
         globalVariables: globalVariables,
+        classModules: classModules,
         currentFile: file,
         returnType: null,
         typeParams: [],
@@ -117,6 +125,7 @@ class Context {
         enums: enums,
         globalFunctions: globalFunctions,
         globalVariables: globalVariables,
+        classModules: classModules,
         currentFile: currentFile,
         returnType: returnType,
         typeParams: typeParams,
@@ -138,6 +147,7 @@ class Context {
         enums: enums,
         globalFunctions: globalFunctions,
         globalVariables: globalVariables,
+        classModules: classModules,
         currentFile: currentFile,
         returnType: fn.returnType,
         typeParams: mergedTypeParams,

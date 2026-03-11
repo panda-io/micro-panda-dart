@@ -36,6 +36,18 @@ class MemberAccess extends Expression {
     if (parentType is TypeName) {
       final cls = context.classes[parentType.name];
       if (cls != null) {
+        // Private member check: names starting with '_' are module-private.
+        if (member.startsWith('_')) {
+          final ownerModule = context.classModules[parentType.name];
+          final currentModule = context.currentFile?.name;
+          if (ownerModule != null && ownerModule != currentModule) {
+            context.error(position,
+                "member '$member' of '${parentType.name}' is private");
+            type = null;
+            return;
+          }
+        }
+
         // Look for field in constructor fields and body fields
         for (final f in cls.constructorFields) {
           if (f.name == member) {

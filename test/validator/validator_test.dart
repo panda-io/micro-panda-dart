@@ -11,6 +11,16 @@ List<String> validate(String source) {
   return errors.map((e) => e.message).toList();
 }
 
+/// Validates multiple named modules together.
+/// [modules] is a map of module path → source code.
+List<String> validateModules(Map<String, String> modules) {
+  final mods = modules.entries.map((e) {
+    final file = SourceFile(e.key, 0, e.value.length);
+    return Parser(file, e.value, {}).parseModule(e.key);
+  }).toList();
+  return Validator().validate(mods).map((e) => e.message).toList();
+}
+
 void expectNoErrors(String source) {
   final errs = validate(source);
   expect(errs, isEmpty, reason: 'Expected no errors but got: $errs');
@@ -18,6 +28,17 @@ void expectNoErrors(String source) {
 
 void expectError(String source, String containing) {
   final errs = validate(source);
+  expect(errs.any((e) => e.contains(containing)), isTrue,
+      reason: "Expected error containing '$containing' but got: $errs");
+}
+
+void expectNoErrorsMulti(Map<String, String> modules) {
+  final errs = validateModules(modules);
+  expect(errs, isEmpty, reason: 'Expected no errors but got: $errs');
+}
+
+void expectErrorMulti(Map<String, String> modules, String containing) {
+  final errs = validateModules(modules);
   expect(errs.any((e) => e.contains(containing)), isTrue,
       reason: "Expected error containing '$containing' but got: $errs");
 }
@@ -236,6 +257,83 @@ fun f(): i32
 fun f()
     for i in range(0, 10)
         val x: i32 = i
+''');
+    });
+  });
+
+  group('Validator – member access visibility', () {
+    const classModule = '''
+class Counter(var _count: i32)
+    fun increment()
+        this._count += 1
+    fun get_count(): i32
+        return this._count
+''';
+
+    test('private field accessible within same module', () {
+      expectNoErrors('''
+class Counter(var _count: i32)
+    fun increment()
+        this._count += 1
+
+fun reset(c: Counter)
+    c._count = 0
+''');
+    });
+
+    test('private field inaccessible from different module', () {
+      expectErrorMulti({
+        'counter': classModule,
+        'user': '''
+fun reset(c: Counter)
+    c._count = 0
+''',
+      }, "member '_count' of 'Counter' is private");
+    });
+
+    test('private method inaccessible from different module', () {
+      expectErrorMulti({
+        'counter': '''
+class Foo(val x: i32)
+    fun _helper(): i32
+        return this.x
+''',
+        'user': '''
+fun call_helper(f: Foo): i32
+    return f._helper()
+''',
+      }, "member '_helper' of 'Foo' is private");
+    });
+
+    test('public field accessible from different module', () {
+      expectNoErrorsMulti({
+        'counter': classModule,
+        'user': '''
+fun get(c: Counter): i32
+    return c.get_count()
+''',
+      });
+    });
+
+    test('private field on pointer type inaccessible from different module', () {
+      expectErrorMulti({
+        'mymod': '''
+class Node(var _value: i32)
+''',
+        'other': '''
+fun read(n: &Node): i32
+    return n._value
+''',
+      }, "member '_value' of 'Node' is private");
+    });
+
+    test('class accessing its own private fields via this', () {
+      expectNoErrors('''
+class Box(var _x: i32)
+    fun double_x(): i32
+        return this._x * 2
+    fun set_x(v: i32)
+        this._x = v
 ''');
     });
   });
