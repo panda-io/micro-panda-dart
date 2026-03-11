@@ -339,7 +339,9 @@ class CGenerator {
     void scanStmt(Statement s) {
       if (s is DeclarationStatement) register(s.type);
       if (s is Block) {
-        for (final child in s.statements) scanStmt(child);
+        for (final child in s.statements) {
+          scanStmt(child);
+        }
       }
       if (s is IfStatement) {
         scanStmt(s.body);

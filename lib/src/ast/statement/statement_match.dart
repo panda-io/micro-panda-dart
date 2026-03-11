@@ -1,4 +1,5 @@
 import '../context.dart';
+import '../declaration/enum_decl.dart';
 import '../expression/expression.dart';
 import 'statement.dart';
 
@@ -46,6 +47,24 @@ class MatchStatement extends Statement {
       final pat = arm.pattern;
       if (pat is ExpressionPattern) {
         pat.expression.validate(armCtx, expression.type);
+      } else if (pat is DestructurePattern) {
+        // Find the variant in all known enums and declare bindings.
+        EnumMember? member;
+        for (final enm in context.enums.values) {
+          for (final m in enm.members) {
+            if (m.name == pat.variantName && m.isTagged) {
+              member = m;
+              break;
+            }
+          }
+          if (member != null) break;
+        }
+        if (member != null) {
+          final fields = member.fields!;
+          for (var i = 0; i < pat.bindings.length && i < fields.length; i++) {
+            armCtx.declare(pat.bindings[i], fields[i].type, arm.position);
+          }
+        }
       }
       arm.body.validate(armCtx);
     }

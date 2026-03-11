@@ -1,6 +1,6 @@
 # Match
 
-`match` is Micro Panda's pattern matching statement. It replaces `switch` and provides exhaustive matching for enums.
+`match` is Micro Panda's pattern matching statement. It replaces `switch`.
 
 ---
 
@@ -61,6 +61,6 @@ The field names in the pattern become local variable bindings for that arm's bod
 
 ---
 
-## Exhaustiveness
+## Wildcard / Default
 
-The compiler checks that all variants are covered. Use `_` to handle remaining cases.
+Use `_` to handle remaining cases. No exhaustiveness checking is performed — unmatched arms fall through silently.

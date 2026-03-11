@@ -1,0 +1,183 @@
+import test::assert
+
+// ── Arithmetic operators ───────────────────────────────────────────────────────
+
+@test
+fun arithmetic_ops()
+    assert(3 + 4 == 7)
+    assert(10 - 3 == 7)
+    assert(3 * 4 == 12)
+    assert(10 / 3 == 3)
+    assert(10 % 3 == 1)
+    assert(-5 == 0 - 5)
+
+// ── Bitwise operators ─────────────────────────────────────────────────────────
+
+@test
+fun bitwise_and()
+    var a: i32 = 0xFF
+    var b: i32 = 0x0F
+    assert((a & b) == 0x0F)
+
+@test
+fun bitwise_or()
+    var a: i32 = 0xF0
+    var b: i32 = 0x0F
+    assert((a | b) == 0xFF)
+
+@test
+fun bitwise_xor()
+    var a: i32 = 0xFF
+    var b: i32 = 0x0F
+    assert((a ^ b) == 0xF0)
+
+@test
+fun bitwise_not()
+    var a: i32 = 0
+    assert(~a == -1)
+
+@test
+fun shift_left()
+    var a: i32 = 1
+    assert((a << 3) == 8)
+
+@test
+fun shift_right()
+    var a: i32 = 16
+    assert((a >> 2) == 4)
+
+// ── Logical operators ─────────────────────────────────────────────────────────
+
+@test
+fun logical_and()
+    assert((1 == 1) && (2 == 2))
+    assert(!((1 == 1) && (2 == 3)))
+
+@test
+fun logical_or()
+    assert((1 == 2) || (2 == 2))
+    assert(!((1 == 2) || (2 == 3)))
+
+@test
+fun logical_not()
+    assert(!(1 == 2))
+    assert(!(false))
+
+// ── Comparison operators ──────────────────────────────────────────────────────
+
+@test
+fun comparisons()
+    assert(1 < 2)
+    assert(2 > 1)
+    assert(1 <= 1)
+    assert(1 >= 1)
+    assert(1 == 1)
+    assert(1 != 2)
+
+// ── Compound assignments ──────────────────────────────────────────────────────
+
+@test
+fun compound_add()
+    var x: i32 = 5
+    x += 3
+    assert(x == 8)
+
+@test
+fun compound_sub()
+    var x: i32 = 10
+    x -= 4
+    assert(x == 6)
+
+@test
+fun compound_mul()
+    var x: i32 = 3
+    x *= 4
+    assert(x == 12)
+
+@test
+fun compound_div()
+    var x: i32 = 12
+    x /= 3
+    assert(x == 4)
+
+@test
+fun compound_mod()
+    var x: i32 = 10
+    x %= 3
+    assert(x == 1)
+
+@test
+fun compound_and()
+    var x: i32 = 0xFF
+    x &= 0x0F
+    assert(x == 0x0F)
+
+@test
+fun compound_or()
+    var x: i32 = 0xF0
+    x |= 0x0F
+    assert(x == 0xFF)
+
+@test
+fun compound_xor()
+    var x: i32 = 0xFF
+    x ^= 0x0F
+    assert(x == 0xF0)
+
+@test
+fun compound_shl()
+    var x: i32 = 1
+    x <<= 4
+    assert(x == 16)
+
+@test
+fun compound_shr()
+    var x: i32 = 16
+    x >>= 2
+    assert(x == 4)
+
+// ── Increment / Decrement ─────────────────────────────────────────────────────
+
+@test
+fun increment()
+    var x: i32 = 5
+    x++
+    assert(x == 6)
+
+@test
+fun decrement()
+    var x: i32 = 5
+    x--
+    assert(x == 4)
+
+// ── Casting ───────────────────────────────────────────────────────────────────
+
+@test
+fun cast_i32_to_u8()
+    var x: i32 = 300
+    var b: u8 = u8(x)
+    assert(b == 44)         // 300 & 0xFF = 44
+
+@test
+fun cast_u8_to_i32()
+    var b: u8 = 200
+    var x: i32 = i32(b)
+    assert(x == 200)
+
+@test
+fun cast_i32_to_i64()
+    var x: i32 = -1
+    var y: i64 = i64(x)
+    assert(y == -1)
+
+@test
+fun cast_float_to_i32()
+    var f: float = 3.7
+    var x: i32 = i32(f)
+    assert(x == 3)
+
+@test
+fun cast_i32_to_float()
+    var x: i32 = 7
+    var f: float = float(x)
+    assert(f > 6.9 && f < 7.1)

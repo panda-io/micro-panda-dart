@@ -1,0 +1,121 @@
+import test::assert
+
+// ── Scalar match ──────────────────────────────────────────────────────────────
+
+fun dispatch(op: i32) i32
+    match op
+        1:
+            return 10
+        2:
+            return 20
+        3:
+            return 30
+        _:
+            return 0
+
+@test
+fun match_scalar()
+    assert(dispatch(1) == 10)
+    assert(dispatch(2) == 20)
+    assert(dispatch(3) == 30)
+    assert(dispatch(99) == 0)
+
+// ── u8 scalar (VM opcode style) ───────────────────────────────────────────────
+
+fun exec(op: u8) i32
+    match op
+        0x01:
+            return 1
+        0x02:
+            return 2
+        _:
+            return 0xFF
+
+@test
+fun match_u8_scalar()
+    assert(exec(0x01) == 1)
+    assert(exec(0x02) == 2)
+    assert(exec(0x99) == 0xFF)
+
+// ── Plain enum match ──────────────────────────────────────────────────────────
+
+enum Color
+    Red
+    Green
+    Blue
+
+fun color_id(c: Color) i32
+    match c
+        Color.Red:
+            return 1
+        Color.Green:
+            return 2
+        Color.Blue:
+            return 3
+        _:
+            return 0
+
+@test
+fun match_plain_enum()
+    assert(color_id(Color.Red) == 1)
+    assert(color_id(Color.Green) == 2)
+    assert(color_id(Color.Blue) == 3)
+
+// ── Value enum match ──────────────────────────────────────────────────────────
+
+enum OpCode
+    Add = 1
+    Sub = 2
+    Mul = 3
+
+fun calc(op: OpCode, a: i32, b: i32) i32
+    match op
+        OpCode.Add:
+            return a + b
+        OpCode.Sub:
+            return a - b
+        OpCode.Mul:
+            return a * b
+        _:
+            return 0
+
+@test
+fun match_value_enum()
+    assert(calc(OpCode.Add, 3, 4) == 7)
+    assert(calc(OpCode.Sub, 10, 3) == 7)
+    assert(calc(OpCode.Mul, 3, 4) == 12)
+
+// ── Tagged enum match (destructuring) ────────────────────────────────────────
+
+enum Expr
+    Num(value: i32)
+    Add(left: &Expr, right: &Expr)
+    Neg(inner: &Expr)
+
+fun eval(e: &Expr) i32
+    match e
+        Num(value):
+            return value
+        Add(left, right):
+            return eval(left) + eval(right)
+        Neg(inner):
+            return -eval(inner)
+
+@test
+fun match_tagged_enum()
+    var n5: Expr
+    n5 = Expr.Num(5)
+
+    var n3: Expr
+    n3 = Expr.Num(3)
+
+    var sum: Expr
+    sum = Expr.Add(&n5, &n3)        // 5 + 3 = 8
+
+    var neg: Expr
+    neg = Expr.Neg(&n5)             // -(5) = -5
+
+    assert(eval(&n5) == 5)
+    assert(eval(&n3) == 3)
+    assert(eval(&sum) == 8)
+    assert(eval(&neg) == -5)

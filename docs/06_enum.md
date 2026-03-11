@@ -53,11 +53,17 @@ enum Expression
     Unary(op: OpCode, exp: &Expression)
 ```
 
-Usage:
+Construction (by variant name):
 
 ```python
-var expr: &Expression = ...
+var e: Expression
+e = Expression.Binary(&left, op, &right)
+e = Expression.Unary(op, &exp)
+```
 
+Matching (destructuring binds field values to local names):
+
+```python
 match expr
     Binary(left, op, right):
         ...
@@ -65,4 +71,4 @@ match expr
         ...
 ```
 
-> Tagged enum values must always be handled by reference (`&Expression`) because their size varies by variant. See [References](11_reference.md) and [Match](08_match.md) for details.
+> Recursive tagged enums use `&T` fields (e.g. `left: &Expression`) so the struct size stays fixed. The outer variable can be a value type (`var e: Expression`) or a reference (`var e: &Expression`) depending on usage. See [Match](08_match.md) for details.

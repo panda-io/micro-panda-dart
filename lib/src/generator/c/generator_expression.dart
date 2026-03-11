@@ -144,6 +144,27 @@ extension GeneratorExpression on CGenerator {
         }
       }
 
+      // Tagged enum variant construction: Expr.Num(5) → (Expr){.tag=Expr_Num, .data={.Num={.value=5}}}
+      if (ma.parent is Identifier) {
+        final enumName = (ma.parent as Identifier).name;
+        if (_enums.containsKey(enumName)) {
+          final enm = _enums[enumName]!;
+          final member = enm.members
+              .where((m) => m.name == ma.member && m.isTagged)
+              .firstOrNull;
+          if (member != null) {
+            final fields = member.fields!;
+            final args = inv.arguments.map(_expr).toList();
+            final fieldInits = List.generate(
+              fields.length.clamp(0, args.length),
+              (i) => '.${fields[i].name} = ${args[i]}',
+            ).join(', ');
+            return '($enumName){.tag = ${enumName}_${ma.member}'
+                ', .data = {.${ma.member} = {$fieldInits}}}';
+          }
+        }
+      }
+
       // Built-in .size() on arrays/slices
       if (ma.member == 'size' && inv.arguments.isEmpty) {
         final receiverType = _inferType(ma.parent);

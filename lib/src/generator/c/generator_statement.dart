@@ -141,12 +141,16 @@ extension GeneratorStatement on CGenerator {
     // Determine element type and array length from the iterable's type.
     Type? elemType;
     String sizeExpr;
+    bool isSlice = false;
     if (iterType is TypeArray) {
       elemType = iterType.elementType;
-      final dim = iterType.dimension.isNotEmpty ? iterType.dimension[0] : 0;
-      sizeExpr = dim > 0
-          ? '$dim'
-          : '(sizeof($iterable) / sizeof(($iterable)[0]))';
+      if (iterType.isSlice) {
+        isSlice = true;
+        sizeExpr = '$iterable.size';
+      } else {
+        final dim = iterType.dimension.isNotEmpty ? iterType.dimension[0] : 0;
+        sizeExpr = dim > 0 ? '$dim' : '(sizeof($iterable) / sizeof(($iterable)[0]))';
+      }
     } else {
       // Unknown size: fall back to a 0 placeholder.
       sizeExpr = '0 /* TODO: array size */';
@@ -155,7 +159,8 @@ extension GeneratorStatement on CGenerator {
     final idxVar = stmt.index ?? '_i';
     _line('for (size_t $idxVar = 0; $idxVar < $sizeExpr; $idxVar++) {');
     _indent++;
-    _line('${_varDecl(stmt.item, elemType)} = $iterable[$idxVar];');
+    final elemAccess = isSlice ? '$iterable.ptr[$idxVar]' : '$iterable[$idxVar]';
+    _line('${_varDecl(stmt.item, elemType)} = $elemAccess;');
     // Track item and optional index in scope for the body.
     _scope[stmt.item] = elemType;
     if (stmt.index != null) _scope[stmt.index!] = TypeBuiltin(TokenType.typeUint64);
