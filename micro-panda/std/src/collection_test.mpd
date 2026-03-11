@@ -259,8 +259,8 @@ fun heapmap_set_get()
     val key2: u8[] = "world"
     m.set(key1, 42)
     m.set(key2, 99)
-    assert(m.get_ptr(key1) != null)
-    assert(m.get_ptr(key2) != null)
+    assert(m.contains(key1))
+    assert(m.contains(key2))
     assert(m.get(key1) == 42)
     assert(m.get(key2) == 99)
     assert(m.size() == 2)
@@ -281,7 +281,7 @@ fun heapmap_missing_key()
     var m: HeapMap<i32>
     m.init(&heap)
     val key: u8[] = "missing"
-    assert(m.get_ptr(key) == null)
+    assert(m.contains(key) == false)
 
 @test
 fun heapmap_overwrite()
@@ -292,7 +292,7 @@ fun heapmap_overwrite()
     m.set(key, 10)
     m.set(key, 20)
     assert(m.size() == 1)
-    assert(m.get_ptr(key) != null)
+    assert(m.contains(key))
     assert(m.get(key) == 20)
 
 @test
@@ -305,7 +305,6 @@ fun heapmap_remove()
     assert(m.contains(key))
     assert(m.remove(key))
     assert(m.contains(key) == false)
-    assert(m.get_ptr(key) == null)
     assert(m.size() == 0)
 
 @test
@@ -329,7 +328,7 @@ fun heapmap_probe_through_tombstone()
     m.set(c, 3)
     m.remove(b)
     // c should still be findable after b is tombstoned
-    assert(m.get_ptr(c) != null)
+    assert(m.contains(c))
     assert(m.get(c) == 3)
 
 @test

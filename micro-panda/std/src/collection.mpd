@@ -237,18 +237,7 @@ class HeapMap<T>()
             return false
         return _state[slot] == 1
 
-    // Returns pointer to value, or null if key not found.
-    fun get_ptr(key: u8[]): &T
-        if _capacity == 0
-            return null
-        val slot := _find_slot(key)
-        if slot >= _capacity
-            return null
-        if _state[slot] != 1
-            return null
-        return &_values[slot]
-
-    // Returns value by copy. Caller must check contains() first; behaviour is
+    // Returns value. Caller must check contains() first; behaviour is
     // undefined when the key is absent.
     fun get(key: u8[]): T
         val slot := _find_slot(key)
