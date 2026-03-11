@@ -87,9 +87,9 @@ class HeapList<T>()
     var _size: u32 = 0
     var _heap: &HeapAllocator
 
-    fun init(heap: &HeapAllocator, capacity: u32)
+    fun init(heap: &HeapAllocator)
         _heap = heap
-        _buffer = heap.allocate_array<T>(capacity)
+        _buffer = heap.allocate_array<T>(8)
 
     @inline
     fun push(value: T) bool
@@ -162,27 +162,27 @@ class HeapList<T>()
 // Uses FNV-1a hashing, linear probing, 75% load-factor resize.
 // Keys are copied into an owned flat byte pool — keys need not outlive the map.
 
-class HeapMap<V>()
+class HeapMap<T>()
     var _key_start: u32[]   // offset into _pool per slot
     var _key_len: u32[]     // key length per slot
     var _pool: u8[]         // flat owned key byte storage
     var _pool_used: u32 = 0
-    var _values: V[]
+    var _values: T[]
     var _state: u8[]        // 0=empty 1=used 2=deleted
     var _size: u32 = 0
     var _capacity: u32 = 0
     var _heap: &HeapAllocator
 
-    fun init(heap: &HeapAllocator, capacity: u32)
+    fun init(heap: &HeapAllocator)
         _heap = heap
-        _capacity = capacity
-        _key_start = heap.allocate_array<u32>(capacity)
-        _key_len = heap.allocate_array<u32>(capacity)
-        _pool = heap.allocate_array<u8>(capacity * 16)
-        _values = heap.allocate_array<V>(capacity)
-        _state = heap.allocate_array<u8>(capacity)
+        _capacity = 8
+        _key_start = heap.allocate_array<u32>(8)
+        _key_len = heap.allocate_array<u32>(8)
+        _pool = heap.allocate_array<u8>(128)
+        _values = heap.allocate_array<T>(8)
+        _state = heap.allocate_array<u8>(8)
         var i: u32 = 0
-        while i < capacity
+        while i < _capacity
             _state[i] = 0
             i += 1
 
@@ -238,7 +238,7 @@ class HeapMap<V>()
         return _state[slot] == 1
 
     // Returns pointer to value, or null if key not found.
-    fun get_ptr(key: u8[]): &V
+    fun get_ptr(key: u8[]): &T
         if _capacity == 0
             return null
         val slot := _find_slot(key)
@@ -250,11 +250,11 @@ class HeapMap<V>()
 
     // Returns value by copy. Caller must check contains() first; behaviour is
     // undefined when the key is absent.
-    fun get(key: u8[]): V
+    fun get(key: u8[]): T
         val slot := _find_slot(key)
         return _values[slot]
 
-    fun set(key: u8[], value: V)
+    fun set(key: u8[], value: T)
         if _size * 4 >= _capacity * 3
             _grow()
         val slot := _find_slot(key)
@@ -309,7 +309,7 @@ class HeapMap<V>()
         _key_len = _heap.allocate_array<u32>(_capacity)
         _pool = _heap.allocate_array<u8>(_pool_used + 64)
         _pool_used = 0
-        _values = _heap.allocate_array<V>(_capacity)
+        _values = _heap.allocate_array<T>(_capacity)
         _state = _heap.allocate_array<u8>(_capacity)
         _size = 0
         var i: u32 = 0
@@ -327,14 +327,14 @@ class HeapMap<V>()
         _heap.free_array<u32>(old_key_start)
         _heap.free_array<u32>(old_key_len)
         _heap.free_array<u8>(old_pool)
-        _heap.free_array<V>(old_values)
+        _heap.free_array<T>(old_values)
         _heap.free_array<u8>(old_state)
 
     fun free()
         _heap.free_array<u32>(_key_start)
         _heap.free_array<u32>(_key_len)
         _heap.free_array<u8>(_pool)
-        _heap.free_array<V>(_values)
+        _heap.free_array<T>(_values)
         _heap.free_array<u8>(_state)
         _key_start = {null, 0}
         _key_len = {null, 0}

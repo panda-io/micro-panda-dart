@@ -119,7 +119,7 @@ fun arraylist_insert_full()
 fun heaplist_push_pop()
     var heap: HeapAllocator
     var list: HeapList<i32>
-    list.init(&heap, 4)
+    list.init(&heap)
     assert(list.push(10))
     assert(list.push(20))
     assert(list.push(30))
@@ -136,19 +136,20 @@ fun heaplist_push_pop()
 fun heaplist_grow()
     var heap: HeapAllocator
     var list: HeapList<i32>
-    list.init(&heap, 2)
-    assert(list.push(1))
-    assert(list.push(2))
-    assert(list.capacity() == 2)
-    assert(list.push(3))
-    assert(list.size() == 3)
-    assert(list.capacity() >= 4)
+    list.init(&heap)
+    val initial := list.capacity()
+    var i: u32 = 0
+    while i <= initial
+        assert(list.push(i32(i)))
+        i += 1
+    assert(list.size() == initial + 1)
+    assert(list.capacity() > initial)
 
 @test
 fun heaplist_set_clear()
     var heap: HeapAllocator
     var list: HeapList<i32>
-    list.init(&heap, 4)
+    list.init(&heap)
     list.push(1)
     list.push(2)
     list.set(0, 99)
@@ -161,7 +162,7 @@ fun heaplist_set_clear()
 fun heaplist_insert()
     var heap: HeapAllocator
     var list: HeapList<i32>
-    list.init(&heap, 4)
+    list.init(&heap)
     list.push(10)
     list.push(30)
     assert(list.insert(1, 20))
@@ -174,7 +175,7 @@ fun heaplist_insert()
 fun heaplist_insert_front()
     var heap: HeapAllocator
     var list: HeapList<i32>
-    list.init(&heap, 4)
+    list.init(&heap)
     list.push(20)
     list.push(30)
     assert(list.insert(0, 10))
@@ -186,7 +187,7 @@ fun heaplist_insert_front()
 fun heaplist_insert_end()
     var heap: HeapAllocator
     var list: HeapList<i32>
-    list.init(&heap, 4)
+    list.init(&heap)
     list.push(10)
     list.push(20)
     assert(list.insert(2, 30))
@@ -197,7 +198,7 @@ fun heaplist_insert_end()
 fun heaplist_insert_grow()
     var heap: HeapAllocator
     var list: HeapList<i32>
-    list.init(&heap, 2)
+    list.init(&heap)
     list.push(1)
     list.push(2)
     assert(list.insert(0, 0))
@@ -210,7 +211,7 @@ fun heaplist_insert_grow()
 fun heaplist_free()
     var heap: HeapAllocator
     var list: HeapList<i32>
-    list.init(&heap, 4)
+    list.init(&heap)
     list.push(1)
     list.push(2)
     list.free()
@@ -253,7 +254,7 @@ fun ringbuffer_push_pop()
 fun heapmap_set_get()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 8)
+    m.init(&heap)
     val key1: u8[] = "hello"
     val key2: u8[] = "world"
     m.set(key1, 42)
@@ -268,7 +269,7 @@ fun heapmap_set_get()
 fun heapmap_contains()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 8)
+    m.init(&heap)
     val key: u8[] = "foo"
     assert(m.contains(key) == false)
     m.set(key, 1)
@@ -278,7 +279,7 @@ fun heapmap_contains()
 fun heapmap_missing_key()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 8)
+    m.init(&heap)
     val key: u8[] = "missing"
     assert(m.get_ptr(key) == null)
 
@@ -286,7 +287,7 @@ fun heapmap_missing_key()
 fun heapmap_overwrite()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 8)
+    m.init(&heap)
     val key: u8[] = "k"
     m.set(key, 10)
     m.set(key, 20)
@@ -298,7 +299,7 @@ fun heapmap_overwrite()
 fun heapmap_remove()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 8)
+    m.init(&heap)
     val key: u8[] = "del"
     m.set(key, 5)
     assert(m.contains(key))
@@ -311,7 +312,7 @@ fun heapmap_remove()
 fun heapmap_remove_missing()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 8)
+    m.init(&heap)
     val key: u8[] = "nope"
     assert(m.remove(key) == false)
 
@@ -319,7 +320,7 @@ fun heapmap_remove_missing()
 fun heapmap_probe_through_tombstone()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 8)
+    m.init(&heap)
     val a: u8[] = "a"
     val b: u8[] = "b"
     val c: u8[] = "c"
@@ -335,7 +336,7 @@ fun heapmap_probe_through_tombstone()
 fun heapmap_grow()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 4)
+    m.init(&heap)
     val k0: u8[] = "k0"
     val k1: u8[] = "k1"
     val k2: u8[] = "k2"
@@ -357,7 +358,7 @@ fun heapmap_grow()
 fun heapmap_free()
     var heap: HeapAllocator
     var m: HeapMap<i32>
-    m.init(&heap, 4)
+    m.init(&heap)
     val key: u8[] = "x"
     m.set(key, 7)
     m.free()
