@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import '../ast/module.dart';
 import '../generator/c/generator.dart';
 import '../parser/parser.dart';
+import '../stdlib_embedded.dart';
 import '../token/position.dart';
 import '../validator/validator.dart';
 import 'project.dart';
@@ -57,7 +58,29 @@ class Builder {
 
   // ── step 1: parse ─────────────────────────────────────────────────────────
 
+  /// Path to the local std cache directory (extracted from embedded std).
+  String get _stdCacheDir =>
+      p.join(project.rootDir, '.micro-panda', 'std', 'src');
+
+  /// Extract embedded std modules to the local cache if not already present.
+  /// Project-level overrides (files already in project.src) take priority and
+  /// are never overwritten.
+  void _ensureStd() {
+    for (final entry in kStdlib.entries) {
+      final rel = '${entry.key.replaceAll('.', p.separator)}.mpd';
+      // Don't overwrite a project-level module.
+      if (File(p.join(project.src, rel)).existsSync()) continue;
+      final dest = File(p.join(_stdCacheDir, rel));
+      if (!dest.existsSync()) {
+        dest.parent.createSync(recursive: true);
+        dest.writeAsStringSync(entry.value);
+      }
+    }
+  }
+
   List<Module>? _parseModules() {
+    _ensureStd();
+
     final entryFile = _resolveEntry();
     if (!entryFile.existsSync()) {
       _error('Entry file not found: ${entryFile.path}');
@@ -106,11 +129,22 @@ class Builder {
 
   File? _resolveImport(String importPath) {
     final rel = '${importPath.replaceAll('.', p.separator)}.mpd';
-    final file = File(p.join(project.src, rel));
-    return file.existsSync() ? file : null;
+    // 1. Project source (highest priority — allows overriding std).
+    final projectFile = File(p.join(project.src, rel));
+    if (projectFile.existsSync()) return projectFile;
+    // 2. Extracted std cache (populated from embedded std by _ensureStd).
+    final stdFile = File(p.join(_stdCacheDir, rel));
+    if (stdFile.existsSync()) return stdFile;
+    return null;
   }
 
   String _modulePathFor(String absPath) {
+    // Modules from the std cache use the std cache dir as their root.
+    final stdCache = p.normalize(_stdCacheDir);
+    if (p.normalize(absPath).startsWith(stdCache)) {
+      final rel = p.relative(absPath, from: stdCache);
+      return p.withoutExtension(rel).replaceAll(p.separator, '.');
+    }
     final rel = p.relative(absPath, from: project.src);
     return p.withoutExtension(rel).replaceAll(p.separator, '.');
   }
