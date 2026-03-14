@@ -50,8 +50,7 @@ extension GeneratorType on CGenerator {
       for (int i = 0; i < type.dimension.length; i++) {
         final d = type.dimension[i];
         if (d == -1 && i < type.dimNames.length && type.dimNames[i] != null) {
-          final name = type.dimNames[i]!;
-          final val = _constInts[name];
+          final val = _evalDimExpr(type.dimNames[i]!);
           buf.write('[${val ?? 1}]');
         } else {
           buf.write('[$d]');
@@ -60,6 +59,26 @@ extension GeneratorType on CGenerator {
       return buf.toString();
     }
     return '';
+  }
+
+  /// Evaluate a dimension expression (e.g. "SYS_MAX_TASKS + APP_MAX_TASKS") using [_constInts].
+  int? _evalDimExpr(String expr) {
+    expr = expr.trim();
+    // Single name or integer
+    if (!expr.contains('+') && !expr.contains('-')) {
+      return _constInts[expr] ?? int.tryParse(expr);
+    }
+    // Sum: find last '+' or '-' outside of negative literals
+    final plusIdx = expr.lastIndexOf('+');
+    final minusIdx = expr.lastIndexOf('-');
+    final splitIdx = plusIdx > minusIdx ? plusIdx : minusIdx;
+    if (splitIdx > 0) {
+      final op = expr[splitIdx];
+      final a = _evalDimExpr(expr.substring(0, splitIdx));
+      final b = _evalDimExpr(expr.substring(splitIdx + 1));
+      if (a != null && b != null) return op == '+' ? a + b : a - b;
+    }
+    return null;
   }
 
   /// Full C variable declaration fragment: "int32_t name" or "uint8_t buf[32]".

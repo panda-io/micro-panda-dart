@@ -99,12 +99,22 @@ extension ParserStatement on Parser {
   // ── for ──────────────────────────────────────────────────────────────────────
 
   /// Disambiguates:
-  ///   for i in range(start, end)   → ForRangeStatement
-  ///   for item in iterable         → ForInStatement(null, item, ...)
-  ///   for index, item in iterable  → ForInStatement(index, item, ...)
+  ///   for i in range(start, end)       → ForRangeStatement
+  ///   for item in iterable             → ForInStatement(null, item, false, ...)
+  ///   for index, item in iterable      → ForInStatement(index, item, false, ...)
+  ///   for &item in iterable            → ForInStatement(null, item, true, ...)
+  ///   for item: &T in iterable         → ForInStatement(null, item, true, ...)
+  ///   for item: T in range(start, end) → ForRangeStatement (type annotation ignored)
   Statement _parseForStatement() {
     final pos = _current.offset;
     _expect(TokenType.kFor);
+
+    // for &name in iterable
+    bool isRef = false;
+    if (_current.type == TokenType.bitAnd) {
+      _advance();
+      isRef = true;
+    }
 
     final first = _expectIdentifier();
 
@@ -118,10 +128,17 @@ extension ParserStatement on Parser {
       item = first;
     }
 
+    // Optional type annotation: `: T` or `: &T`
+    if (_current.type == TokenType.colon) {
+      _advance();
+      final annType = _parseType();
+      if (annType is TypeRef) isRef = true;
+    }
+
     _expect(TokenType.kIn);
 
     // range(...) shorthand — only for single-variable form
-    if (index == null && _current.type == TokenType.kRange) {
+    if (index == null && !isRef && _current.type == TokenType.kRange) {
       _advance();
       _expect(TokenType.leftParen);
       final start = _parseExpression();
@@ -136,7 +153,7 @@ extension ParserStatement on Parser {
     final iterable = _parseExpression();
     _expectNewline();
     final body = _parseBlock();
-    return ForInStatement(index, item, iterable, body, pos);
+    return ForInStatement(index, item, isRef, iterable, body, pos);
   }
 
   // ── match ────────────────────────────────────────────────────────────────────

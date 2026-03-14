@@ -160,9 +160,15 @@ extension GeneratorStatement on CGenerator {
     _line('for (size_t $idxVar = 0; $idxVar < $sizeExpr; $idxVar++) {');
     _indent++;
     final elemAccess = isSlice ? '$iterable.ptr[$idxVar]' : '$iterable[$idxVar]';
-    _line('${_varDecl(stmt.item, elemType)} = $elemAccess;');
-    // Track item and optional index in scope for the body.
-    _scope[stmt.item] = elemType;
+    if (stmt.isRef) {
+      final refType = elemType != null ? TypeRef(elemType) : null;
+      _line('${_varDecl(stmt.item, refType)} = &$elemAccess;');
+      _scope[stmt.item] = refType;
+    } else {
+      _line('${_varDecl(stmt.item, elemType)} = $elemAccess;');
+      _scope[stmt.item] = elemType;
+    }
+    // Track optional index in scope for the body.
     if (stmt.index != null) _scope[stmt.index!] = TypeBuiltin(TokenType.typeUint64);
     // Emit body statements directly (avoid double-indent from _emitBody).
     if (stmt.body is Block) {

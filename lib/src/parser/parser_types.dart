@@ -88,10 +88,24 @@ extension ParserTypes on Parser {
       firstDim = int.parse(_current.literal);
       _advance();
     } else if (_current.type == TokenType.identifier) {
-      // Named constant as array size: Task[SYS_MAX_TASKS]
-      firstDim = -1;
-      firstDimName = _current.literal;
+      // Named constant(s) as array size: Task[SYS_MAX_TASKS] or Task[A + B]
+      final buf = StringBuffer(_current.literal);
       _advance();
+      while (_current.type == TokenType.plus || _current.type == TokenType.minus) {
+        final op = _current.type == TokenType.plus ? '+' : '-';
+        _advance();
+        if (_current.type == TokenType.identifier) {
+          buf.write(' $op ${_current.literal}');
+          _advance();
+        } else if (_current.type == TokenType.intLiteral) {
+          buf.write(' $op ${_current.literal}');
+          _advance();
+        } else {
+          break;
+        }
+      }
+      firstDim = -1;
+      firstDimName = buf.toString();
     } else {
       firstDim = 0; // unsized / slice
     }
@@ -117,9 +131,23 @@ extension ParserTypes on Parser {
         array.dimNames.add(null);
         _advance();
       } else if (_current.type == TokenType.identifier) {
-        array.dimension.add(-1);
-        array.dimNames.add(_current.literal);
+        final buf = StringBuffer(_current.literal);
         _advance();
+        while (_current.type == TokenType.plus || _current.type == TokenType.minus) {
+          final op = _current.type == TokenType.plus ? '+' : '-';
+          _advance();
+          if (_current.type == TokenType.identifier) {
+            buf.write(' $op ${_current.literal}');
+            _advance();
+          } else if (_current.type == TokenType.intLiteral) {
+            buf.write(' $op ${_current.literal}');
+            _advance();
+          } else {
+            break;
+          }
+        }
+        array.dimension.add(-1);
+        array.dimNames.add(buf.toString());
       } else {
         array.dimension.add(0);
         array.dimNames.add(null);
