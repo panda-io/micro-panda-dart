@@ -82,6 +82,10 @@ class CGenerator {
   /// C element type strings for which a __Slice_T typedef must be emitted.
   final Set<String> _sliceElementTypes = {};
 
+  /// Integer values of const declarations keyed by bare name.
+  /// Used to resolve named array dimensions like Task[SYS_MAX_TASKS].
+  final Map<String, int> _constInts = {};
+
   /// C headers requested via @include("header") across all modules.
   final List<String> _moduleIncludes = [];
 
@@ -182,15 +186,33 @@ class CGenerator {
   /// [entryModPath] is the module path of the entry module (e.g. "firmware.main").
   /// A thin C `main` wrapper is emitted in non-test builds so user code can call
   /// `main()` without any namespace qualifier.
+  /// Returns only modules reachable from [entryModPath] via the import graph.
+  /// If [entryModPath] is null, returns [modules] unchanged.
+  List<Module> _filterReachable(List<Module> modules, String? entryModPath) {
+    if (entryModPath == null) return modules;
+    final byPath = {for (final m in modules) m.path: m};
+    final visited = <String>{};
+    final queue = [entryModPath];
+    while (queue.isNotEmpty) {
+      final path = queue.removeLast();
+      if (!visited.add(path)) continue;
+      for (final imp in byPath[path]?.imports ?? []) {
+        queue.add(imp.path);
+      }
+    }
+    return modules.where((m) => visited.contains(m.path)).toList();
+  }
+
   String generate(List<Module> modules, {String? entryModPath}) {
+    modules = _filterReachable(modules, entryModPath);
     _buildSymbolTables(modules);
     _collectInstantiations(modules);
     _registerSpecializedClasses();
     _collectFnInstantiations(modules);
     _collectSliceTypes(modules);
     _emitIncludes();
-    _emitSliceTypedefs();
     _emitForwardDeclarations(modules);
+    _emitSliceTypedefs();
     _emitEnumDefs(modules);
     _emitStructDefs(modules);
     _emitFunctionPrototypes(modules);
@@ -212,6 +234,15 @@ class CGenerator {
         for (final m in enm.members) {
           if (m.isTagged) {
             _variants[m.name] = (enumName: enm.name, member: m);
+          }
+        }
+      }
+      // Collect integer constant values for named array dimension resolution.
+      for (final v in mod.variables) {
+        if (v.isConst && v.value is Literal) {
+          final lit = v.value as Literal;
+          if (lit.tokenType == TokenType.intLiteral) {
+            _constInts[v.name] = int.parse(lit.value);
           }
         }
       }

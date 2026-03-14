@@ -83,8 +83,14 @@ extension ParserTypes on Parser {
     final pos = base.position;
     _advance(); // consume '['
     final int firstDim;
+    String? firstDimName;
     if (_current.type == TokenType.intLiteral) {
       firstDim = int.parse(_current.literal);
+      _advance();
+    } else if (_current.type == TokenType.identifier) {
+      // Named constant as array size: Task[SYS_MAX_TASKS]
+      firstDim = -1;
+      firstDimName = _current.literal;
       _advance();
     } else {
       firstDim = 0; // unsized / slice
@@ -94,19 +100,29 @@ extension ParserTypes on Parser {
     if (firstDim == 0) {
       // Leading [] — build TypeArray(base,[0]) then recurse so further [N]
       // suffixes wrap the slice rather than being added to the same flat list.
-      final slice = TypeArray(base, pos)..dimension.add(0);
+      final slice = TypeArray(base, pos)
+        ..dimension.add(0)
+        ..dimNames.add(null);
       return _parseArraySuffix(slice);
     }
 
     // Fixed leading dimension — collect remaining fixed dims into flat list.
-    final array = TypeArray(base, pos)..dimension.add(firstDim);
+    final array = TypeArray(base, pos)
+      ..dimension.add(firstDim)
+      ..dimNames.add(firstDimName);
     while (_current.type == TokenType.leftBracket) {
       _advance();
       if (_current.type == TokenType.intLiteral) {
         array.dimension.add(int.parse(_current.literal));
+        array.dimNames.add(null);
+        _advance();
+      } else if (_current.type == TokenType.identifier) {
+        array.dimension.add(-1);
+        array.dimNames.add(_current.literal);
         _advance();
       } else {
         array.dimension.add(0);
+        array.dimNames.add(null);
       }
       _expect(TokenType.rightBracket);
     }

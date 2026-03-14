@@ -337,4 +337,45 @@ class Box(var _x: i32)
 ''');
     });
   });
+
+  group('Validator – val binding', () {
+    test('val local cannot be reassigned', () {
+      expectError('''
+fun f()
+    val x: i32 = 1
+    x = 2
+''', "cannot assign to 'val' binding 'x'");
+    });
+
+    test('var local can be reassigned', () {
+      expectNoErrors('''
+fun f()
+    var x: i32 = 1
+    x = 2
+''');
+    });
+
+    test('val ref: field mutation is allowed', () {
+      expectNoErrors('''
+class Point(var x: i32, var y: i32)
+
+fun f()
+    var p := Point(1, 2)
+    val r: &Point = &p
+    r.x = 10
+''');
+    });
+
+    test('val ref: rebinding is disallowed', () {
+      expectError('''
+class Point(var x: i32, var y: i32)
+
+fun f()
+    var p := Point(1, 2)
+    var q := Point(3, 4)
+    val r: &Point = &p
+    r = &q
+''', "cannot assign to 'val' binding 'r'");
+    });
+  });
 }

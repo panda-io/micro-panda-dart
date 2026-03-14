@@ -3,6 +3,7 @@ import '../context.dart';
 import '../type/type.dart';
 import '../type/type_builtin.dart';
 import 'expression.dart';
+import 'expression_identifier.dart';
 
 class Binary extends Expression {
   final Expression left;
@@ -16,6 +17,11 @@ class Binary extends Expression {
     if (operator_.isAssign) {
       left.validate(context, null);
       right.validate(context, left.type);
+      final lhs = left;
+      if (lhs is Identifier && context.isValBinding(lhs.name)) {
+        context.error(position,
+            "cannot assign to 'val' binding '${lhs.name}'");
+      }
       if (!context.typesCompatible(left.type, right.type)) {
         context.error(position,
             "type mismatch in assignment: "

@@ -28,6 +28,7 @@ class DeclarationStatement extends Statement {
             "to ${Context.typeName(type)}");
       }
     }
-    context.declare(name, resolvedType, position);
+    final isVal = keyword == TokenType.kVal || keyword == TokenType.kConst;
+    context.declare(name, resolvedType, position, isVal: isVal);
   }
 }

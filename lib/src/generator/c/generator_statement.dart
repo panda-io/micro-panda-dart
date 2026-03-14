@@ -249,7 +249,7 @@ extension GeneratorStatement on CGenerator {
   // ── local declaration ─────────────────────────────────────────────────────────
 
   void _emitLocalDecl(DeclarationStatement stmt) {
-    final isConst = stmt.keyword == TokenType.kConst || stmt.keyword == TokenType.kVal;
+    final isConst = stmt.keyword == TokenType.kConst;
     final prefix = isConst ? 'const ' : '';
 
     // Resolve type: explicit type or infer from initializer.

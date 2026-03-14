@@ -43,9 +43,21 @@ extension GeneratorType on CGenerator {
   }
 
   /// Array dimension suffix string, e.g. "[10][4]". Only for fixed arrays.
+  /// Named constant dims (stored as dimension == -1) are resolved via [_constInts].
   String _arrayDims(Type? type) {
     if (type is TypeArray && type.isFixed) {
-      return type.dimension.map((d) => '[$d]').join();
+      final buf = StringBuffer();
+      for (int i = 0; i < type.dimension.length; i++) {
+        final d = type.dimension[i];
+        if (d == -1 && i < type.dimNames.length && type.dimNames[i] != null) {
+          final name = type.dimNames[i]!;
+          final val = _constInts[name];
+          buf.write('[${val ?? 1}]');
+        } else {
+          buf.write('[$d]');
+        }
+      }
+      return buf.toString();
     }
     return '';
   }

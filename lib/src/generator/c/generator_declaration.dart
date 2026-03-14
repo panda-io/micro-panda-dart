@@ -82,12 +82,75 @@ extension GeneratorDeclaration on CGenerator {
   // ── struct definitions ────────────────────────────────────────────────────────
 
   void _emitStructDefs(List<Module> modules) {
+    // Collect all non-generic classes.
+    final allNonGeneric = <ClassDecl>[];
     for (final mod in modules) {
       for (final cls in mod.classes) {
-        if (cls.typeParams.isEmpty) {
-          _emitStructDef(cls);
-        } else {
-          // Generic class: emit one struct per instantiation.
+        if (cls.typeParams.isEmpty) allNonGeneric.add(cls);
+      }
+    }
+
+    // Build embedded-field dependency graph.
+    // If class A has a non-slice, non-pointer field of type B, B must be defined first.
+    Set<String> fieldDeps(ClassDecl cls) {
+      final deps = <String>{};
+      void scan(Type? t) {
+        if (t == null) return;
+        if (t is TypeName && t.name != null && _classes.containsKey(t.name)) {
+          deps.add(t.name!);
+        } else if (t is TypeArray && !t.isSlice) {
+          scan(t.elementType);
+        }
+        // TypeRef = pointer → only forward decl needed, no struct-definition dependency.
+      }
+      for (final f in cls.constructorFields) scan(f.type);
+      for (final f in cls.bodyFields) scan(f.type);
+      return deps;
+    }
+
+    // Topological sort (Kahn's algorithm).
+    final nameToClass = <String, ClassDecl>{
+      for (final c in allNonGeneric) c.name: c,
+    };
+    final inDegree = <String, int>{
+      for (final c in allNonGeneric) c.name: 0,
+    };
+    final dependents = <String, List<String>>{};
+    for (final cls in allNonGeneric) {
+      for (final dep in fieldDeps(cls)) {
+        if (nameToClass.containsKey(dep)) {
+          inDegree[cls.name] = (inDegree[cls.name] ?? 0) + 1;
+          dependents.putIfAbsent(dep, () => []).add(cls.name);
+        }
+      }
+    }
+
+    final queue = <ClassDecl>[
+      ...allNonGeneric.where((c) => inDegree[c.name] == 0),
+    ];
+    final sorted = <ClassDecl>[];
+    while (queue.isNotEmpty) {
+      final cls = queue.removeAt(0);
+      sorted.add(cls);
+      for (final dep in dependents[cls.name] ?? <String>[]) {
+        inDegree[dep] = inDegree[dep]! - 1;
+        if (inDegree[dep] == 0) queue.add(nameToClass[dep]!);
+      }
+    }
+    // Any remaining (e.g. mutual references via pointers) — emit in original order.
+    final emitted = {for (final c in sorted) c.name};
+    for (final cls in allNonGeneric) {
+      if (!emitted.contains(cls.name)) sorted.add(cls);
+    }
+
+    for (final cls in sorted) {
+      _emitStructDef(cls);
+    }
+
+    // Generic instantiations (emitted after non-generic dependencies are in place).
+    for (final mod in modules) {
+      for (final cls in mod.classes) {
+        if (cls.typeParams.isNotEmpty) {
           for (final typeArgs in _genericInstantiations[cls.name] ?? <List<Type>>[]) {
             _emitSpecializedStructDef(cls, typeArgs);
           }
@@ -198,7 +261,7 @@ extension GeneratorDeclaration on CGenerator {
   void _emitGlobalVar(VariableDecl v, String modPath) {
     final cVarName = '${_modulePrefix(modPath)}__${v.name}';
     final isPrivate = v.name.startsWith('_');
-    final isConst = v.isConst || v.keyword == TokenType.kVal;
+    final isConst = v.isConst;
     final prefix =
         '${isPrivate ? 'static ' : ''}${isConst ? 'const ' : ''}';
 

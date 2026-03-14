@@ -49,9 +49,10 @@ void main() {
       expect(c, contains('int32_t test__x = 42'));
     });
 
-    test('val becomes const', () {
+    test('val does not emit const (no C const)', () {
       final c = gen('val MAX: i32 = 100\n');
-      expect(c, contains('const int32_t test__MAX = 100'));
+      expect(c, contains('int32_t test__MAX = 100'));
+      expect(c, isNot(contains('const int32_t test__MAX')));
     });
 
     test('private var gets static', () {
@@ -427,7 +428,7 @@ fun main()
         return null
 ''';
       final c = gen(src);
-      expect(c, contains('const uint64_t size = __sizeof_T'));
+      expect(c, contains('uint64_t size = __sizeof_T'));
     });
 
     test('&T(expr) in generic body emits (void*)(expr)', () {

@@ -1,6 +1,7 @@
 import 'declaration/class_decl.dart';
 import 'declaration/enum_decl.dart';
 import 'declaration/function_decl.dart';
+import 'declaration/variable_decl.dart';
 import 'module.dart';
 import 'type/type.dart';
 import 'type/type_array.dart';
@@ -47,6 +48,7 @@ class Context {
   // ── scope chain ───────────────────────────────────────────────────────────────
   final Context? _parent;
   final Map<String, Type?> _locals = {};
+  final Set<String> _valLocals = {};
 
   // ── error collection (shared across all child contexts) ───────────────────────
   final List<ValidationError> _errors;
@@ -159,12 +161,13 @@ class Context {
 
   // ── variable declarations ─────────────────────────────────────────────────────
 
-  void declare(String name, Type? type, int position) {
+  void declare(String name, Type? type, int position, {bool isVal = false}) {
     if (_locals.containsKey(name)) {
       error(position, "variable '$name' already declared in this scope");
       return;
     }
     _locals[name] = type;
+    if (isVal) _valLocals.add(name);
   }
 
   // ── variable lookup ───────────────────────────────────────────────────────────
@@ -206,6 +209,13 @@ class Context {
     if (globalFunctions.containsKey(name)) return true;
     if (classes.containsKey(name)) return true;
     if (enums.containsKey(name)) return true;
+    return false;
+  }
+
+  /// True if [name] is a val binding (cannot be reassigned).
+  bool isValBinding(String name) {
+    if (_valLocals.contains(name)) return true;
+    if (_parent != null) return _parent!.isValBinding(name);
     return false;
   }
 

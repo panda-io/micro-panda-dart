@@ -186,8 +186,13 @@ extension GeneratorExpression on CGenerator {
       if (_externFns.containsKey(name)) {
         return _applyExtern(_externFns[name]!, inv.arguments);
       }
-      // Class constructor call in expression position: VM() → {0}
-      if (_classes.containsKey(name)) return '{0}';
+      // Class constructor call in expression position.
+      // No-arg: VM() → {0}  |  With args: Allocator(mem) → (Allocator){mem}
+      if (_classes.containsKey(name)) {
+        if (inv.arguments.isEmpty) return '{0}';
+        final args = inv.arguments.map(_expr).join(', ');
+        return '($name){$args}';
+      }
       // Resolve to namespaced C name via per-module call map.
       final cName = _localCallMap[name];
       if (cName != null) return _callByCName(cName, inv.arguments, inv.typeArgs);
