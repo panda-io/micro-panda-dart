@@ -83,29 +83,14 @@ extension ParserTypes on Parser {
     final pos = base.position;
     _advance(); // consume '['
     final int firstDim;
-    String? firstDimName;
+    Expression? firstDimExpr;
     if (_current.type == TokenType.intLiteral) {
       firstDim = int.parse(_current.literal);
       _advance();
     } else if (_current.type == TokenType.identifier) {
-      // Named constant(s) as array size: Task[SYS_MAX_TASKS] or Task[A + B]
-      final buf = StringBuffer(_current.literal);
-      _advance();
-      while (_current.type == TokenType.plus || _current.type == TokenType.minus) {
-        final op = _current.type == TokenType.plus ? '+' : '-';
-        _advance();
-        if (_current.type == TokenType.identifier) {
-          buf.write(' $op ${_current.literal}');
-          _advance();
-        } else if (_current.type == TokenType.intLiteral) {
-          buf.write(' $op ${_current.literal}');
-          _advance();
-        } else {
-          break;
-        }
-      }
+      // Constant expression as array size: Task[SYS_MAX_TASKS], Task[A + B], Task[A * B]
       firstDim = -1;
-      firstDimName = buf.toString();
+      firstDimExpr = _parseExpression();
     } else {
       firstDim = 0; // unsized / slice
     }
@@ -116,41 +101,26 @@ extension ParserTypes on Parser {
       // suffixes wrap the slice rather than being added to the same flat list.
       final slice = TypeArray(base, pos)
         ..dimension.add(0)
-        ..dimNames.add(null);
+        ..dimExprs.add(null);
       return _parseArraySuffix(slice);
     }
 
     // Fixed leading dimension — collect remaining fixed dims into flat list.
     final array = TypeArray(base, pos)
       ..dimension.add(firstDim)
-      ..dimNames.add(firstDimName);
+      ..dimExprs.add(firstDimExpr);
     while (_current.type == TokenType.leftBracket) {
       _advance();
       if (_current.type == TokenType.intLiteral) {
         array.dimension.add(int.parse(_current.literal));
-        array.dimNames.add(null);
+        array.dimExprs.add(null);
         _advance();
       } else if (_current.type == TokenType.identifier) {
-        final buf = StringBuffer(_current.literal);
-        _advance();
-        while (_current.type == TokenType.plus || _current.type == TokenType.minus) {
-          final op = _current.type == TokenType.plus ? '+' : '-';
-          _advance();
-          if (_current.type == TokenType.identifier) {
-            buf.write(' $op ${_current.literal}');
-            _advance();
-          } else if (_current.type == TokenType.intLiteral) {
-            buf.write(' $op ${_current.literal}');
-            _advance();
-          } else {
-            break;
-          }
-        }
         array.dimension.add(-1);
-        array.dimNames.add(buf.toString());
+        array.dimExprs.add(_parseExpression());
       } else {
         array.dimension.add(0);
-        array.dimNames.add(null);
+        array.dimExprs.add(null);
       }
       _expect(TokenType.rightBracket);
     }

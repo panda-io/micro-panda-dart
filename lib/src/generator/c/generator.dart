@@ -237,13 +237,11 @@ class CGenerator {
           }
         }
       }
-      // Collect integer constant values for named array dimension resolution.
+      // Collect integer constant values (supports expressions referencing earlier constants).
       for (final v in mod.variables) {
-        if (v.isConst && v.value is Literal) {
-          final lit = v.value as Literal;
-          if (lit.tokenType == TokenType.intLiteral) {
-            _constInts[v.name] = int.parse(lit.value);
-          }
+        if (v.isConst) {
+          final val = _evalConstExpr(v.value);
+          if (val != null) _constInts[v.name] = val;
         }
       }
       for (final v in mod.variables) {

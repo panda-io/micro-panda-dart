@@ -43,14 +43,14 @@ extension GeneratorType on CGenerator {
   }
 
   /// Array dimension suffix string, e.g. "[10][4]". Only for fixed arrays.
-  /// Named constant dims (stored as dimension == -1) are resolved via [_constInts].
+  /// Named constant dims (stored as dimension == -1) are resolved via [_evalConstExpr].
   String _arrayDims(Type? type) {
     if (type is TypeArray && type.isFixed) {
       final buf = StringBuffer();
       for (int i = 0; i < type.dimension.length; i++) {
         final d = type.dimension[i];
-        if (d == -1 && i < type.dimNames.length && type.dimNames[i] != null) {
-          final val = _evalDimExpr(type.dimNames[i]!);
+        if (d == -1 && i < type.dimExprs.length && type.dimExprs[i] != null) {
+          final val = _evalConstExpr(type.dimExprs[i]);
           buf.write('[${val ?? 1}]');
         } else {
           buf.write('[$d]');
@@ -61,22 +61,33 @@ extension GeneratorType on CGenerator {
     return '';
   }
 
-  /// Evaluate a dimension expression (e.g. "SYS_MAX_TASKS + APP_MAX_TASKS") using [_constInts].
-  int? _evalDimExpr(String expr) {
-    expr = expr.trim();
-    // Single name or integer
-    if (!expr.contains('+') && !expr.contains('-')) {
-      return _constInts[expr] ?? int.tryParse(expr);
+  /// Evaluate a constant expression to an integer using [_constInts] for name lookups.
+  /// Handles: integer literals, named constants, unary minus, and binary +/-/*//%.
+  /// Returns null if the expression cannot be fully resolved to a constant.
+  int? _evalConstExpr(Expression? expr) {
+    if (expr == null) return null;
+    if (expr is Literal && expr.tokenType == TokenType.intLiteral) {
+      return int.tryParse(expr.value);
     }
-    // Sum: find last '+' or '-' outside of negative literals
-    final plusIdx = expr.lastIndexOf('+');
-    final minusIdx = expr.lastIndexOf('-');
-    final splitIdx = plusIdx > minusIdx ? plusIdx : minusIdx;
-    if (splitIdx > 0) {
-      final op = expr[splitIdx];
-      final a = _evalDimExpr(expr.substring(0, splitIdx));
-      final b = _evalDimExpr(expr.substring(splitIdx + 1));
-      if (a != null && b != null) return op == '+' ? a + b : a - b;
+    if (expr is Identifier) {
+      return _constInts[expr.name];
+    }
+    if (expr is Unary && expr.operator_ == TokenType.minus) {
+      final v = _evalConstExpr(expr.expression);
+      return v != null ? -v : null;
+    }
+    if (expr is Binary) {
+      final a = _evalConstExpr(expr.left);
+      final b = _evalConstExpr(expr.right);
+      if (a == null || b == null) return null;
+      return switch (expr.operator_) {
+        TokenType.plus  => a + b,
+        TokenType.minus => a - b,
+        TokenType.mul   => a * b,
+        TokenType.div   => b != 0 ? a ~/ b : null,
+        TokenType.rem   => b != 0 ? a % b : null,
+        _ => null,
+      };
     }
     return null;
   }

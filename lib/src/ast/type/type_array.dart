@@ -1,12 +1,14 @@
+import '../expression/expression.dart';
 import 'type.dart';
 
 class TypeArray extends Type {
   Type elementType;
   List<int> dimension = [];
 
-  /// Parallel to [dimension]: null = integer literal dim, non-null = constant name.
-  /// e.g. `Task[SYS_MAX_TASKS]` → dimension=[−1], dimNames=['SYS_MAX_TASKS']
-  List<String?> dimNames = [];
+  /// Parallel to [dimension]: stores the AST expression for constant-expression dims.
+  /// null = integer literal dim; non-null = constant expression (Identifier, Binary, etc.).
+  /// e.g. `Task[SYS_MAX_TASKS + APP_MAX_TASKS]` → dimension=[-1], dimExprs=[Binary(+,...)]
+  List<Expression?> dimExprs = [];
 
   TypeArray(this.elementType, [super.position = 0]);
 
