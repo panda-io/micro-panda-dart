@@ -103,8 +103,12 @@ extension GeneratorDeclaration on CGenerator {
         }
         // TypeRef = pointer → only forward decl needed, no struct-definition dependency.
       }
-      for (final f in cls.constructorFields) scan(f.type);
-      for (final f in cls.bodyFields) scan(f.type);
+      for (final f in cls.constructorFields) {
+        scan(f.type);
+      }
+      for (final f in cls.bodyFields) {
+        scan(f.type);
+      }
       return deps;
     }
 

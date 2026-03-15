@@ -1,9 +1,7 @@
 import '../context.dart';
 import '../declaration/function_decl.dart';
 import '../type/type.dart';
-import '../type/type_builtin.dart';
 import '../type/type_function.dart';
-import '../../token/token_type.dart';
 import 'expression.dart';
 
 class Identifier extends Expression {
@@ -64,9 +62,7 @@ class Identifier extends Expression {
   /// Build a TypeFunction describing [fn]'s signature (for use as a value).
   static TypeFunction _fnType(FunctionDecl fn) {
     final tf = TypeFunction();
-    tf.parameters = fn.parameters
-        .map((p) => p.type ?? TypeBuiltin(TokenType.typeVoid) as Type)
-        .toList();
+    tf.parameters = fn.parameters.map((p) => p.type).toList();
     if (fn.returnType != null) tf.returnTypes = [fn.returnType!];
     return tf;
   }

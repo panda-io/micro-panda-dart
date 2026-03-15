@@ -215,7 +215,7 @@ class Context {
   /// True if [name] is a val binding (cannot be reassigned).
   bool isValBinding(String name) {
     if (_valLocals.contains(name)) return true;
-    if (_parent != null) return _parent!.isValBinding(name);
+    if (_parent != null) return _parent.isValBinding(name);
     return false;
   }
 

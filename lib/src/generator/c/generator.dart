@@ -196,11 +196,11 @@ class CGenerator {
     if (entryModPath == null) return modules;
     final byPath = {for (final m in modules) m.path: m};
     final visited = <String>{};
-    final queue = [entryModPath];
+    final queue = <String>[entryModPath];
     while (queue.isNotEmpty) {
       final path = queue.removeLast();
       if (!visited.add(path)) continue;
-      for (final imp in byPath[path]?.imports ?? []) {
+      for (final imp in byPath[path]?.imports ?? <Import>[]) {
         queue.add(imp.path);
       }
     }
@@ -556,16 +556,26 @@ class CGenerator {
       }
     }
     for (final mod in modules) {
-      for (final v in mod.variables) register(v.type);
+      for (final v in mod.variables) {
+        register(v.type);
+      }
       for (final fn in mod.functions) {
-        for (final p in fn.parameters) register(p.type);
+        for (final p in fn.parameters) {
+          register(p.type);
+        }
         register(fn.returnType);
       }
       for (final cls in mod.classes) {
-        for (final f in cls.constructorFields) register(f.type);
-        for (final f in cls.bodyFields) register(f.type);
+        for (final f in cls.constructorFields) {
+          register(f.type);
+        }
+        for (final f in cls.bodyFields) {
+          register(f.type);
+        }
         for (final fn in cls.methods) {
-          for (final p in fn.parameters) register(p.type);
+          for (final p in fn.parameters) {
+            register(p.type);
+          }
           register(fn.returnType);
         }
       }
