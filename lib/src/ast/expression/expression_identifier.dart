@@ -1,5 +1,9 @@
 import '../context.dart';
+import '../declaration/function_decl.dart';
 import '../type/type.dart';
+import '../type/type_builtin.dart';
+import '../type/type_function.dart';
+import '../../token/token_type.dart';
 import 'expression.dart';
 
 class Identifier extends Expression {
@@ -30,7 +34,18 @@ class Identifier extends Expression {
     }
     // Global function reference
     if (context.globalFunctions.containsKey(name)) {
-      type = null; // function reference, type handled at call site
+      final fn = context.globalFunctions[name]!;
+      if (fn.isExtern) {
+        // @extern functions expand to C templates at call sites — no C address exists.
+        if (expected is TypeFunction) {
+          context.error(position,
+              "'$name' is @extern and cannot be used as a function reference");
+        }
+        type = null; // type handled at call site only
+      } else {
+        // Regular and @inline functions both have real C addresses.
+        type = _fnType(fn);
+      }
       return;
     }
     // Class name (constructor call)
@@ -44,5 +59,15 @@ class Identifier extends Expression {
       return;
     }
     context.error(position, "undefined variable '$name'");
+  }
+
+  /// Build a TypeFunction describing [fn]'s signature (for use as a value).
+  static TypeFunction _fnType(FunctionDecl fn) {
+    final tf = TypeFunction();
+    tf.parameters = fn.parameters
+        .map((p) => p.type ?? TypeBuiltin(TokenType.typeVoid) as Type)
+        .toList();
+    if (fn.returnType != null) tf.returnTypes = [fn.returnType!];
+    return tf;
   }
 }

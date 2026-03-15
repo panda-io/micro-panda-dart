@@ -1,11 +1,11 @@
 import 'declaration/class_decl.dart';
 import 'declaration/enum_decl.dart';
 import 'declaration/function_decl.dart';
-import 'declaration/variable_decl.dart';
 import 'module.dart';
 import 'type/type.dart';
 import 'type/type_array.dart';
 import 'type/type_builtin.dart';
+import 'type/type_function.dart';
 import 'type/type_name.dart';
 import 'type/type_ref.dart';
 import '../token/position.dart';
@@ -257,6 +257,11 @@ class Context {
     if (t is TypeArray) {
       if (t.isSlice) return '${typeName(t.elementType)}[]';
       return '${typeName(t.elementType)}[${t.dimension.join("][")}]';
+    }
+    if (t is TypeFunction) {
+      final params = t.parameters.map(typeName).join(', ');
+      final ret = t.returnTypes.isEmpty ? '' : ' ${typeName(t.returnTypes.first)}';
+      return 'fun($params)$ret';
     }
     return '?';
   }

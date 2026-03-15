@@ -38,6 +38,7 @@ import '../ast/type/type.dart';
 import '../ast/type/type_array.dart';
 import '../ast/type/type_builtin.dart';
 import '../ast/type/type_name.dart';
+import '../ast/type/type_function.dart';
 import '../ast/type/type_ref.dart';
 import '../scanner/scanner.dart';
 import '../token/position.dart';

@@ -110,8 +110,11 @@ extension GeneratorExpression on CGenerator {
     }
     // Global variable reference → use namespaced C name.
     if (!_scope.containsKey(id.name)) {
-      final cName = _localVarMap[id.name];
-      if (cName != null) return cName;
+      final cVarName = _localVarMap[id.name];
+      if (cVarName != null) return cVarName;
+      // Function reference used as a value (not in call position): use C function name.
+      final cFnName = _localCallMap[id.name];
+      if (cFnName != null) return cFnName;
     }
     return id.name;
   }

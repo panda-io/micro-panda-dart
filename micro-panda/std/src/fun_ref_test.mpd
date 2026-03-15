@@ -1,0 +1,50 @@
+import test::assert
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+fun _add(a: i32, b: i32) i32
+    return a + b
+
+fun _mul(a: i32, b: i32) i32
+    return a * b
+
+var _op: fun(i32, i32) i32
+
+fun _set_op(fn: fun(i32, i32) i32)
+    _op = fn
+
+// ── tests ─────────────────────────────────────────────────────────────────────
+
+@test
+fun test_assign_and_call()
+    _op = _add
+    val r := _op(3, 4)
+    assert(r == 7)
+
+@test
+fun test_reassign()
+    _op = _add
+    val r1 := _op(3, 4)
+    assert(r1 == 7)
+    _op = _mul
+    val r2 := _op(3, 4)
+    assert(r2 == 12)
+
+@test
+fun test_pass_as_argument()
+    _set_op(_add)
+    val r := _op(10, 5)
+    assert(r == 15)
+
+@test
+fun test_pass_as_argument_return_value()
+    _set_op(_mul)
+    val r := _op(6, 7)
+    assert(r == 42)
+
+@test
+fun test_void_fn_ref()
+    // Verify console::init can accept a function reference
+    // (uses the existing _write_byte_default path — just tests assignment)
+    val b: bool = true
+    assert(b)

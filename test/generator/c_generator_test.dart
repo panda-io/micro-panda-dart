@@ -543,4 +543,54 @@ fun use(p: &Pool)
       expect(c, isNot(contains('inline')));
     });
   });
+
+  group('Generator – function references', () {
+    test('fun(u8) var emits typedef and function pointer var', () {
+      final c = gen('var _write: fun(u8)\n');
+      expect(c, contains('typedef void (*__Fn_void_uint8_t)(uint8_t);'));
+      expect(c, contains('static __Fn_void_uint8_t test___write'));
+    });
+
+    test('fun(i32, i32) i32 var emits correct typedef', () {
+      final c = gen('var _add: fun(i32, i32) i32\n');
+      expect(c, contains('typedef int32_t (*__Fn_int32_t_int32_t_int32_t)(int32_t, int32_t);'));
+      expect(c, contains('static __Fn_int32_t_int32_t_int32_t test___add'));
+    });
+
+    test('fun(u8) parameter in function emits correct C signature', () {
+      final c = gen('fun init(fn: fun(u8))\n    return\n');
+      expect(c, contains('typedef void (*__Fn_void_uint8_t)(uint8_t);'));
+      expect(c, contains('void test__init(__Fn_void_uint8_t fn)'));
+    });
+
+    test('function name used as value emits C function name', () {
+      final src = 'fun _sink(b: u8)\n    return\nvar _fn: fun(u8) = _sink\n';
+      final c = gen(src);
+      expect(c, contains('static __Fn_void_uint8_t test___fn = test___sink'));
+    });
+
+    test('call through function pointer var emits correct C', () {
+      final src = 'var _fn: fun(u8)\nfun call(b: u8)\n    _fn(b)\n';
+      final c = gen(src);
+      expect(c, contains('test___fn(b)'));
+    });
+
+    test('call through fun(i32,i32) i32 returns correct type', () {
+      final src =
+          'fun _add(a: i32, b: i32) i32\n    return a\nvar _fn: fun(i32, i32) i32\nfun call(a: i32, b: i32)\n    _fn = _add\n    val r := _fn(a, b)\n';
+      final c = gen(src);
+      // _fn assigned to _add
+      expect(c, contains('test___fn = test___add'));
+      // call through pointer
+      expect(c, contains('test___fn(a, b)'));
+    });
+
+    test('function ref passed as argument to fun-param function', () {
+      final src =
+          'fun _sink(b: u8)\n    return\nfun init(fn: fun(u8))\n    return\nfun setup()\n    init(_sink)\n';
+      final c = gen(src);
+      // _sink name resolved to C name when passed as argument
+      expect(c, contains('test__init(test___sink)'));
+    });
+  });
 }

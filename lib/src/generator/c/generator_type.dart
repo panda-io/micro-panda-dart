@@ -39,7 +39,15 @@ extension GeneratorType on CGenerator {
       if (type.isSlice) return '__Slice_${_cType(type.elementType)}';
       return _cType(type.elementType); // fixed array: caller appends dims
     }
+    if (type is TypeFunction) return _fnTypeName(type);
     return 'void';
+  }
+
+  /// C typedef name for a function pointer type, e.g. `fun(u8)` → `__Fn_void_uint8_t`.
+  String _fnTypeName(TypeFunction tf) {
+    final ret = tf.returnTypes.isEmpty ? 'void' : _cType(tf.returnTypes.first);
+    final params = tf.parameters.map(_cType).join('_');
+    return params.isEmpty ? '__Fn_$ret' : '__Fn_${ret}_$params';
   }
 
   /// Array dimension suffix string, e.g. "[10][4]". Only for fixed arrays.

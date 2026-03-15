@@ -35,6 +35,7 @@ import '../../ast/type/type.dart';
 import '../../ast/type/type_array.dart';
 import '../../ast/type/type_builtin.dart';
 import '../../ast/type/type_name.dart';
+import '../../ast/type/type_function.dart';
 import '../../ast/type/type_ref.dart';
 import '../../token/token_type.dart';
 
@@ -81,6 +82,9 @@ class CGenerator {
 
   /// C element type strings for which a __Slice_T typedef must be emitted.
   final Set<String> _sliceElementTypes = {};
+
+  /// Function pointer typedef name → TypeFunction, for all fun(...) types used.
+  final Map<String, TypeFunction> _fnPtrTypes = {};
 
   /// Integer values of const declarations keyed by bare name.
   /// Used to resolve named array dimensions like Task[SYS_MAX_TASKS].
@@ -210,8 +214,10 @@ class CGenerator {
     _registerSpecializedClasses();
     _collectFnInstantiations(modules);
     _collectSliceTypes(modules);
+    _collectFnPointerTypes(modules);
     _emitIncludes();
     _emitForwardDeclarations(modules);
+    _emitFnPointerTypedefs();
     _emitSliceTypedefs();
     _emitEnumDefs(modules);
     _emitStructDefs(modules);
@@ -538,6 +544,42 @@ class CGenerator {
       // system header (no path separator) → <header>, local → "header"
       final tag = inc.contains('/') || inc.contains('\\') ? '"$inc"' : '<$inc>';
       _writeln('#include $tag');
+    }
+    _writeln();
+  }
+
+  /// Collect all TypeFunction types used in vars and parameters across modules.
+  void _collectFnPointerTypes(List<Module> modules) {
+    void register(Type? type) {
+      if (type is TypeFunction) {
+        _fnPtrTypes.putIfAbsent(_fnTypeName(type), () => type);
+      }
+    }
+    for (final mod in modules) {
+      for (final v in mod.variables) register(v.type);
+      for (final fn in mod.functions) {
+        for (final p in fn.parameters) register(p.type);
+        register(fn.returnType);
+      }
+      for (final cls in mod.classes) {
+        for (final f in cls.constructorFields) register(f.type);
+        for (final f in cls.bodyFields) register(f.type);
+        for (final fn in cls.methods) {
+          for (final p in fn.parameters) register(p.type);
+          register(fn.returnType);
+        }
+      }
+    }
+  }
+
+  /// Emit C function pointer typedefs for all collected TypeFunction types.
+  void _emitFnPointerTypedefs() {
+    if (_fnPtrTypes.isEmpty) return;
+    for (final entry in _fnPtrTypes.entries) {
+      final tf = entry.value;
+      final ret = tf.returnTypes.isEmpty ? 'void' : _cType(tf.returnTypes.first);
+      final params = tf.parameters.map(_cType).join(', ');
+      _writeln('typedef $ret (*${entry.key})(${params.isEmpty ? 'void' : params});');
     }
     _writeln();
   }

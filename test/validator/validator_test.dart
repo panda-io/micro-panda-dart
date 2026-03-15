@@ -378,4 +378,74 @@ fun f()
 ''', "cannot assign to 'val' binding 'r'");
     });
   });
+
+  group('Validator – function references', () {
+    test('function name used as value gets TypeFunction type', () {
+      expectNoErrors('''
+fun _sink(b: u8)
+    return
+var _f: fun(u8) = _sink
+''');
+    });
+
+    test('fun() var assignment compatible', () {
+      expectNoErrors('''
+fun _sink(b: u8)
+    return
+var _f: fun(u8)
+fun setup()
+    _f = _sink
+''');
+    });
+
+    test('fun(i32, i32) i32 assignment compatible', () {
+      expectNoErrors('''
+fun _add(a: i32, b: i32) i32
+    return a
+var _f: fun(i32, i32) i32
+fun setup()
+    _f = _add
+''');
+    });
+
+    test('@extern function cannot be used as a function reference', () {
+      expectError('''
+@extern("putchar({b})")
+fun _putchar(b: u8)
+var _f: fun(u8) = _putchar
+''', '@extern and cannot be used as a function reference');
+    });
+
+    test('@inline function can be used as a function reference', () {
+      expectNoErrors('''
+@inline
+fun _fast(b: u8)
+    return
+var _f: fun(u8) = _fast
+''');
+    });
+
+    test('function ref passed as argument', () {
+      expectNoErrors('''
+fun _sink(b: u8)
+    return
+fun init(fn: fun(u8))
+    return
+fun setup()
+    init(_sink)
+''');
+    });
+
+    test('call through function pointer resolves return type', () {
+      expectNoErrors('''
+fun _add(a: i32, b: i32) i32
+    return a
+var _f: fun(i32, i32) i32
+fun test()
+    _f = _add
+    val r := _f(1, 2)
+    var x: i32 = r
+''');
+    });
+  });
 }

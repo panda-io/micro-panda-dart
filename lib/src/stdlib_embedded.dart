@@ -395,22 +395,29 @@ class RingBuffer<T>()
   'console': r'''
 // ── transport ────────────────────────────────────────────────────────────────
 //
-// HOSTED: write_byte maps to putchar.
-// MCU:         platform module must provide write_byte(b: u8).
+// write_byte dispatches through a function pointer.
+// Default: HOSTED → putchar wrapper.  MCU → NULL (call console::init(fn) before use).
+// Override at runtime: console::init(fn) for custom transports (UART, USB, mock tests).
 
 #if HOSTED
-
 @include("stdio.h")
 
 @extern("putchar({b})")
-fun write_byte(b: u8)
+fun _putchar(b: u8)
 
+fun _write_byte_default(b: u8)
+    _putchar(b)
+
+var _write_byte: fun(u8) = _write_byte_default
 #else
-
-// Forward declaration — linker resolves from platform code (UART, UDP, etc.)
-fun write_byte(b: u8)
-
+var _write_byte: fun(u8)
 #end
+
+fun init(fn: fun(u8))
+    _write_byte = fn
+
+fun write_byte(b: u8)
+    _write_byte(b)
 
 // ── primitives ───────────────────────────────────────────────────────────────
 

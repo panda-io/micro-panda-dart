@@ -3,6 +3,7 @@ import '../declaration/class_decl.dart';
 import '../declaration/function_decl.dart';
 import '../type/type.dart';
 import '../type/type_array.dart';
+import '../type/type_function.dart';
 import '../type/type_name.dart';
 import '../type/type_ref.dart';
 import 'expression.dart';
@@ -96,6 +97,14 @@ class Invocation extends Expression {
           }
         }
       }
+    }
+
+    // Function pointer call: use TypeFunction signature for param/return types.
+    if (function.type is TypeFunction) {
+      final tf = function.type as TypeFunction;
+      _validateArgs(context, tf.parameters.map((t) => t as Type?).toList());
+      type = tf.returnTypes.isEmpty ? null : tf.returnTypes.first;
+      return;
     }
 
     _validateArgs(context, null);

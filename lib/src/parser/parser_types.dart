@@ -10,6 +10,11 @@ extension ParserTypes on Parser {
   Type _parseType() {
     final pos = _current.offset;
 
+    // Function reference type: fun(T1, T2) RetType
+    if (_current.type == TokenType.kFunction) {
+      return _parseFunctionType(pos);
+    }
+
     // Reference type: &T, &T[N]
     if (_current.type == TokenType.bitAnd) {
       _advance();
@@ -68,6 +73,33 @@ extension ParserTypes on Parser {
       _error('nested generic type arguments are not supported');
     }
     return t;
+  }
+
+  /// Parse `fun(T1, T2) RetType` as a TypeFunction.
+  TypeFunction _parseFunctionType(int pos) {
+    _advance(); // consume 'fun'
+    _expect(TokenType.leftParen);
+    final params = <Type>[];
+    while (_current.type != TokenType.rightParen) {
+      params.add(_parseType());
+      if (_current.type == TokenType.comma) _advance();
+    }
+    _expect(TokenType.rightParen);
+    final fn = TypeFunction(pos);
+    fn.parameters = params;
+    if (_isTypeStart()) {
+      fn.returnTypes = [_parseType()];
+    }
+    return fn;
+  }
+
+  /// True if the current token can start a type annotation.
+  bool _isTypeStart() {
+    final t = _current.type;
+    return t == TokenType.bitAnd ||
+        t.isScalar ||
+        t == TokenType.identifier ||
+        t == TokenType.kFunction;
   }
 
   /// Wrap [base] in TypeArray if '[' follows.
