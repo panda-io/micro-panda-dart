@@ -18,8 +18,8 @@ var _write_byte: fun(u8) = _write_byte_default
 var _write_byte: fun(u8)
 #end
 
-fun init(fn: fun(u8))
-    _write_byte = fn
+fun init(write_byte: fun(u8))
+    _write_byte = write_byte
 
 fun write_byte(b: u8)
     _write_byte(b)
