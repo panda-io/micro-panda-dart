@@ -223,6 +223,7 @@ class CGenerator {
     _emitStructDefs(modules);
     _emitFunctionPrototypes(modules);
     _emitGlobalVars(modules);
+    _emitArgcArgvStatics(entryModPath);
     _emitFunctionDefs(modules, entryModPath: entryModPath);
     return _out.toString();
   }

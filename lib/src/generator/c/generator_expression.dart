@@ -264,7 +264,9 @@ extension GeneratorExpression on CGenerator {
       return '${fn.name}(${args.join(', ')})';
     }
     if (!template.contains('{')) {
-      // C rename (no placeholders): pass args in order
+      // C rename (no placeholders): pass args in order.
+      // If there are no args, treat the template as a bare C expression (e.g. variable access).
+      if (args.isEmpty) return template;
       return '$template(${args.join(', ')})';
     }
     // Named placeholder substitution: {paramName} → evaluated arg expression

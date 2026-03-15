@@ -147,16 +147,45 @@ extension GeneratorDeclaration on CGenerator {
       if (!emitted.contains(cls.name)) sorted.add(cls);
     }
 
+    // Emit structs in dependency order, flushing any generic specialization that a
+    // non-generic class directly embeds (not via pointer) before emitting the class.
+    final emittedSpecs = <String>{};
+
+    void emitGenericDepsOf(ClassDecl cls) {
+      void scanField(Type? t) {
+        if (t == null) return;
+        if (t is TypeName && t.typeArgs.isNotEmpty && t.name != null) {
+          final specName = _specializedCName(t.name!, t.typeArgs);
+          if (!emittedSpecs.contains(specName)) {
+            final genCls = _classes[t.name!];
+            if (genCls != null && genCls.typeParams.isNotEmpty) {
+              emittedSpecs.add(specName);
+              _emitSpecializedStructDef(genCls, t.typeArgs);
+            }
+          }
+        } else if (t is TypeArray && !t.isSlice) {
+          scanField(t.elementType);
+        }
+      }
+      for (final f in cls.constructorFields) scanField(f.type);
+      for (final f in cls.bodyFields) scanField(f.type);
+    }
+
     for (final cls in sorted) {
+      emitGenericDepsOf(cls);
       _emitStructDef(cls);
     }
 
-    // Generic instantiations (emitted after non-generic dependencies are in place).
+    // Emit any remaining generic specializations not yet emitted above.
     for (final mod in modules) {
       for (final cls in mod.classes) {
         if (cls.typeParams.isNotEmpty) {
           for (final typeArgs in _genericInstantiations[cls.name] ?? <List<Type>>[]) {
-            _emitSpecializedStructDef(cls, typeArgs);
+            final specName = _specializedCName(cls.name, typeArgs);
+            if (!emittedSpecs.contains(specName)) {
+              _emitSpecializedStructDef(cls, typeArgs);
+              emittedSpecs.add(specName);
+            }
           }
         }
       }
@@ -366,15 +395,35 @@ extension GeneratorDeclaration on CGenerator {
     _writeln();
   }
 
-  /// Emit a thin C `main` that calls the entry module's namespaced main.
-  void _emitMainWrapper(String entryModPath) {
+  /// Emit file-scope statics for argc/argv so @extern("__mp_argc") and
+  /// @extern("__mp_argv[{i}]") are visible to all function definitions above main.
+  void _emitArgcArgvStatics(String? entryModPath) {
+    if (entryModPath == null) return;
     final entryMod = _moduleByPath[entryModPath];
     if (entryMod == null) return;
     final hasMain = entryMod.functions.any(
         (fn) => fn.name == 'main' && !fn.isExtern && !fn.isTest);
     if (!hasMain) return;
+    // Only emit statics for non-test builds; test runner provides its own main.
+    if (entryMod.functions.any((fn) => fn.isTest)) return;
+    _writeln('static int32_t __mp_argc = 0;');
+    _writeln('static char** __mp_argv = NULL;');
+    _writeln();
+  }
+
+  /// Emit a thin C `main` that calls the entry module's namespaced main.
+  void _emitMainWrapper(String entryModPath) {
+    final entryMod = _moduleByPath[entryModPath];
+    if (entryMod == null) return;
+    final entryFn = entryMod.functions.where(
+        (fn) => fn.name == 'main' && !fn.isExtern && !fn.isTest).firstOrNull;
+    if (entryFn == null) return;
     final entryFnCName = _cFnName(entryModPath, 'main');
-    _writeln('int main(void) { return $entryFnCName(); }');
+    // If main() returns a value, forward it as the C exit code; otherwise return 0.
+    final body = entryFn.returnType != null
+        ? 'return $entryFnCName();'
+        : '$entryFnCName(); return 0;';
+    _writeln('int main(int argc, char** argv) { __mp_argc = argc; __mp_argv = argv; $body }');
     _writeln();
   }
 
