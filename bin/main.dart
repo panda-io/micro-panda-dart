@@ -156,7 +156,8 @@ Future<void> _cmdTest(String? fileArg, {required bool verbose}) async {
     final testTarget = Target(
       name: name,
       entry: p.withoutExtension(
-          p.relative(file.path, from: project.src)),
+          p.relative(file.path, from: project.src))
+          .replaceAll(p.separator, '.'),
       flags: [
         ...?refTarget?.flags.where((f) => f != 'RELEASE' && f != 'DEBUG'),
         'HOSTED',
