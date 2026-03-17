@@ -73,10 +73,13 @@ extension GeneratorStatement on CGenerator {
   // ── assert ────────────────────────────────────────────────────────────────────
 
   void _emitAssert(AssertStatement stmt) {
-    // Escape backslashes and quotes in the source text for embedding in C string.
+    // Escape backslashes, quotes, and newlines in the source text for embedding in C string.
     final text = stmt.sourceText
         .replaceAll(r'\', r'\\')
-        .replaceAll('"', r'\"');
+        .replaceAll('"', r'\"')
+        .replaceAll('\n', r'\n')
+        .replaceAll('\r', r'\r')
+        .replaceAll('\t', r'\t');
     final file = stmt.sourceFile
         .replaceAll(r'\', r'\\')
         .replaceAll('"', r'\"');
@@ -89,7 +92,7 @@ extension GeneratorStatement on CGenerator {
     _line('$testFail('
         '(__Slice_uint8_t){(uint8_t*)"$file", ${file.length}}, '
         '${stmt.sourceLine}, '
-        '(__Slice_uint8_t){(uint8_t*)"$text", ${text.length}}'
+        '(__Slice_uint8_t){(uint8_t*)"$text", ${stmt.sourceText.length}}'
         ');');
     _indent--;
     _line('} else {');

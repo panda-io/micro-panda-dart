@@ -217,6 +217,25 @@ extension ScannerTokens on Scanner {
     }
   }
 
+  /// Normalizes raw triple-quoted content so it is valid inside a C string literal.
+  String _normalizeTripleString(String content, int delimiter) {
+    final sb = StringBuffer();
+    for (final c in content.runes) {
+      switch (c) {
+        case 92: sb.write(r'\\'); break;  // backslash  → \\
+        case 10: sb.write(r'\n'); break;  // newline    → \n
+        case 13: sb.write(r'\r'); break;  // CR         → \r
+        case  9: sb.write(r'\t'); break;  // tab        → \t
+        case 34:                          // double-quote
+          if (delimiter == 34) sb.write(r'\"');
+          else sb.writeCharCode(c);
+          break;
+        default: sb.writeCharCode(c);
+      }
+    }
+    return sb.toString();
+  }
+
   /// Returns content between triple delimiters (without the delimiters themselves).
   String _scanTripleQuoteString(int delimiter) {
     final offset = _reader.offset;
@@ -239,12 +258,12 @@ extension ScannerTokens on Scanner {
             _reader.consume();
             _reader.consume();
             _reader.consume();
-            return content;
+            return _normalizeTripleString(content, delimiter);
           }
         }
       }
     }
-    return _reader.cutOut();
+    return _normalizeTripleString(_reader.cutOut(), delimiter);
   }
 
   /// Returns the char content (without surrounding single quotes).

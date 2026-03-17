@@ -13,7 +13,7 @@ class Validator {
   List<ValidationError> validate(List<Module> modules) {
     final ctx = Context.root(modules);
     for (final mod in modules) {
-      final modCtx = ctx.forModule(mod.sourceFile);
+      final modCtx = ctx.forModule(mod.sourceFile, mod.path);
       for (final v in mod.variables) {
         _validateGlobalVar(v, modCtx);
       }

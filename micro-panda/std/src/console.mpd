@@ -21,6 +21,7 @@ var _write_byte: fun(u8)
 fun init(write_byte: fun(u8))
     _write_byte = write_byte
 
+@inline
 fun write_byte(b: u8)
     _write_byte(b)
 

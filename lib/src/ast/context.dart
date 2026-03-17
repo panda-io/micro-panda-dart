@@ -37,8 +37,15 @@ class Context {
   /// Maps class name → module path (used for private member access checks).
   final Map<String, String> classModules;
 
+  /// Set of module qualifier names (last segment of each module path).
+  /// Populated from bare imports: `import console` → qualifier "console".
+  final Set<String> moduleQualifiers;
+
   // ── current file (for error location) ────────────────────────────────────────
   final SourceFile? currentFile;
+
+  // ── current module path (for private member access checks) ───────────────────
+  final String? currentModulePath;
 
   // ── current function context ──────────────────────────────────────────────────
   final Type? returnType;          // null = void
@@ -61,7 +68,9 @@ class Context {
     required this.globalFunctions,
     required this.globalVariables,
     required this.classModules,
+    required this.moduleQualifiers,
     required this.currentFile,
+    required this.currentModulePath,
     required this.returnType,
     required this.typeParams,
     required this.currentClass,
@@ -76,7 +85,9 @@ class Context {
     final functions = <String, FunctionDecl>{};
     final variables = <String, Type?>{};
     final classModules = <String, String>{};
+    final moduleQualifiers = <String>{};
     for (final mod in modules) {
+      moduleQualifiers.add(mod.path.split('.').last);
       for (final cls in mod.classes) {
         classes[cls.name] = cls;
         classModules[cls.name] = mod.path;
@@ -97,7 +108,9 @@ class Context {
       globalFunctions: functions,
       globalVariables: variables,
       classModules: classModules,
+      moduleQualifiers: moduleQualifiers,
       currentFile: null,
+      currentModulePath: null,
       returnType: null,
       typeParams: [],
       currentClass: null,
@@ -107,13 +120,15 @@ class Context {
   }
 
   /// Child scope for a module (sets source file for error location).
-  Context forModule(SourceFile file) => Context._(
+  Context forModule(SourceFile file, String modulePath) => Context._(
         classes: classes,
         enums: enums,
         globalFunctions: globalFunctions,
         globalVariables: globalVariables,
         classModules: classModules,
+        moduleQualifiers: moduleQualifiers,
         currentFile: file,
+        currentModulePath: modulePath,
         returnType: null,
         typeParams: [],
         currentClass: null,
@@ -128,7 +143,9 @@ class Context {
         globalFunctions: globalFunctions,
         globalVariables: globalVariables,
         classModules: classModules,
+        moduleQualifiers: moduleQualifiers,
         currentFile: currentFile,
+        currentModulePath: currentModulePath,
         returnType: returnType,
         typeParams: typeParams,
         currentClass: currentClass,
@@ -150,7 +167,9 @@ class Context {
         globalFunctions: globalFunctions,
         globalVariables: globalVariables,
         classModules: classModules,
+        moduleQualifiers: moduleQualifiers,
         currentFile: currentFile,
+        currentModulePath: currentModulePath,
         returnType: fn.returnType,
         typeParams: mergedTypeParams,
         currentClass: className,

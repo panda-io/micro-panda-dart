@@ -39,7 +39,7 @@ class MemberAccess extends Expression {
         // Private member check: names starting with '_' are module-private.
         if (member.startsWith('_')) {
           final ownerModule = context.classModules[parentType.name];
-          final currentModule = context.currentFile?.name;
+          final currentModule = context.currentModulePath;
           if (ownerModule != null && ownerModule != currentModule) {
             context.error(position,
                 "member '$member' of '${parentType.name}' is private");

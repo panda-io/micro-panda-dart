@@ -340,6 +340,23 @@ fun main()
     });
   });
 
+  group('Generator – multi-line strings', () {
+    test('triple-quoted string: literal newlines become \\n in C', () {
+      final c = gen('var _s: u8[] = """line1\nline2\n"""\n');
+      expect(c, contains(r'"line1\nline2\n"'));
+    });
+
+    test('triple-quoted string: backslash is escaped', () {
+      final c = gen('var _s: u8[] = """a\\b"""\n');
+      expect(c, contains(r'"a\\b"'));
+    });
+
+    test('triple-quoted string: double-quote inside is escaped', () {
+      final c = gen('var _s: u8[] = """say "hi" now"""\n');
+      expect(c, contains(r'"say \"hi\" now"'));
+    });
+  });
+
   group('Generator – slices', () {
     test('slice type emits __Slice_T typedef', () {
       final src = 'class Buf(val data: u8[])\n';
@@ -591,6 +608,25 @@ fun use(p: &Pool)
       final c = gen(src);
       // _sink name resolved to C name when passed as argument
       expect(c, contains('test__init(test___sink)'));
+    });
+
+    test('fun(u8)[4] fixed array emits typedef and array var', () {
+      final c = gen('var _fns: fun(u8)[4]\n');
+      expect(c, contains('typedef void (*__Fn_void_uint8_t)(uint8_t);'));
+      expect(c, contains('static __Fn_void_uint8_t test___fns[4]'));
+    });
+
+    test('fun(u8)[] slice emits typedef, slice typedef, and slice var', () {
+      final c = gen('var _fns: fun(u8)[]\n');
+      expect(c, contains('typedef void (*__Fn_void_uint8_t)(uint8_t);'));
+      expect(c, contains('__Slice___Fn_void_uint8_t'));
+      expect(c, contains('static __Slice___Fn_void_uint8_t test___fns'));
+    });
+
+    test('fun(i32) i32[4] param in function emits correct C signature', () {
+      final c = gen('fun run(handlers: fun(i32) i32[4])\n    return\n');
+      expect(c, contains('typedef int32_t (*__Fn_int32_t_int32_t)(int32_t);'));
+      expect(c, contains('test__run(__Fn_int32_t_int32_t handlers[4])'));
     });
   });
 }

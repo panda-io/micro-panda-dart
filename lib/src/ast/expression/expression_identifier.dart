@@ -56,6 +56,11 @@ class Identifier extends Expression {
       type = null;
       return;
     }
+    // Module qualifier (bare import: `import console`)
+    if (context.moduleQualifiers.contains(name)) {
+      type = null; // type resolved at call site via MemberAccess
+      return;
+    }
     context.error(position, "undefined variable '$name'");
   }
 

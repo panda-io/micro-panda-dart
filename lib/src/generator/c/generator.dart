@@ -552,8 +552,10 @@ class CGenerator {
   /// Collect all TypeFunction types used in vars and parameters across modules.
   void _collectFnPointerTypes(List<Module> modules) {
     void register(Type? type) {
-      if (type is TypeFunction) {
-        _fnPtrTypes.putIfAbsent(_fnTypeName(type), () => type);
+      var t = type;
+      while (t is TypeArray) t = t.elementType;
+      if (t is TypeFunction) {
+        _fnPtrTypes.putIfAbsent(_fnTypeName(t), () => t as TypeFunction);
       }
     }
     for (final mod in modules) {

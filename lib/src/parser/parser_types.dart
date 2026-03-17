@@ -12,7 +12,8 @@ extension ParserTypes on Parser {
 
     // Function reference type: fun(T1, T2) RetType
     if (_current.type == TokenType.kFunction) {
-      return _parseFunctionType(pos);
+      final fn = _parseFunctionType(pos);
+      return _parseArraySuffix(fn);
     }
 
     // Reference type: &T, &T[N]
@@ -76,6 +77,9 @@ extension ParserTypes on Parser {
   }
 
   /// Parse `fun(T1, T2) RetType` as a TypeFunction.
+  /// The return type is parsed without an array suffix so that a trailing
+  /// `[N]` or `[]` is treated as an outer array-of-function-pointers suffix
+  /// (consumed by [_parseType] after this method returns).
   TypeFunction _parseFunctionType(int pos) {
     _advance(); // consume 'fun'
     _expect(TokenType.leftParen);
@@ -88,7 +92,15 @@ extension ParserTypes on Parser {
     final fn = TypeFunction(pos);
     fn.parameters = params;
     if (_isTypeStart()) {
-      fn.returnTypes = [_parseType()];
+      // Parse return base type without array suffix — a trailing [N] belongs
+      // to the outer fun(...)[N] array-of-function-pointers, not the return type.
+      final retPos = _current.offset;
+      if (_current.type == TokenType.bitAnd) {
+        _advance();
+        fn.returnTypes = [TypeRef(_parseBaseType(), retPos)];
+      } else {
+        fn.returnTypes = [_parseBaseType()];
+      }
     }
     return fn;
   }

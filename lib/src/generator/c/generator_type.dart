@@ -43,10 +43,22 @@ extension GeneratorType on CGenerator {
     return 'void';
   }
 
+  /// Identifier-safe fragment for a type used inside typedef names.
+  /// Unlike [_cType], replaces pointer `*` with `_p` so the result is a valid C identifier.
+  String _fnTypeIdent(Type? type) {
+    if (type is TypeRef) return '${_fnTypeIdent(type.elementType)}_p';
+    if (type is TypeArray) {
+      if (type.isSlice) return 'Slice_${_fnTypeIdent(type.elementType)}';
+      return _fnTypeIdent(type.elementType);
+    }
+    if (type is TypeFunction) return _fnTypeName(type);
+    return _cType(type);
+  }
+
   /// C typedef name for a function pointer type, e.g. `fun(u8)` → `__Fn_void_uint8_t`.
   String _fnTypeName(TypeFunction tf) {
-    final ret = tf.returnTypes.isEmpty ? 'void' : _cType(tf.returnTypes.first);
-    final params = tf.parameters.map(_cType).join('_');
+    final ret = tf.returnTypes.isEmpty ? 'void' : _fnTypeIdent(tf.returnTypes.first);
+    final params = tf.parameters.map(_fnTypeIdent).join('_');
     return params.isEmpty ? '__Fn_$ret' : '__Fn_${ret}_$params';
   }
 
