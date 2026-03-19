@@ -769,8 +769,13 @@ class RingBuffer<T>()
   'mcu32.memory': r'''
 #if HOSTED || MCU32
 
-class Allocator(val _memory: u8[])
+class Allocator()
+    var _memory: u8[] = {null, 0}
     var _cursor: u32 = 0
+
+    fun init(mem: u8[])
+        _memory = mem
+        _cursor = 0
 
     @inline
     fun allocate<T>(): &T
