@@ -1,87 +1,6 @@
-import memory::Allocator
 #if HOSTED
-import memory::HeapAllocator
-#end
+import hosted.memory::HeapAllocator
 
-// ── ArrayList ─────────────────────────────────────────────────────────────────
-// Fixed-capacity list backed by an Allocator. Works on MCU and hosted.
-// push/insert return false when full.
-
-class ArrayList<T>()
-    var _buffer: T[]
-    var _size: u32 = 0
-
-    fun init(alloc: &Allocator, capacity: u32) bool
-        _buffer = alloc.allocate_array<T>(capacity)
-        if _buffer.size() == 0
-            return false
-        return true
-
-    @inline
-    fun push(value: T) bool
-        if _size >= _buffer.size()
-            return false
-        _buffer[_size] = value
-        _size += 1
-        return true
-
-    @inline
-    fun pop() bool
-        if _size == 0
-            return false
-        _size -= 1
-        return true
-
-    fun insert(i: u32, value: T) bool
-        if _size >= _buffer.size()
-            return false
-        if i > _size
-            return false
-        var j: u32 = _size
-        while j > i
-            _buffer[j] = _buffer[j - 1]
-            j -= 1
-        _buffer[i] = value
-        _size += 1
-        return true
-
-    @inline
-    fun get(i: u32) T
-        return _buffer[i]
-
-    @inline
-    fun set(i: u32, value: T)
-        _buffer[i] = value
-
-    @inline
-    fun top() T
-        return _buffer[_size - 1]
-
-    @inline
-    fun size() u32
-        return _size
-
-    @inline
-    fun capacity() u32
-        return _buffer.size()
-
-    @inline
-    fun is_empty() bool
-        return _size == 0
-
-    @inline
-    fun is_full() bool
-        return _size >= _buffer.size()
-
-    @inline
-    fun clear()
-        _size = 0
-
-// ── HeapList ──────────────────────────────────────────────────────────────────
-// Growable list backed by HeapAllocator. HOSTED only.
-// push/insert auto-grow on full; return false only on allocation failure.
-
-#if HOSTED
 class HeapList<T>()
     var _buffer: T[]
     var _size: u32 = 0
@@ -155,7 +74,6 @@ class HeapList<T>()
         _heap.free_array<T>(_buffer)
         _buffer = {null, 0}
         _size = 0
-#end
 
 // ── HeapMap ───────────────────────────────────────────────────────────────────
 // Hash map with string (u8[]) keys and generic values. HOSTED only.
@@ -333,54 +251,4 @@ class HeapMap<T>()
         _size = 0
         _capacity = 0
 
-// ── RingBuffer ────────────────────────────────────────────────────────────────
-// Fixed-capacity circular buffer backed by an Allocator.
-
-class RingBuffer<T>()
-    var _buffer: T[]
-    var _head: u32 = 0
-    var _tail: u32 = 0
-    var _size: u32 = 0
-
-    fun init(allocator: &Allocator, capacity: u32) bool
-        _buffer = allocator.allocate_array<T>(capacity)
-        if _buffer.size() == 0
-            return false
-        return true
-
-    @inline
-    fun push(value: T) bool
-        if _size >= _buffer.size()
-            return false
-        _buffer[_tail] = value
-        _tail = (_tail + 1) % _buffer.size()
-        _size += 1
-        return true
-
-    @inline
-    fun pop() bool
-        if _size == 0
-            return false
-        _head = (_head + 1) % _buffer.size()
-        _size -= 1
-        return true
-
-    @inline
-    fun peek() T
-        return _buffer[_head]
-
-    @inline
-    fun size() u32
-        return _size
-
-    @inline
-    fun capacity() u32
-        return _buffer.size()
-
-    @inline
-    fun is_empty() bool
-        return _size == 0
-
-    @inline
-    fun is_full() bool
-        return _size >= _buffer.size()
+#end

@@ -1,3 +1,4 @@
+#if HOSTED || MCU32
 @include("math.h")
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -5,6 +6,7 @@
 const PI  := 3.14159265358979323846
 const TAU := 6.28318530717958647692
 const E   := 2.71828182845904523536
+#end
 
 // ── Generic min / max / clamp / abs ──────────────────────────────────────────
 
@@ -34,6 +36,24 @@ fun abs<T>(v: T): T
         return -v
     return v
 
+// ── Fixed-point rounding ──────────────────────────────────────────────────────
+
+@inline
+fun floor_fixed(v: fixed): fixed
+    return v & -1.0
+
+@inline
+fun ceil_fixed(v: fixed): fixed
+    val f := v & -1.0
+    if v != f
+        return f + 1.0
+    return f
+
+@inline
+fun round_fixed(v: fixed): fixed
+    return (v + 0.5) & -1.0
+
+#if HOSTED || MCU32
 // ── Float trig (radians) ──────────────────────────────────────────────────────
 
 @extern("sinf({x})")
@@ -76,19 +96,4 @@ fun ceil(x: float): float
 @extern("roundf({x})")
 fun round(x: float): float
 
-// ── Fixed-point rounding ──────────────────────────────────────────────────────
-
-@inline
-fun floor_fixed(v: fixed): fixed
-    return v & -1.0
-
-@inline
-fun ceil_fixed(v: fixed): fixed
-    val f := v & -1.0
-    if v != f
-        return f + 1.0
-    return f
-
-@inline
-fun round_fixed(v: fixed): fixed
-    return (v + 0.5) & -1.0
+#end

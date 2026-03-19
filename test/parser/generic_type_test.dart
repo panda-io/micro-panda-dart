@@ -37,7 +37,7 @@ void main() {
     final proj = Project.load(projDir);
     final target = Target(
       name: 'collection_test',
-      entry: 'collection_test',
+      entry: 'hosted.collection_test',
       flags: ['HOSTED'],
       cc: 'gcc',
       cflags: ['-O0'],

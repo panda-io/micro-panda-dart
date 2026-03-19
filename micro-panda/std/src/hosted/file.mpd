@@ -1,3 +1,4 @@
+#if HOSTED
 @include("stdio.h")
 
 @extern("(uint8_t*)fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
@@ -80,3 +81,5 @@ class File()
 
     fun tell(): u32
         return _ftell(_handle)
+
+#end

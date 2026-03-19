@@ -88,6 +88,9 @@ class Project {
   /// Default output directory for generated C files (absolute).
   final String out;
 
+  /// Test files directory (absolute). Defaults to src/.
+  final String test;
+
   final Map<String, Target> targets;
 
   /// Project root directory (where mpd.yaml lives).
@@ -98,6 +101,7 @@ class Project {
     required this.version,
     required this.src,
     required this.out,
+    required this.test,
     required this.targets,
     required this.rootDir,
   });
@@ -116,6 +120,7 @@ class Project {
     final version = doc['version'] as String? ?? '0.1.0';
     final srcRel = doc['src'] as String? ?? 'src';
     final outRel = doc['out'] as String? ?? 'out';
+    final testRel = doc['test'] as String? ?? srcRel;
 
     final targets = <String, Target>{};
     final rawTargets = doc['targets'];
@@ -132,6 +137,7 @@ class Project {
       version: version,
       src: p.join(dir, srcRel),
       out: p.join(dir, outRel),
+      test: p.join(dir, testRel),
       targets: targets,
       rootDir: dir,
     );

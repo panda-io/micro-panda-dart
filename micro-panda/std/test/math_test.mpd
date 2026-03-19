@@ -3,15 +3,17 @@ import math::min
 import math::max
 import math::clamp
 import math::abs
+import math::floor_fixed
+import math::ceil_fixed
+import math::round_fixed
+#if HOSTED || MCU32
 import math::sin
 import math::cos
 import math::sqrt
 import math::floor
 import math::ceil
 import math::round
-import math::floor_fixed
-import math::ceil_fixed
-import math::round_fixed
+#end
 
 @test
 fun test_min()
@@ -44,24 +46,6 @@ fun test_abs()
     assert(abs<float>(-1.5) == 1.5)
     assert(abs<fixed>(-1.5) == 1.5)
 
-@test
-fun test_sqrt()
-    val r := sqrt(4.0)
-    assert(r == 2.0)
-
-@test
-fun test_sin_cos()
-    val s := sin(0.0)
-    assert(s == 0.0)
-    val c := cos(0.0)
-    assert(c == 1.0)
-
-@test
-fun test_floor_ceil_round()
-    assert(floor(1.7) == 1.0)
-    assert(ceil(1.2) == 2.0)
-    assert(round(1.5) == 2.0)
-    assert(round(1.4) == 1.0)
 
 @test
 fun test_floor_fixed()
@@ -82,3 +66,25 @@ fun test_round_fixed()
     assert(round_fixed(v) == 2.0)
     val w: fixed = 1.4
     assert(round_fixed(w) == 1.0)
+    
+#if HOSTED || MCU32
+@test
+fun test_sqrt()
+    val r := sqrt(4.0)
+    assert(r == 2.0)
+
+@test
+fun test_sin_cos()
+    val s := sin(0.0)
+    assert(s == 0.0)
+    val c := cos(0.0)
+    assert(c == 1.0)
+
+@test
+fun test_floor_ceil_round()
+    assert(floor(1.7) == 1.0)
+    assert(ceil(1.2) == 2.0)
+    assert(round(1.5) == 2.0)
+    assert(round(1.4) == 1.0)
+
+#end

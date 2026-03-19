@@ -3,92 +3,163 @@
 
 /// Embedded standard library sources, keyed by module path.
 /// Excludes '*_test.mpd' files.
+/// Sub-directory modules use '.' as separator: 'hosted.memory'.
 const Map<String, String> kStdlib = {
-  'collection': r'''
-import memory::Allocator
+  'console': r'''
+// ── transport ────────────────────────────────────────────────────────────────
+//
+// write_byte dispatches through a function pointer.
+// Default: HOSTED → putchar wrapper.  MCU → NULL (call console::init(fn) before use).
+// Override at runtime: console::init(fn) for custom transports (UART, USB, mock tests).
+
 #if HOSTED
-import memory::HeapAllocator
+@include("stdio.h")
+
+@extern("putchar({b})")
+fun _putchar(b: u8)
+
+fun _write_byte_default(b: u8)
+    _putchar(b)
+
+var _write_byte: fun(u8) = _write_byte_default
+#else
+var _write_byte: fun(u8)
 #end
 
-// ── ArrayList ─────────────────────────────────────────────────────────────────
-// Fixed-capacity list backed by an Allocator. Works on MCU and hosted.
-// push/insert return false when full.
+fun init(write_byte: fun(u8))
+    _write_byte = write_byte
 
-class ArrayList<T>()
-    var _buffer: T[]
-    var _size: u32 = 0
+@inline
+fun write_byte(b: u8)
+    _write_byte(b)
 
-    fun init(alloc: &Allocator, capacity: u32) bool
-        _buffer = alloc.allocate_array<T>(capacity)
-        if _buffer.size() == 0
-            return false
-        return true
+// ── primitives ───────────────────────────────────────────────────────────────
 
-    @inline
-    fun push(value: T) bool
-        if _size >= _buffer.size()
-            return false
-        _buffer[_size] = value
-        _size += 1
-        return true
+fun println()
+    write_byte(10)
 
-    @inline
-    fun pop() bool
-        if _size == 0
-            return false
-        _size -= 1
-        return true
+fun print_str(s: u8[])
+    var i: u32 = 0
+    while i < s.size()
+        write_byte(s[i])
+        i += 1
 
-    fun insert(i: u32, value: T) bool
-        if _size >= _buffer.size()
-            return false
-        if i > _size
-            return false
-        var j: u32 = _size
-        while j > i
-            _buffer[j] = _buffer[j - 1]
-            j -= 1
-        _buffer[i] = value
-        _size += 1
-        return true
+fun print_bool(v: bool)
+    if v
+        write_byte('t')
+        write_byte('r')
+        write_byte('u')
+        write_byte('e')
+    else
+        write_byte('f')
+        write_byte('a')
+        write_byte('l')
+        write_byte('s')
+        write_byte('e')
 
-    @inline
-    fun get(i: u32) T
-        return _buffer[i]
+// ── unsigned integers ─────────────────────────────────────────────────────────
 
-    @inline
-    fun set(i: u32, value: T)
-        _buffer[i] = value
+fun print_u64(v: u64)
+    var buf: u8[20]
+    var i: i32 = 19
+    if v == 0
+        write_byte('0')
+        return
+    while v > 0
+        buf[i] = u8(v % 10 + 48)
+        v = v / 10
+        i -= 1
+    var j: i32 = i + 1
+    while j < 20
+        write_byte(buf[j])
+        j += 1
 
-    @inline
-    fun top() T
-        return _buffer[_size - 1]
+fun print_u32(v: u32)
+    print_u64(u64(v))
 
-    @inline
-    fun size() u32
-        return _size
+fun print_u16(v: u16)
+    print_u64(u64(v))
 
-    @inline
-    fun capacity() u32
-        return _buffer.size()
+fun print_u8(v: u8)
+    print_u64(u64(v))
 
-    @inline
-    fun is_empty() bool
-        return _size == 0
+// ── signed integers ───────────────────────────────────────────────────────────
 
-    @inline
-    fun is_full() bool
-        return _size >= _buffer.size()
+fun print_i64(v: i64)
+    if v < 0
+        write_byte('-')
+        print_u64(u64(i64(0) - v))
+    else
+        print_u64(u64(v))
 
-    @inline
-    fun clear()
-        _size = 0
+fun print_i32(v: i32)
+    print_i64(i64(v))
 
-// ── HeapList ──────────────────────────────────────────────────────────────────
-// Growable list backed by HeapAllocator. HOSTED only.
-// push/insert auto-grow on full; return false only on allocation failure.
+fun print_i16(v: i16)
+    print_i64(i64(v))
 
+fun print_i8(v: i8)
+    print_i64(i64(v))
+
+// ── float ─────────────────────────────────────────────────────────────────────
+//
+// Naive float print: separates integer and fractional parts, extracts decimal
+// digits by successive * 10. Accurate to ~6 significant digits (float precision).
+// Does not handle NaN or Inf.
+
+fun print_float(v: float, decimals: u32)
+    var abs: float = v
+    if v < 0.0
+        write_byte('-')
+        abs = 0.0 - v
+    val int_part := i32(abs)
+    print_i32(int_part)
+    if decimals > 0
+        write_byte('.')
+        var frac: float = abs - float(int_part)
+        var i: u32 = 0
+        while i < decimals
+            frac = frac * 10.0
+            val digit := i32(frac)
+            write_byte(u8(digit + 48))
+            frac = frac - float(digit)
+            i += 1
+
+// ── fixed-point ───────────────────────────────────────────────────────────────
+//
+// 16.16 fixed-point: high 16 bits = integer part, low 16 bits = fractional part.
+// e.g. print_fixed(0x00018000, 2) → "1.50"   (1 + 32768/65536)
+//      print_fixed(0xFFFE8000, 2) → "-1.50"
+//
+// decimals: how many fractional decimal digits to emit (0 = integer only).
+
+fun print_fixed(v: fixed, decimals: u32)
+    var abs: u32 = 0
+    if v < 0
+        write_byte('-')
+        abs = u32(0 - v)
+    else
+        abs = u32(v)
+
+    // integer part: high 16 bits
+    print_u32(abs >> 16)
+
+    if decimals > 0
+        write_byte('.')
+        // fractional part: low 16 bits
+        // extract each decimal digit: multiply frac by 10, digit = high 16 bits
+        var frac: u32 = abs & 0xFFFF
+        var i: u32 = 0
+        while i < decimals
+            frac *= 10
+            write_byte(u8((frac >> 16) + 48))
+            frac = frac & 0xFFFF
+            i += 1
+''',
+  'hosted.collection': r'''
 #if HOSTED
+import hosted.memory::HeapAllocator
+
 class HeapList<T>()
     var _buffer: T[]
     var _size: u32 = 0
@@ -162,7 +233,6 @@ class HeapList<T>()
         _heap.free_array<T>(_buffer)
         _buffer = {null, 0}
         _size = 0
-#end
 
 // ── HeapMap ───────────────────────────────────────────────────────────────────
 // Hash map with string (u8[]) keys and generic values. HOSTED only.
@@ -340,210 +410,10 @@ class HeapMap<T>()
         _size = 0
         _capacity = 0
 
-// ── RingBuffer ────────────────────────────────────────────────────────────────
-// Fixed-capacity circular buffer backed by an Allocator.
-
-class RingBuffer<T>()
-    var _buffer: T[]
-    var _head: u32 = 0
-    var _tail: u32 = 0
-    var _size: u32 = 0
-
-    fun init(allocator: &Allocator, capacity: u32) bool
-        _buffer = allocator.allocate_array<T>(capacity)
-        if _buffer.size() == 0
-            return false
-        return true
-
-    @inline
-    fun push(value: T) bool
-        if _size >= _buffer.size()
-            return false
-        _buffer[_tail] = value
-        _tail = (_tail + 1) % _buffer.size()
-        _size += 1
-        return true
-
-    @inline
-    fun pop() bool
-        if _size == 0
-            return false
-        _head = (_head + 1) % _buffer.size()
-        _size -= 1
-        return true
-
-    @inline
-    fun peek() T
-        return _buffer[_head]
-
-    @inline
-    fun size() u32
-        return _size
-
-    @inline
-    fun capacity() u32
-        return _buffer.size()
-
-    @inline
-    fun is_empty() bool
-        return _size == 0
-
-    @inline
-    fun is_full() bool
-        return _size >= _buffer.size()
-''',
-  'console': r'''
-// ── transport ────────────────────────────────────────────────────────────────
-//
-// write_byte dispatches through a function pointer.
-// Default: HOSTED → putchar wrapper.  MCU → NULL (call console::init(fn) before use).
-// Override at runtime: console::init(fn) for custom transports (UART, USB, mock tests).
-
-#if HOSTED
-@include("stdio.h")
-
-@extern("putchar({b})")
-fun _putchar(b: u8)
-
-fun _write_byte_default(b: u8)
-    _putchar(b)
-
-var _write_byte: fun(u8) = _write_byte_default
-#else
-var _write_byte: fun(u8)
 #end
-
-fun init(write_byte: fun(u8))
-    _write_byte = write_byte
-
-@inline
-fun write_byte(b: u8)
-    _write_byte(b)
-
-// ── primitives ───────────────────────────────────────────────────────────────
-
-fun println()
-    write_byte(10)
-
-fun print_str(s: u8[])
-    var i: u32 = 0
-    while i < s.size()
-        write_byte(s[i])
-        i += 1
-
-fun print_bool(v: bool)
-    if v
-        write_byte('t')
-        write_byte('r')
-        write_byte('u')
-        write_byte('e')
-    else
-        write_byte('f')
-        write_byte('a')
-        write_byte('l')
-        write_byte('s')
-        write_byte('e')
-
-// ── unsigned integers ─────────────────────────────────────────────────────────
-
-fun print_u64(v: u64)
-    var buf: u8[20]
-    var i: i32 = 19
-    if v == 0
-        write_byte('0')
-        return
-    while v > 0
-        buf[i] = u8(v % 10 + 48)
-        v = v / 10
-        i -= 1
-    var j: i32 = i + 1
-    while j < 20
-        write_byte(buf[j])
-        j += 1
-
-fun print_u32(v: u32)
-    print_u64(u64(v))
-
-fun print_u16(v: u16)
-    print_u64(u64(v))
-
-fun print_u8(v: u8)
-    print_u64(u64(v))
-
-// ── signed integers ───────────────────────────────────────────────────────────
-
-fun print_i64(v: i64)
-    if v < 0
-        write_byte('-')
-        print_u64(u64(i64(0) - v))
-    else
-        print_u64(u64(v))
-
-fun print_i32(v: i32)
-    print_i64(i64(v))
-
-fun print_i16(v: i16)
-    print_i64(i64(v))
-
-fun print_i8(v: i8)
-    print_i64(i64(v))
-
-// ── float ─────────────────────────────────────────────────────────────────────
-//
-// Naive float print: separates integer and fractional parts, extracts decimal
-// digits by successive * 10. Accurate to ~6 significant digits (float precision).
-// Does not handle NaN or Inf.
-
-fun print_float(v: float, decimals: u32)
-    var abs: float = v
-    if v < 0.0
-        write_byte('-')
-        abs = 0.0 - v
-    val int_part := i32(abs)
-    print_i32(int_part)
-    if decimals > 0
-        write_byte('.')
-        var frac: float = abs - float(int_part)
-        var i: u32 = 0
-        while i < decimals
-            frac = frac * 10.0
-            val digit := i32(frac)
-            write_byte(u8(digit + 48))
-            frac = frac - float(digit)
-            i += 1
-
-// ── fixed-point ───────────────────────────────────────────────────────────────
-//
-// 16.16 fixed-point: high 16 bits = integer part, low 16 bits = fractional part.
-// e.g. print_fixed(0x00018000, 2) → "1.50"   (1 + 32768/65536)
-//      print_fixed(0xFFFE8000, 2) → "-1.50"
-//
-// decimals: how many fractional decimal digits to emit (0 = integer only).
-
-fun print_fixed(v: fixed, decimals: u32)
-    var abs: u32 = 0
-    if v < 0
-        write_byte('-')
-        abs = u32(0 - v)
-    else
-        abs = u32(v)
-
-    // integer part: high 16 bits
-    print_u32(abs >> 16)
-
-    if decimals > 0
-        write_byte('.')
-        // fractional part: low 16 bits
-        // extract each decimal digit: multiply frac by 10, digit = high 16 bits
-        var frac: u32 = abs & 0xFFFF
-        var i: u32 = 0
-        while i < decimals
-            frac *= 10
-            write_byte(u8((frac >> 16) + 48))
-            frac = frac & 0xFFFF
-            i += 1
 ''',
-  'file': r'''
+  'hosted.file': r'''
+#if HOSTED
 @include("stdio.h")
 
 @extern("(uint8_t*)fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
@@ -626,8 +496,45 @@ class File()
 
     fun tell(): u32
         return _ftell(_handle)
+
+#end
+''',
+  'hosted.memory': r'''
+#if HOSTED
+
+@include("stdlib.h")
+
+@extern("malloc")
+fun _malloc(size: u32): &u8
+
+@extern("realloc")
+fun _realloc(ptr: &u8, new_size: u32): &u8
+
+@extern("free")
+fun _free(ptr: &u8)
+
+// Heap allocator for growable containers (HOSTED only).
+// Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
+class HeapAllocator()
+    var _pad: u8 = 0    // keeps struct non-empty
+
+    fun allocate_array<T>(length: u32): T[]
+        val size := sizeof<T>() * length
+        val ptr := &T(_malloc(size))
+        return {ptr, length}
+
+    fun realloc_array<T>(arr: T[], new_length: u32): T[]
+        val size := sizeof<T>() * new_length
+        val ptr := &T(_realloc(&u8(arr.ptr), size))
+        return {ptr, new_length}
+
+    fun free_array<T>(arr: T[])
+        _free(&u8(arr.ptr))
+
+#end
 ''',
   'math': r'''
+#if HOSTED || MCU32
 @include("math.h")
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -635,6 +542,7 @@ class File()
 const PI  := 3.14159265358979323846
 const TAU := 6.28318530717958647692
 const E   := 2.71828182845904523536
+#end
 
 // ── Generic min / max / clamp / abs ──────────────────────────────────────────
 
@@ -664,6 +572,24 @@ fun abs<T>(v: T): T
         return -v
     return v
 
+// ── Fixed-point rounding ──────────────────────────────────────────────────────
+
+@inline
+fun floor_fixed(v: fixed): fixed
+    return v & -1.0
+
+@inline
+fun ceil_fixed(v: fixed): fixed
+    val f := v & -1.0
+    if v != f
+        return f + 1.0
+    return f
+
+@inline
+fun round_fixed(v: fixed): fixed
+    return (v + 0.5) & -1.0
+
+#if HOSTED || MCU32
 // ── Float trig (radians) ──────────────────────────────────────────────────────
 
 @extern("sinf({x})")
@@ -706,96 +632,142 @@ fun ceil(x: float): float
 @extern("roundf({x})")
 fun round(x: float): float
 
-// ── Fixed-point rounding ──────────────────────────────────────────────────────
-
-@inline
-fun floor_fixed(v: fixed): fixed
-    return v & -1.0
-
-@inline
-fun ceil_fixed(v: fixed): fixed
-    val f := v & -1.0
-    if v != f
-        return f + 1.0
-    return f
-
-@inline
-fun round_fixed(v: fixed): fixed
-    return (v + 0.5) & -1.0
+#end
 ''',
-  'memory': r'''
-#if HOSTED
+  'mcu32.collection': r'''
+#if HOSTED || MCU32
+import mcu32.memory::Allocator
 
-@include("stdlib.h")
+// ── ArrayList ─────────────────────────────────────────────────────────────────
+// Fixed-capacity list backed by an Allocator. Works on MCU and hosted.
+// push/insert return false when full.
 
-@extern("malloc")
-fun _malloc(size: u32): &u8
+class ArrayList<T>()
+    var _buffer: T[]
+    var _size: u32 = 0
 
-@extern("realloc")
-fun _realloc(ptr: &u8, new_size: u32): &u8
-
-@extern("free")
-fun _free(ptr: &u8)
-
-// Heap allocator for growable containers (HOSTED only).
-// Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
-class HeapAllocator()
-    var _pad: u8 = 0    // keeps struct non-empty
-
-    fun allocate_array<T>(length: u32): T[]
-        val size := sizeof<T>() * length
-        val ptr := &T(_malloc(size))
-        return {ptr, length}
-
-    fun realloc_array<T>(arr: T[], new_length: u32): T[]
-        val size := sizeof<T>() * new_length
-        val ptr := &T(_realloc(&u8(arr.ptr), size))
-        return {ptr, new_length}
-
-    fun free_array<T>(arr: T[])
-        _free(&u8(arr.ptr))
-
-class Allocator()
-    var _ptr: &u8 = null
-    var _capacity: u32 = 0
-    var _cursor: u32 = 0
-
-    fun init(capacity: u32)
-        _ptr = _malloc(capacity)
-        _capacity = capacity
-
-    fun allocate<T>(): &T
-        val size := sizeof<T>()
-        if _check_buffer(size)
-            val ptr := &T(&_ptr[_cursor])
-            _cursor = _align(_cursor + size, 8)
-            return ptr
-        return null
-
-    fun allocate_array<T>(length: u32): T[]
-        val size := sizeof<T>() * length
-        if _check_buffer(size)
-            val ptr := &T(&_ptr[_cursor])
-            _cursor = _align(_cursor + size, 8)
-            return {ptr, length}
-        return {null, 0}
-
-    fun reset()
-        _cursor = 0
-
-    fun _align(cursor: u32, align: u32): u32
-        return (cursor + align - 1) & ~(align - 1)
-
-    fun _check_buffer(size: u32) bool
-        val aligned := _align(_cursor + size, 8)
-        if aligned > _capacity
-            _capacity = _capacity * 2
-            _ptr = _realloc(_ptr, _capacity)
-            if _ptr == null
-                return false
+    fun init(alloc: &Allocator, capacity: u32) bool
+        _buffer = alloc.allocate_array<T>(capacity)
+        if _buffer.size() == 0
+            return false
         return true
 
-#else
+    @inline
+    fun push(value: T) bool
+        if _size >= _buffer.size()
+            return false
+        _buffer[_size] = value
+        _size += 1
+        return true
+
+    @inline
+    fun pop() bool
+        if _size == 0
+            return false
+        _size -= 1
+        return true
+
+    fun insert(i: u32, value: T) bool
+        if _size >= _buffer.size()
+            return false
+        if i > _size
+            return false
+        var j: u32 = _size
+        while j > i
+            _buffer[j] = _buffer[j - 1]
+            j -= 1
+        _buffer[i] = value
+        _size += 1
+        return true
+
+    @inline
+    fun get(i: u32) T
+        return _buffer[i]
+
+    @inline
+    fun set(i: u32, value: T)
+        _buffer[i] = value
+
+    @inline
+    fun top() T
+        return _buffer[_size - 1]
+
+    @inline
+    fun size() u32
+        return _size
+
+    @inline
+    fun capacity() u32
+        return _buffer.size()
+
+    @inline
+    fun is_empty() bool
+        return _size == 0
+
+    @inline
+    fun is_full() bool
+        return _size >= _buffer.size()
+
+    @inline
+    fun clear()
+        _size = 0
+
+// ── RingBuffer ────────────────────────────────────────────────────────────────
+// Fixed-capacity circular buffer backed by an Allocator.
+
+class RingBuffer<T>()
+    var _buffer: T[]
+    var _head: u32 = 0
+    var _tail: u32 = 0
+    var _size: u32 = 0
+
+    fun init(allocator: &Allocator, capacity: u32) bool
+        _buffer = allocator.allocate_array<T>(capacity)
+        if _buffer.size() == 0
+            return false
+        return true
+
+    @inline
+    fun push(value: T) bool
+        if _size >= _buffer.size()
+            return false
+        _buffer[_tail] = value
+        _tail = (_tail + 1) % _buffer.size()
+        _size += 1
+        return true
+
+    @inline
+    fun pop() bool
+        if _size == 0
+            return false
+        _head = (_head + 1) % _buffer.size()
+        _size -= 1
+        return true
+
+    @inline
+    fun peek() T
+        return _buffer[_head]
+
+    @inline
+    fun size() u32
+        return _size
+
+    @inline
+    fun capacity() u32
+        return _buffer.size()
+
+    @inline
+    fun is_empty() bool
+        return _size == 0
+
+    @inline
+    fun is_full() bool
+        return _size >= _buffer.size()
+        
+#end
+''',
+  'mcu32.memory': r'''
+#if HOSTED || MCU32
 
 class Allocator(val _memory: u8[])
     var _cursor: u32 = 0

@@ -3,6 +3,7 @@ version: 0.1.0
 
 src: src/    # micro-panda source root
 out: out/    # generated C files (default)
+test: test/  # test files
 
 targets:
   # Simple mode: mpd drives compilation directly

@@ -1,5 +1,5 @@
 import test::assert
-import memory::Allocator
+import mcu32.memory::Allocator
 import string::equals
 import string::starts_with
 import string::ends_with
@@ -98,8 +98,9 @@ fun test_parse_i32()
 
 @test
 fun test_format_u32()
+    var _mem: u8[64]
     var alloc: Allocator
-    alloc.init(64)
+    alloc.init({&_mem[0], u32(64)})
     var buf := alloc.allocate_array<u8>(12)
     val n := format_u32(buf, 42)
     assert(n == 2)
@@ -110,8 +111,9 @@ fun test_format_u32()
 
 @test
 fun test_format_i32()
+    var _mem: u8[64]
     var alloc: Allocator
-    alloc.init(64)
+    alloc.init({&_mem[0], u32(64)})
     var buf := alloc.allocate_array<u8>(12)
     val n := format_i32(buf, -42)
     assert(n == 3)

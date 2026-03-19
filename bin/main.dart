@@ -120,12 +120,12 @@ Future<void> _cmdRun(String? targetName, {required bool verbose}) async {
 Future<void> _cmdTest(String? fileArg, {required bool verbose}) async {
   final project = _loadProject();
 
-  // Discover test files: explicit arg or all *_test.mpd in src/.
+  // Discover test files: explicit arg or all *_test.mpd in test dir.
   final testFiles = <File>[];
   if (fileArg != null) {
     // Accept "main_test.mpd", "main_test", or a path.
     var path = fileArg.endsWith('.mpd') ? fileArg : '$fileArg.mpd';
-    if (!p.isAbsolute(path)) path = p.join(project.src, path);
+    if (!p.isAbsolute(path)) path = p.join(project.test, path);
     final f = File(path);
     if (!f.existsSync()) {
       stderr.writeln('error: test file not found: ${f.path}');
@@ -133,9 +133,9 @@ Future<void> _cmdTest(String? fileArg, {required bool verbose}) async {
     }
     testFiles.add(f);
   } else {
-    final srcDir = Directory(project.src);
-    if (srcDir.existsSync()) {
-      testFiles.addAll(srcDir
+    final testDir = Directory(project.test);
+    if (testDir.existsSync()) {
+      testFiles.addAll(testDir
           .listSync(recursive: true)
           .whereType<File>()
           .where((f) => f.path.endsWith('_test.mpd')));
@@ -156,7 +156,7 @@ Future<void> _cmdTest(String? fileArg, {required bool verbose}) async {
     final testTarget = Target(
       name: name,
       entry: p.withoutExtension(
-          p.relative(file.path, from: project.src))
+          p.relative(file.path, from: project.test))
           .replaceAll(p.separator, '.'),
       flags: [
         ...?refTarget?.flags.where((f) => f != 'RELEASE' && f != 'DEBUG'),

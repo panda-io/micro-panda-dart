@@ -1,4 +1,4 @@
-// Generates lib/src/stdlib_embedded.dart from micro-panda/std/src/*.mpd
+// Generates lib/src/stdlib_embedded.dart from micro-panda/std/src/**/*.mpd
 // Run: dart tool/gen_stdlib.dart
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -10,7 +10,7 @@ void main() {
   final outFile = p.join(repoRoot, 'lib', 'src', 'stdlib_embedded.dart');
 
   final files = Directory(stdSrc)
-      .listSync()
+      .listSync(recursive: true)
       .whereType<File>()
       .where((f) => f.path.endsWith('.mpd') && !f.path.endsWith('_test.mpd'))
       .toList()
@@ -22,12 +22,16 @@ void main() {
   buf.writeln();
   buf.writeln('/// Embedded standard library sources, keyed by module path.');
   buf.writeln("/// Excludes '*_test.mpd' files.");
+  buf.writeln("/// Sub-directory modules use '.' as separator: 'hosted.memory'.");
   buf.writeln('const Map<String, String> kStdlib = {');
 
   for (final file in files) {
-    final name = p.basenameWithoutExtension(file.path);
+    // Key = relative path from stdSrc without extension, '/' → '.'
+    // e.g. src/hosted/memory.mpd → 'hosted.memory'
+    final rel = p.withoutExtension(p.relative(file.path, from: stdSrc));
+    final key = rel.replaceAll(p.separator, '.');
     final content = file.readAsStringSync();
-    buf.writeln("  '$name': r'''");
+    buf.writeln("  '$key': r'''");
     buf.write(content);
     if (!content.endsWith('\n')) buf.writeln();
     buf.writeln("''',");
@@ -37,5 +41,8 @@ void main() {
 
   File(outFile).writeAsStringSync(buf.toString());
   print('Generated $outFile (${files.length} modules: '
-      '${files.map((f) => p.basenameWithoutExtension(f.path)).join(', ')})');
+      '${files.map((f) {
+        final rel = p.withoutExtension(p.relative(f.path, from: stdSrc));
+        return rel.replaceAll(p.separator, '.');
+      }).join(', ')})');
 }

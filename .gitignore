@@ -5,5 +5,4 @@ reference/**
 bin/mpd
 micro-panda/std/bin/**
 micro-panda/std/out/**
-micro-panda/std/test/**
 micro-panda/std/.micro-panda/**

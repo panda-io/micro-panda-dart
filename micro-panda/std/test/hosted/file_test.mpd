@@ -1,13 +1,14 @@
+#if HOSTED
 import test::assert
-import file::File
-import file::READ
-import file::WRITE
-import memory::Allocator
+import hosted.file::File
+import hosted.file::READ
+import hosted.file::WRITE
+import mcu32.memory::Allocator
 
 @test
 fun file_open()
     var f: File
-    assert(f.open("resource/hello.txt", READ))
+    assert(f.open("test/resource/hello.txt", READ))
     assert(f.is_open())
     f.close()
     assert(f.is_open() == false)
@@ -15,27 +16,29 @@ fun file_open()
 @test
 fun file_open_missing()
     var f: File
-    assert(f.open("resource/missing.txt", READ) == false)
+    assert(f.open("test/resource/missing.txt", READ) == false)
     assert(f.is_open() == false)
 
 @test
 fun file_read_bytes()
+    var _mem: u8[256]
     var alloc: Allocator
-    alloc.init(256)
+    alloc.init({&_mem[0], u32(256)})
     var buf := alloc.allocate_array<u8>(32)
     var f: File
-    f.open("resource/hello.txt", READ)
+    f.open("test/resource/hello.txt", READ)
     val n := f.read_bytes(buf)
     assert(n > 0)
     f.close()
 
 @test
 fun file_read_line()
+    var _mem: u8[256]
     var alloc: Allocator
-    alloc.init(256)
+    alloc.init({&_mem[0], u32(256)})
     var buf := alloc.allocate_array<u8>(64)
     var f: File
-    f.open("resource/lines.txt", READ)
+    f.open("test/resource/lines.txt", READ)
     val n := f.read_line(buf)
     assert(n > 0)
     assert(n < 64)
@@ -43,11 +46,12 @@ fun file_read_line()
 
 @test
 fun file_read_all_lines()
+    var _mem: u8[256]
     var alloc: Allocator
-    alloc.init(256)
+    alloc.init({&_mem[0], u32(256)})
     var buf := alloc.allocate_array<u8>(64)
     var f: File
-    f.open("resource/lines.txt", READ)
+    f.open("test/resource/lines.txt", READ)
     var count: u32 = 0
     while f.read_line(buf) > 0
         count += 1
@@ -56,11 +60,12 @@ fun file_read_all_lines()
 
 @test
 fun file_tell_seek()
+    var _mem: u8[256]
     var alloc: Allocator
-    alloc.init(256)
+    alloc.init({&_mem[0], u32(256)})
     var buf := alloc.allocate_array<u8>(5)
     var f: File
-    f.open("resource/hello.txt", READ)
+    f.open("test/resource/hello.txt", READ)
     assert(f.tell() == 0)
     f.read_bytes(buf)       // reads "Hello"
     assert(f.tell() == 5)
@@ -70,8 +75,9 @@ fun file_tell_seek()
 
 @test
 fun file_write_read()
+    var _mem: u8[256]
     var alloc: Allocator
-    alloc.init(256)
+    alloc.init({&_mem[0], u32(256)})
     var buf := alloc.allocate_array<u8>(16)
     var f: File
     f.open(".micro-panda/test/file_write_output.txt", WRITE)
@@ -81,3 +87,5 @@ fun file_write_read()
     val n := f.read_bytes(buf)
     assert(n == 5)
     f.close()
+
+#end

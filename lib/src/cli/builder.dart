@@ -124,7 +124,12 @@ class Builder {
   File _resolveEntry() {
     // Entry can be a module path like "firmware/main" or just "main".
     final rel = '${target.entry.replaceAll('.', p.separator)}.mpd';
-    return File(p.join(project.src, rel));
+    // Check src first, then test directory (for test entries).
+    final srcFile = File(p.join(project.src, rel));
+    if (srcFile.existsSync()) return srcFile;
+    final testFile = File(p.join(project.test, rel));
+    if (testFile.existsSync()) return testFile;
+    return srcFile; // return src path so error message is meaningful
   }
 
   File? _resolveImport(String importPath) {
@@ -143,6 +148,12 @@ class Builder {
     final stdCache = p.normalize(_stdCacheDir);
     if (p.normalize(absPath).startsWith(stdCache)) {
       final rel = p.relative(absPath, from: stdCache);
+      return p.withoutExtension(rel).replaceAll(p.separator, '.');
+    }
+    // Test files live under project.test.
+    final testDir = p.normalize(project.test);
+    if (p.normalize(absPath).startsWith(testDir)) {
+      final rel = p.relative(absPath, from: project.test);
       return p.withoutExtension(rel).replaceAll(p.separator, '.');
     }
     final rel = p.relative(absPath, from: project.src);

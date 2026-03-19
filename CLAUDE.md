@@ -50,16 +50,20 @@ micro-panda-dart/          ← compiler (Dart)
 | 18_cli_commands.md | mpd build / test / run |
 | 19_generics.md | Generic classes and functions |
 
-## Standard library (micro-panda/std/src/)
+## Standard library (micro-panda/std/)
+Layout: universal modules at `src/`, platform-specific under `src/hosted/` and `src/mcu32/`, tests under `test/`.
+
 | Module | Contents |
 |---|---|
-| console.mpd | write_byte, print_str, print_bool, print_u*/i*/float/fixed, println |
-| test.mpd | _test_begin/end/pass/fail, _report() — used by @test runner |
-| memory.mpd | Allocator class; allocate<T>(): &T, allocate_array<T>(n): T[] |
-| collection.mpd | ArrayList<T>, LinkedList<T> (pool-based), RingBuffer<T> |
-| file.mpd | File class (wraps C FILE*); open/close/read_bytes/write_bytes/read_line/write_str/flush/seek/tell; mode consts READ/WRITE/APPEND etc. |
-| math.mpd | PI/TAU/E consts; min/max/clamp/abs<T> (generic @inline); sin/cos/tan/asin/acos/atan/atan2/sqrt/pow/floor/ceil/round (float, wraps math.h); floor_fixed/ceil_fixed/round_fixed |
-| string.mpd | equals, starts_with, ends_with, index_of; sub, trim_start, trim_end, trim; token, skip; parse_u32, parse_i32, format_u32, format_i32 |
+| src/console.mpd | write_byte, print_str, print_bool, print_u*/i*/float/fixed, println |
+| src/test.mpd | _test_begin/end/pass/fail, _report() — used by @test runner |
+| src/math.mpd | PI/TAU/E; min/max/clamp/abs; trig/sqrt/pow; floor/ceil/round; fixed variants |
+| src/string.mpd | equals, starts/ends_with, index_of, sub, trim, token, skip, parse/format_u32/i32 |
+| src/mcu32/memory.mpd | Allocator: init(mem: u8[]), allocate<T>(), allocate_array<T>(n), reset() |
+| src/mcu32/collection.mpd | ArrayList<T>, RingBuffer<T> — fixed-capacity, backed by Allocator |
+| src/hosted/memory.mpd | HeapAllocator: allocate_array<T>(n), realloc_array<T>, free_array<T> |
+| src/hosted/collection.mpd | HeapList<T> (growable list), HeapMap<T> (string-keyed hash map) |
+| src/hosted/file.mpd | File class; open/close/read_bytes/write_bytes/read_line/write_str/flush/seek/tell; READ/WRITE/APPEND consts |
 
 ## Language features
 - **Primitives**: bool, i8–u64, float (32-bit), fixed (16.16 = int32_t). No f64. No implicit conversions.
