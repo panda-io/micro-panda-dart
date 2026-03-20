@@ -1,0 +1,21 @@
+#if HOSTED
+
+// Access to C main() argc / argv.
+// argc() returns argument count (includes program name at index 0).
+// argv(i) returns argument i as a u8[] slice.
+
+@include("string.h")
+
+@extern("__mp_argc")
+fun arg_count(): i32
+
+@extern("((uint8_t*)__mp_argv[{i}])")
+fun _arg_ptr(i: i32): &u8
+
+@extern("(uint32_t)strlen(__mp_argv[{i}])")
+fun _arg_len(i: i32): u32
+
+fun arg_value(i: i32) u8[]
+    return {_arg_ptr(i), _arg_len(i)}
+
+#end

@@ -31,10 +31,13 @@ void main() {
     final rel = p.withoutExtension(p.relative(file.path, from: stdSrc));
     final key = rel.replaceAll(p.separator, '.');
     final content = file.readAsStringSync();
-    buf.writeln("  '$key': r'''");
-    buf.write(content);
-    if (!content.endsWith('\n')) buf.writeln();
-    buf.writeln("''',");
+    // Use a regular (non-raw) Dart string so ''' and """ inside .mpd files
+    // don't terminate the embedding prematurely.
+    final escaped = content
+        .replaceAll(r'\', r'\\')
+        .replaceAll(r'$', r'\$')
+        .replaceAll('"""', r'\"\"\"');
+    buf.writeln('  \'$key\': """$escaped""",');
   }
 
   buf.writeln('};');

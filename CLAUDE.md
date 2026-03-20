@@ -64,6 +64,7 @@ Layout: universal modules at `src/`, platform-specific under `src/hosted/` and `
 | src/hosted/memory.mpd | HeapAllocator: allocate_array<T>(n), realloc_array<T>, free_array<T> |
 | src/hosted/collection.mpd | HeapList<T> (growable list), HeapMap<T> (string-keyed hash map) |
 | src/hosted/file.mpd | File class; open/close/read_bytes/write_bytes/read_line/write_str/flush/seek/tell; READ/WRITE/APPEND consts |
+| src/hosted/args.mpd | arg_count(): i32, arg_value(i: i32): u8[] — access C main() argc/argv |
 
 ## Language features
 - **Primitives**: bool, i8–u64, float (32-bit), fixed (16.16 = int32_t). No f64. No implicit conversions.

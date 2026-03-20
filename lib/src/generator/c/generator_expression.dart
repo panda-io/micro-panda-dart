@@ -250,13 +250,33 @@ extension GeneratorExpression on CGenerator {
     return call;
   }
 
+  /// Reverse scanner normalisation on triple-quoted @extern templates.
+  /// _normalizeTripleString converts \→\\ and newline→\n for C string safety,
+  /// but @extern templates are emitted as raw C code, so we undo that here.
+  String _unescapeExtern(String s) {
+    if (!s.contains('\\')) return s;
+    final sb = StringBuffer();
+    var i = 0;
+    while (i < s.length) {
+      if (s[i] == '\\' && i + 1 < s.length) {
+        final next = s[i + 1];
+        if (next == 'n') { sb.write('\n'); i += 2; continue; }
+        if (next == '\\') { sb.write('\\'); i += 2; continue; }
+      }
+      sb.write(s[i]);
+      i++;
+    }
+    return sb.toString().trim();
+  }
+
   /// Emit a call to an @extern function using its template.
   ///
   ///   @extern                       → fn_name(args...)
   ///   @extern("malloc")             → malloc(args...)
   ///   @extern("assert({a} == {b})") → assert(x == y)
   String _applyExtern(FunctionDecl fn, List<Expression> callArgs) {
-    final template = fn.externAnnotation!.template;
+    final rawTemplate = fn.externAnnotation!.template;
+    final template = rawTemplate != null ? _unescapeExtern(rawTemplate) : null;
     final args = callArgs.map(_expr).toList();
 
     if (template == null) {

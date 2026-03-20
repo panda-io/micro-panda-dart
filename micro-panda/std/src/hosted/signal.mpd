@@ -1,0 +1,23 @@
+#if HOSTED
+
+@include("signal.h")
+
+var _exit_requested: bool = false
+
+fun _on_exit_requested(sig: i32)
+    _exit_requested = true
+
+@extern('''
+signal(SIGINT, (void(*)(int)){handler});
+signal(SIGTERM, (void(*)(int)){handler});
+signal(SIGHUP, (void(*)(int)){handler});
+''')
+fun _watch_signals(handler: fun(i32))
+
+fun catch_signals()
+    _watch_signals(_on_exit_requested)
+
+fun exit_requested() bool
+    return _exit_requested
+
+#end

@@ -5,8 +5,7 @@
 /// Excludes '*_test.mpd' files.
 /// Sub-directory modules use '.' as separator: 'hosted.memory'.
 const Map<String, String> kStdlib = {
-  'console': r'''
-// ── transport ────────────────────────────────────────────────────────────────
+  'console': """// ── transport ────────────────────────────────────────────────────────────────
 //
 // write_byte dispatches through a function pointer.
 // Default: HOSTED → putchar wrapper.  MCU → NULL (call console::init(fn) before use).
@@ -155,9 +154,30 @@ fun print_fixed(v: fixed, decimals: u32)
             write_byte(u8((frac >> 16) + 48))
             frac = frac & 0xFFFF
             i += 1
-''',
-  'hosted.collection': r'''
-#if HOSTED
+""",
+  'hosted.args': """#if HOSTED
+
+// Access to C main() argc / argv.
+// argc() returns argument count (includes program name at index 0).
+// argv(i) returns argument i as a u8[] slice.
+
+@include("string.h")
+
+@extern("__mp_argc")
+fun arg_count(): i32
+
+@extern("((uint8_t*)__mp_argv[{i}])")
+fun _arg_ptr(i: i32): &u8
+
+@extern("(uint32_t)strlen(__mp_argv[{i}])")
+fun _arg_len(i: i32): u32
+
+fun arg_value(i: i32) u8[]
+    return {_arg_ptr(i), _arg_len(i)}
+
+#end
+""",
+  'hosted.collection': """#if HOSTED
 import hosted.memory::HeapAllocator
 
 class HeapList<T>()
@@ -411,9 +431,8 @@ class HeapMap<T>()
         _capacity = 0
 
 #end
-''',
-  'hosted.file': r'''
-#if HOSTED
+""",
+  'hosted.file': """#if HOSTED
 @include("stdio.h")
 
 @extern("(uint8_t*)fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
@@ -498,9 +517,8 @@ class File()
         return _ftell(_handle)
 
 #end
-''',
-  'hosted.memory': r'''
-#if HOSTED
+""",
+  'hosted.memory': """#if HOSTED
 
 @include("stdlib.h")
 
@@ -532,9 +550,47 @@ class HeapAllocator()
         _free(&u8(arr.ptr))
 
 #end
-''',
-  'math': r'''
-#if HOSTED || MCU32
+""",
+  'hosted.signal': """#if HOSTED
+
+@include("signal.h")
+
+var _exit_requested: bool = false
+
+fun _on_exit_requested(sig: i32)
+    _exit_requested = true
+
+@extern('''
+signal(SIGINT, (void(*)(int)){handler});
+signal(SIGTERM, (void(*)(int)){handler});
+signal(SIGHUP, (void(*)(int)){handler});
+''')
+fun _watch_signals(handler: fun(i32))
+
+fun catch_signals()
+    _watch_signals(_on_exit_requested)
+
+fun exit_requested() bool
+    return _exit_requested
+
+#end
+""",
+  'hosted.time': """#if HOSTED
+
+@include("unistd.h")
+@include("time.h")
+
+// Sleep for N microseconds.
+@extern("usleep({us})")
+fun sleep_us(us: u32)
+
+// Monotonic microseconds — suitable for deadline-based loops.
+@extern("({ struct timespec __ts; clock_gettime(CLOCK_MONOTONIC, &__ts); (int64_t)__ts.tv_sec * 1000000LL + __ts.tv_nsec / 1000LL; })")
+fun time_us(): i64
+
+#end
+""",
+  'math': """#if HOSTED || MCU32
 @include("math.h")
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -633,9 +689,8 @@ fun ceil(x: float): float
 fun round(x: float): float
 
 #end
-''',
-  'mcu32.collection': r'''
-#if HOSTED || MCU32
+""",
+  'mcu32.collection': """#if HOSTED || MCU32
 import mcu32.memory::Allocator
 
 // ── ArrayList ─────────────────────────────────────────────────────────────────
@@ -765,9 +820,8 @@ class RingBuffer<T>()
         return _size >= _buffer.size()
         
 #end
-''',
-  'mcu32.memory': r'''
-#if HOSTED || MCU32
+""",
+  'mcu32.memory': """#if HOSTED || MCU32
 
 class Allocator()
     var _memory: u8[] = {null, 0}
@@ -800,9 +854,8 @@ class Allocator()
         _cursor = 0
 
 #end
-''',
-  'string': r'''
-// ── Comparison / search ───────────────────────────────────────────────────────
+""",
+  'string': """// ── Comparison / search ───────────────────────────────────────────────────────
 
 fun equals(a: u8[], b: u8[]): bool
     if a.size() != b.size()
@@ -946,9 +999,8 @@ fun format_i32(buf: u8[], v: i32): u32
         val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-v))
         return written + 1
     return format_u32(buf, u32(v))
-''',
-  'test': r'''
-import console::*
+""",
+  'test': """import console::*
 
 // ── global counters (test-level, not assert-level) ────────────────────────────
 
@@ -988,15 +1040,15 @@ fun _test_begin(name: u8[])
 
 fun _test_end()
     if _current_failed == 0
-        print_str("\x1b[32mP:")
+        print_str("\\x1b[32mP:")
         print_str(_current_name)
-        print_str("\x1b[0m")
+        print_str("\\x1b[0m")
         println()
         _succeeded += 1
     else
-        print_str("\x1b[31mF:")
+        print_str("\\x1b[31mF:")
         print_str(_current_name)
-        print_str("\x1b[0m")
+        print_str("\\x1b[0m")
         println()
         var i: u32 = 0
         while i < _buf_count
@@ -1019,5 +1071,5 @@ fun _report() i32
     if _failed > 0
         return 1
     return 0
-''',
+""",
 };

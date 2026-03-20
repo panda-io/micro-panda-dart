@@ -61,7 +61,16 @@ extension GeneratorStatement on CGenerator {
     } else if (stmt is AssertStatement) {
       _emitAssert(stmt);
     } else if (stmt is ExpressionStatement) {
-      _line('${_expr(stmt.expression)};');
+      final expr = _expr(stmt.expression);
+      if (expr.contains('\n')) {
+        // Multi-line extern template: lines already carry their own semicolons.
+        for (final ln in expr.split('\n')) {
+          final t = ln.trim();
+          if (t.isNotEmpty) _line(t);
+        }
+      } else {
+        _line('$expr;');
+      }
     } else if (stmt is Block) {
       // Nested bare block (unusual but valid)
       _line('{');
