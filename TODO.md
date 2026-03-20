@@ -42,72 +42,66 @@ Things to consider:
 - Output directory configuration.
 
 
-### `mpd run` — script mode via embedded TCC
+### Self-hosted compiler + LLVM IR backend + JIT
 
-Allow running a `.mpd` file directly without a separate compile step, similar to
-`python script.py`.
+The Dart compiler targets C only and serves as the bootstrap stage. The long-term goal
+is a self-hosted Micro Panda compiler that targets LLVM IR, embeds `libLLVM`, and supports
+both AOT compilation and JIT execution of `.mpd` scripts.
+
+**Roadmap:**
+
+**Stage 1 — Bootstrap (current)**
+The Dart compiler is the reference implementation. C is the only backend. All language
+features are designed and validated here.
+
+**Stage 2 — Self-hosted compiler**
+Rewrite the compiler in Micro Panda itself. Compile it with the Dart compiler to produce
+a native `mpd` binary. The Dart compiler becomes the bootstrap tool and can eventually
+be retired.
 
 ```
-mpd run script.mpd
+micro-panda-dart (Dart)  →  compiles  →  mpd-native (Micro Panda)
+mpd-native               →  compiles  →  mpd-native   (self-hosting confirmed)
 ```
 
-**Approach:** embed [libtcc](https://bellard.org/tcc/) (Tiny C Compiler) inside the `mpd`
-binary. The pipeline becomes:
+Self-hosting validates the language — if Micro Panda can compile itself, it is mature
+enough for serious use.
 
-1. Parse + validate `.mpd` → emit C source (in memory, no file written)
-2. Hand the C source to libtcc → compile to native code in milliseconds
-3. libtcc relocates and executes `main()` in-process
+**Stage 3 — LLVM IR backend**
+Add an LLVM IR code generator to the self-hosted compiler alongside the existing C backend.
 
-libtcc is small (~200 KB), has a clean C API, and compiles fast enough that startup feels
-instant for small programs. Output runs slower than gcc/clang-optimized code, but that is
-acceptable for scripts and tools.
-
-**Challenges:**
-- `@raw` blocks and `@extern` symbols that reference external C headers need those headers
-  to be available at JIT time — same as normal C compilation.
-- stdlib `@extern` functions must be registered in libtcc's symbol table before execution.
-- libtcc does not support all platforms (ARM support is limited; RISC-V missing).
-
-**Benefit:** zero external toolchain dependency for hosted scripting — `mpd` becomes
-self-contained for the full write-run loop.
-
----
-
-### LLVM IR backend + JIT execution
-
-A more powerful long-term alternative to the C backend, enabling both ahead-of-time
-optimized compilation and in-process JIT execution.
-
-**AOT path:**
 ```
-.mpd → LLVM IR → llc / lld → native binary
+.mpd  →  LLVM IR  →  llc / lld  →  native binary   (AOT)
 ```
-Produces highly optimized output via LLVM's full optimization pipeline (same as Clang).
 
-**JIT path (`mpd run` with LLVM):**
+Since Micro Panda has no GC, the IR backend is straightforward — types map directly:
+
+| Micro Panda | LLVM IR |
+|---|---|
+| `i32`, `u8`, `bool` | `i32`, `i8`, `i1` |
+| `float` / `fixed` | `float` / `i32` |
+| struct / class | `%T = type { ... }` |
+| `u8[]` slice | `{ i8*, i32 }` |
+| `&T` reference | `T*` |
+
+No stack maps, no write barriers, no GC intrinsics needed. `@raw` C blocks are the only
+gap — compiled separately as `.c` → `.o` and linked into the module.
+
+**Stage 4 — Embedded libLLVM + ORC JIT (`mpd run`)**
+Link `libLLVM` directly into the self-hosted `mpd` binary. Use LLVM's ORC JIT to compile
+IR to native code at runtime and execute `main()` in-process.
+
 ```
-.mpd → LLVM IR → ORC JIT → execute in-process
+mpd run script.mpd  →  parse  →  LLVM IR  →  ORC JIT  →  execute
 ```
-LLVM's ORC JIT compiles IR to native code at runtime with near-zero overhead. Runs at
-full native speed — no interpreter, no GC pauses.
 
-**Why this is interesting:**
-- Single backend covers scripting, AOT release builds, and cross-compilation.
-- `@extern` symbols resolve through the JIT's dynamic linker — no special registration needed
-  for symbols already in the process (libc, etc.).
-- Enables future features: profile-guided optimization, LTO, sanitizers.
+- Runs at full native speed — no interpreter, no GC pauses
+- Statically typed + no boxing → significantly faster than CPython in practice
+- `@extern` symbols resolve through ORC's dynamic linker automatically
+- Import resolution for scripts: script directory → user lib → system lib → std
 
-**Challenges:**
-- Significant backend to build: every type, operator, struct, and calling convention must
-  be expressed in LLVM IR.
-- `@raw` C blocks have no IR equivalent — would need to be pre-compiled to `.o` and loaded
-  as a JIT object.
-- Embedding LLVM adds ~15–30 MB to the `mpd` binary (or require LLVM as an external dep).
-
-**Suggested roadmap:**
-1. Ship `mpd run` via embedded libtcc first (quick win, scripting feel today).
-2. Build LLVM IR backend as a separate target (`mpd build --target llvm`).
-3. Wire ORC JIT into `mpd run` as an opt-in once the IR backend is stable.
+`libLLVM` adds ~15–30 MB to the binary but makes `mpd` entirely self-contained —
+no external toolchain needed for the full write-run loop.
 
 ---
 
