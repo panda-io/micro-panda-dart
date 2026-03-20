@@ -1,5 +1,5 @@
 #if HOSTED
-@include("stdio.h")
+@raw("#include <stdio.h>")
 
 @extern("(uint8_t*)fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
 fun _fopen(path: u8[], mode: u8[]): &u8

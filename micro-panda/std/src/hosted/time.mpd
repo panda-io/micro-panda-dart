@@ -1,17 +1,39 @@
 #if HOSTED
 
-@include("unistd.h")
-@include("time.h")
+@raw('''
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+''')
+@raw("#include <time.h>")
 
 // Sleep for N microseconds.
-@extern("usleep({us})")
+// Windows: millisecond granularity via Sleep(). POSIX: microsecond via usleep().
+@extern('''
+#ifdef _WIN32
+Sleep({us} / 1000)
+#else
+usleep({us})
+#endif
+''')
 fun sleep_us(us: u32)
 
 // Monotonic microseconds — suitable for deadline-based loops.
+// Windows: QueryPerformanceCounter. POSIX: clock_gettime(CLOCK_MONOTONIC).
+// Note: requires GCC/Clang statement expressions — MSVC not supported.
 @extern('''({
+#ifdef _WIN32
+    LARGE_INTEGER _freq, _now;
+    QueryPerformanceFrequency(&_freq);
+    QueryPerformanceCounter(&_now);
+    (int64_t)_now.QuadPart * 1000000LL / _freq.QuadPart;
+#else
     struct timespec __ts;
     clock_gettime(CLOCK_MONOTONIC, &__ts);
     (int64_t)__ts.tv_sec * 1000000LL + __ts.tv_nsec / 1000LL;
+#endif
 })''')
 fun time_us(): i64
 

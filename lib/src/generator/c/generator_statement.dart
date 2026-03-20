@@ -62,17 +62,28 @@ extension GeneratorStatement on CGenerator {
       _emitAssert(stmt);
     } else if (stmt is ExpressionStatement) {
       final expr = _expr(stmt.expression);
-      if (expr.contains('\n')) {
-        // Multi-line expression: emit each line indented.
-        // Last line gets ';' only if it doesn't already end with one
-        // (void multi-statement externs end with ';'; expression results don't).
-        final lines = expr.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
-        for (int i = 0; i < lines.length; i++) {
-          final last = i == lines.length - 1;
-          _line(last && !lines[i].endsWith(';') ? '${lines[i]};' : lines[i]);
-        }
-      } else {
+      if (!expr.contains('\n')) {
         _line('$expr;');
+      } else {
+        final lines = expr.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+        if (lines.isNotEmpty && lines.first.startsWith('#')) {
+          // Multi-statement preprocessor block (e.g. #ifdef-guarded void extern):
+          // add ';' to each C statement line; leave preprocessor directives bare.
+          for (final ln in lines) {
+            if (ln.startsWith('#')) {
+              _line(ln);
+            } else {
+              _line(ln.endsWith(';') ? ln : '$ln;');
+            }
+          }
+        } else {
+          // Single expression spanning multiple lines (e.g. GCC statement expression):
+          // add ';' only to the last line.
+          for (int i = 0; i < lines.length; i++) {
+            final last = i == lines.length - 1;
+            _line(last && !lines[i].endsWith(';') ? '${lines[i]};' : lines[i]);
+          }
+        }
       }
     } else if (stmt is Block) {
       // Nested bare block (unusual but valid)

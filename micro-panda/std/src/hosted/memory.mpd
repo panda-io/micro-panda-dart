@@ -1,6 +1,6 @@
 #if HOSTED
 
-@include("stdlib.h")
+@raw("#include <stdlib.h>")
 
 @extern("malloc")
 fun _malloc(size: u32): &u8

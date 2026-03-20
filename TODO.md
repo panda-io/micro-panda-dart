@@ -4,22 +4,12 @@
 
 ### Windows MSVC support for `hosted/time.mpd`
 
-`@include("unistd.h")` does not exist on MSVC. `usleep()` and `clock_gettime(CLOCK_MONOTONIC)`
-are also POSIX-only and unavailable under MSVC.
+Works on Linux, macOS, iOS, Android, Windows + MinGW, Windows + Clang.
+MSVC is the only remaining unsupported target.
 
-Current workaround: works on Linux, macOS, iOS, Android, and Windows + MinGW/Clang.
-MSVC is the only failing target.
-
-What's needed:
-
-- Generator support for multi-line `@include` emitting raw C (to allow `#ifdef _WIN32` guards
-  around `#include` directives at the top of the generated file).
-- `ExpressionStatement` handler needs to distinguish between a multi-statement preprocessor
-  block (first line starts with `#`) and a single expression spanning multiple lines, so that
-  `;` is added correctly in both cases.
-- `time.mpd` externs updated to use `Sleep()` + `QueryPerformanceCounter` on MSVC.
-- Note: `time_us()` uses a GCC statement expression `({...})` which MSVC does not support —
-  a real C helper function may be needed for that case.
+`time_us()` uses a GCC statement expression `({...})` which MSVC does not support.
+A real C helper function would be needed for that case — deferred until there is an
+actual MSVC build target.
 
 ## Language
 

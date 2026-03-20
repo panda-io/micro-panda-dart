@@ -1,5 +1,5 @@
 #if HOSTED || MCU32
-@include("math.h")
+@raw("#include <math.h>")
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

@@ -90,8 +90,8 @@ class CGenerator {
   /// Used to resolve named array dimensions like Task[SYS_MAX_TASKS].
   final Map<String, int> _constInts = {};
 
-  /// C headers requested via @include("header") across all modules.
-  final List<String> _moduleIncludes = [];
+  /// Raw C blocks emitted verbatim via @raw("...") across all modules.
+  final List<String> _moduleRawBlocks = [];
 
   /// For each generic class name, the list of concrete type-arg lists used.
   /// e.g. {'ArrayList': [[TypeBuiltin(i32)], [TypeBuiltin(u8)]]}
@@ -267,11 +267,11 @@ class CGenerator {
         }
       }
     }
-    // Collect @include directives, preserving order and deduplicating
-    final seen = <String>{};
+    // Collect @raw blocks, preserving order and deduplicating
+    final seenRaw = <String>{};
     for (final mod in modules) {
-      for (final inc in mod.includes) {
-        if (seen.add(inc)) _moduleIncludes.add(inc);
+      for (final raw in mod.rawBlocks) {
+        if (seenRaw.add(raw)) _moduleRawBlocks.add(raw);
       }
     }
   }
@@ -541,10 +541,8 @@ class CGenerator {
     _writeln('#include <stdint.h>');
     _writeln('#include <stdbool.h>');
     _writeln('#include <stddef.h>');
-    for (final inc in _moduleIncludes) {
-      // system header (no path separator) → <header>, local → "header"
-      final tag = inc.contains('/') || inc.contains('\\') ? '"$inc"' : '<$inc>';
-      _writeln('#include $tag');
+    for (final raw in _moduleRawBlocks) {
+      _writeln(_unescapeExtern(raw).trim());
     }
     _writeln();
   }

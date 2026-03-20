@@ -1,6 +1,6 @@
 #if HOSTED
 
-@include("signal.h")
+@raw("#include <signal.h>")
 
 var _exit_requested: bool = false
 

@@ -2,7 +2,7 @@ part of 'parser.dart';
 
 extension ParserModule on Parser {
   Module _parseModule(String path) {
-    final includes = <String>[];
+    final rawBlocks = <String>[];
     final imports = <Import>[];
     final variables = <VariableDecl>[];
     final functions = <FunctionDecl>[];
@@ -24,17 +24,17 @@ extension ParserModule on Parser {
 
       final allAnnotations = _parseAnnotations();
 
-      // Extract @include("header") — can appear before any declaration
+      // Extract @raw("emit c content") — can appear before any declaration
       final annotations = <Annotation>[];
       for (final a in allAnnotations) {
-        if (a.name == 'include' && a.template != null) {
-          includes.add(a.template!);
+        if (a.name == 'raw' && a.template != null) {
+          rawBlocks.add(a.template!);
         } else {
           annotations.add(a);
         }
       }
 
-      // @include may appear standalone (no following declaration)
+      // @raw may appear standalone (no following declaration)
       if (_current.type == TokenType.eof) break;
 
       switch (_current.type) {
@@ -58,14 +58,14 @@ extension ParserModule on Parser {
           }
           enums.add(_parseEnumDecl());
         case TokenType.newline:
-          break; // standalone @include with only newlines remaining
+          break; // standalone @raw with only newlines remaining
         default:
           _error('expected top-level declaration (var, val, const, fun, class, enum), '
               'found ${_current.type.name}');
       }
     }
 
-    return Module(path, file, includes, imports, variables, functions, classes, enums);
+    return Module(path, file, rawBlocks, imports, variables, functions, classes, enums);
   }
 
   Import _parseImport() {

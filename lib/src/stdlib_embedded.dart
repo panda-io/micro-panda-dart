@@ -12,7 +12,7 @@ const Map<String, String> kStdlib = {
 // Override at runtime: console::init(fn) for custom transports (UART, USB, mock tests).
 
 #if HOSTED
-@include("stdio.h")
+@raw("#include <stdio.h>")
 
 @extern("putchar({b})")
 fun _putchar(b: u8)
@@ -161,7 +161,7 @@ fun print_fixed(v: fixed, decimals: u32)
 // argc() returns argument count (includes program name at index 0).
 // argv(i) returns argument i as a u8[] slice.
 
-@include("string.h")
+@raw("#include <string.h>")
 
 @extern("__mp_argc")
 fun arg_count(): i32
@@ -433,7 +433,7 @@ class HeapMap<T>()
 #end
 """,
   'hosted.file': """#if HOSTED
-@include("stdio.h")
+@raw("#include <stdio.h>")
 
 @extern("(uint8_t*)fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
 fun _fopen(path: u8[], mode: u8[]): &u8
@@ -520,7 +520,7 @@ class File()
 """,
   'hosted.memory': """#if HOSTED
 
-@include("stdlib.h")
+@raw("#include <stdlib.h>")
 
 @extern("malloc")
 fun _malloc(size: u32): &u8
@@ -553,7 +553,7 @@ class HeapAllocator()
 """,
   'hosted.signal': """#if HOSTED
 
-@include("signal.h")
+@raw("#include <signal.h>")
 
 var _exit_requested: bool = false
 
@@ -579,25 +579,47 @@ fun exit_requested() bool
 """,
   'hosted.time': """#if HOSTED
 
-@include("unistd.h")
-@include("time.h")
+@raw('''
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+''')
+@raw("#include <time.h>")
 
 // Sleep for N microseconds.
-@extern("usleep({us})")
+// Windows: millisecond granularity via Sleep(). POSIX: microsecond via usleep().
+@extern('''
+#ifdef _WIN32
+Sleep({us} / 1000)
+#else
+usleep({us})
+#endif
+''')
 fun sleep_us(us: u32)
 
 // Monotonic microseconds — suitable for deadline-based loops.
+// Windows: QueryPerformanceCounter. POSIX: clock_gettime(CLOCK_MONOTONIC).
+// Note: requires GCC/Clang statement expressions — MSVC not supported.
 @extern('''({
+#ifdef _WIN32
+    LARGE_INTEGER _freq, _now;
+    QueryPerformanceFrequency(&_freq);
+    QueryPerformanceCounter(&_now);
+    (int64_t)_now.QuadPart * 1000000LL / _freq.QuadPart;
+#else
     struct timespec __ts;
     clock_gettime(CLOCK_MONOTONIC, &__ts);
     (int64_t)__ts.tv_sec * 1000000LL + __ts.tv_nsec / 1000LL;
+#endif
 })''')
 fun time_us(): i64
 
 #end
 """,
   'math': """#if HOSTED || MCU32
-@include("math.h")
+@raw("#include <math.h>")
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

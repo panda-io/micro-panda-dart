@@ -5,7 +5,7 @@
 // Override at runtime: console::init(fn) for custom transports (UART, USB, mock tests).
 
 #if HOSTED
-@include("stdio.h")
+@raw("#include <stdio.h>")
 
 @extern("putchar({b})")
 fun _putchar(b: u8)

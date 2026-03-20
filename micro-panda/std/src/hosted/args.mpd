@@ -4,7 +4,7 @@
 // argc() returns argument count (includes program name at index 0).
 // argv(i) returns argument i as a u8[] slice.
 
-@include("string.h")
+@raw("#include <string.h>")
 
 @extern("__mp_argc")
 fun arg_count(): i32

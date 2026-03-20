@@ -40,8 +40,8 @@ class Module {
   /// Source file — used to resolve offsets to line:column for error reporting.
   final SourceFile sourceFile;
 
-  /// C headers requested via @include("header") at module level.
-  final List<String> includes;
+  /// Raw C blocks emitted verbatim at file level via @raw("...").
+  final List<String> rawBlocks;
 
   final List<Import> imports;
   final List<VariableDecl> variables;
@@ -49,5 +49,5 @@ class Module {
   final List<ClassDecl> classes;
   final List<EnumDecl> enums;
 
-  Module(this.path, this.sourceFile, this.includes, this.imports, this.variables, this.functions, this.classes, this.enums);
+  Module(this.path, this.sourceFile, this.rawBlocks, this.imports, this.variables, this.functions, this.classes, this.enums);
 }
