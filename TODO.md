@@ -48,6 +48,17 @@ The Dart compiler targets C only and serves as the bootstrap stage. The long-ter
 is a self-hosted Micro Panda compiler that targets LLVM IR, embeds `libLLVM`, and supports
 both AOT compilation and JIT execution of `.mpd` scripts.
 
+**The C backend is permanent.** Many MCU platforms (ESP32, Cortex-M, AVR, RISC-V) have
+no LLVM backend or a limited one — C is the only viable compilation target there. The C
+backend remains the default for all MCU targets and a valid option for hosted builds too.
+LLVM IR is an additive backend for hosted platforms, not a replacement.
+
+| Backend | MCU | Hosted | Use case |
+|---|---|---|---|
+| C | always | yes | Universal — every platform with a C compiler |
+| LLVM IR (AOT) | no | yes | Optimized native binaries on desktop/server |
+| LLVM JIT | no | yes | `mpd run` scripting, near-native speed |
+
 **Roadmap:**
 
 **Stage 1 — Bootstrap (current)**
