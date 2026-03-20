@@ -260,8 +260,10 @@ extension GeneratorExpression on CGenerator {
     while (i < s.length) {
       if (s[i] == '\\' && i + 1 < s.length) {
         final next = s[i + 1];
-        if (next == 'n') { sb.write('\n'); i += 2; continue; }
+        if (next == 'n')  { sb.write('\n'); i += 2; continue; }
         if (next == '\\') { sb.write('\\'); i += 2; continue; }
+        if (next == '"')  { sb.write('"');  i += 2; continue; }
+        if (next == '\'') { sb.write('\''); i += 2; continue; }
       }
       sb.write(s[i]);
       i++;

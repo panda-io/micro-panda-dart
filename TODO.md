@@ -40,3 +40,14 @@ Things to consider:
 - Dependency / library declarations for future package management.
 - C compiler and linker overrides (cc, cflags, ldflags) per target.
 - Output directory configuration.
+
+
+### Package / library management
+
+Allow a Micro Panda project to declare external library dependencies that are fetched
+automatically at build time.
+
+- Declare dependencies in `mpd.yaml` with a Git URL and optional version tag or `@latest`.
+- `mpd` fetches and caches each library into `.micro-panda/lib/` on first build.
+- Fetched libraries are resolved the same way as the standard library — project source
+  takes precedence, then local libs, then std.
