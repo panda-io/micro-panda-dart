@@ -563,7 +563,9 @@ fun _on_exit_requested(sig: i32)
 @extern('''
     signal(SIGINT, (void(*)(int)){handler});
     signal(SIGTERM, (void(*)(int)){handler});
+    #ifndef _WIN32
     signal(SIGHUP, (void(*)(int)){handler});
+    #endif
 ''')
 fun _watch_signals(handler: fun(i32))
 
