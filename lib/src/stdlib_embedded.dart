@@ -561,9 +561,9 @@ fun _on_exit_requested(sig: i32)
     _exit_requested = true
 
 @extern('''
-signal(SIGINT, (void(*)(int)){handler});
-signal(SIGTERM, (void(*)(int)){handler});
-signal(SIGHUP, (void(*)(int)){handler});
+    signal(SIGINT, (void(*)(int)){handler});
+    signal(SIGTERM, (void(*)(int)){handler});
+    signal(SIGHUP, (void(*)(int)){handler});
 ''')
 fun _watch_signals(handler: fun(i32))
 
@@ -585,7 +585,11 @@ fun exit_requested() bool
 fun sleep_us(us: u32)
 
 // Monotonic microseconds — suitable for deadline-based loops.
-@extern("({ struct timespec __ts; clock_gettime(CLOCK_MONOTONIC, &__ts); (int64_t)__ts.tv_sec * 1000000LL + __ts.tv_nsec / 1000LL; })")
+@extern('''({
+    struct timespec __ts;
+    clock_gettime(CLOCK_MONOTONIC, &__ts);
+    (int64_t)__ts.tv_sec * 1000000LL + __ts.tv_nsec / 1000LL;
+})''')
 fun time_us(): i64
 
 #end

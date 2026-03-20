@@ -8,9 +8,9 @@ fun _on_exit_requested(sig: i32)
     _exit_requested = true
 
 @extern('''
-signal(SIGINT, (void(*)(int)){handler});
-signal(SIGTERM, (void(*)(int)){handler});
-signal(SIGHUP, (void(*)(int)){handler});
+    signal(SIGINT, (void(*)(int)){handler});
+    signal(SIGTERM, (void(*)(int)){handler});
+    signal(SIGHUP, (void(*)(int)){handler});
 ''')
 fun _watch_signals(handler: fun(i32))
 

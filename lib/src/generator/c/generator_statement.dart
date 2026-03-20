@@ -63,10 +63,13 @@ extension GeneratorStatement on CGenerator {
     } else if (stmt is ExpressionStatement) {
       final expr = _expr(stmt.expression);
       if (expr.contains('\n')) {
-        // Multi-line extern template: lines already carry their own semicolons.
-        for (final ln in expr.split('\n')) {
-          final t = ln.trim();
-          if (t.isNotEmpty) _line(t);
+        // Multi-line expression: emit each line indented.
+        // Last line gets ';' only if it doesn't already end with one
+        // (void multi-statement externs end with ';'; expression results don't).
+        final lines = expr.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+        for (int i = 0; i < lines.length; i++) {
+          final last = i == lines.length - 1;
+          _line(last && !lines[i].endsWith(';') ? '${lines[i]};' : lines[i]);
         }
       } else {
         _line('$expr;');
