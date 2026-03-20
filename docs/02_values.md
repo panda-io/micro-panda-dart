@@ -17,7 +17,53 @@
 | `fixed` | 16.16 fixed-point number |
 | `void` | No value / absent return type |
 
-> **Strings** — there is no dedicated string type. Strings are treated as `u8` arrays.
+> **Strings** — there is no dedicated string type. Strings are `u8[]` slices.
+
+## String Literals
+
+Single-line strings use double quotes:
+
+```mpd
+val msg: u8[] = "hello, world"
+```
+
+Multi-line strings use triple quotes — either `'''` or `"""`:
+
+```mpd
+val sql := """
+    SELECT *
+    FROM users
+    WHERE active = 1
+"""
+
+val help := '''
+usage: myapp <command>
+  run     start the server
+  stop    stop the server
+'''
+```
+
+Both forms produce a `u8[]` slice. Leading/trailing newlines are included as written.
+
+Supported escape sequences:
+
+| Escape | Meaning |
+| --- | --- |
+| `\n` | newline |
+| `\r` | carriage return |
+| `\t` | tab |
+| `\\` | backslash |
+| `\"` | double quote |
+| `\'` | single quote |
+| `\0` | null byte |
+
+String literals compile to C compound literals:
+
+```c
+(__Slice_uint8_t){ "hello", 5 }
+```
+
+---
 
 ## Integer Literals
 
