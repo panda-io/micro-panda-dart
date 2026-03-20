@@ -167,8 +167,12 @@ extension GeneratorDeclaration on CGenerator {
           scanField(t.elementType);
         }
       }
-      for (final f in cls.constructorFields) scanField(f.type);
-      for (final f in cls.bodyFields) scanField(f.type);
+      for (final f in cls.constructorFields) {
+        scanField(f.type);
+      }
+      for (final f in cls.bodyFields) {
+        scanField(f.type);
+      }
     }
 
     for (final cls in sorted) {

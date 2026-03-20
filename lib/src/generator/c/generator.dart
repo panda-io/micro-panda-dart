@@ -553,7 +553,9 @@ class CGenerator {
   void _collectFnPointerTypes(List<Module> modules) {
     void register(Type? type) {
       var t = type;
-      while (t is TypeArray) t = t.elementType;
+      while (t is TypeArray) {
+        t = t.elementType;
+      }
       if (t is TypeFunction) {
         _fnPtrTypes.putIfAbsent(_fnTypeName(t), () => t as TypeFunction);
       }

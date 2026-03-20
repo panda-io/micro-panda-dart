@@ -227,8 +227,12 @@ extension ScannerTokens on Scanner {
         case 13: sb.write(r'\r'); break;  // CR         → \r
         case  9: sb.write(r'\t'); break;  // tab        → \t
         case 34:                          // double-quote
-          if (delimiter == 34) sb.write(r'\"');
-          else sb.writeCharCode(c);
+          if (delimiter == 34) {
+            sb.write(r'\"');
+          }
+          else {
+            sb.writeCharCode(c);
+          }
           break;
         default: sb.writeCharCode(c);
       }
