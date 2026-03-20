@@ -8,7 +8,7 @@ Micro Panda has three kinds of enums.
 
 Simple named constants. Values start at 0 and increment automatically.
 
-```python
+```mpd
 enum Color
     Red
     Green
@@ -17,7 +17,7 @@ enum Color
 
 Usage:
 
-```python
+```mpd
 var c: Color = Color.Red
 ```
 
@@ -27,7 +27,7 @@ var c: Color = Color.Red
 
 Each variant has an explicit integer value assigned.
 
-```python
+```mpd
 enum OpCode
     Add = 1
     Sub = 2
@@ -37,7 +37,7 @@ enum OpCode
 
 Usage:
 
-```python
+```mpd
 var op: OpCode = OpCode.Add
 ```
 
@@ -47,7 +47,7 @@ var op: OpCode = OpCode.Add
 
 Variants carry data. This is similar to Rust enums or algebraic data types. Each variant defines its own fields.
 
-```python
+```mpd
 enum Expression
     Binary(left: &Expression, op: OpCode, right: &Expression)
     Unary(op: OpCode, exp: &Expression)
@@ -55,7 +55,7 @@ enum Expression
 
 Construction (by variant name):
 
-```python
+```mpd
 var e: Expression
 e = Expression.Binary(&left, op, &right)
 e = Expression.Unary(op, &exp)
@@ -63,7 +63,7 @@ e = Expression.Unary(op, &exp)
 
 Matching (destructuring binds field values to local names):
 
-```python
+```mpd
 match expr
     Binary(left, op, right):
         ...

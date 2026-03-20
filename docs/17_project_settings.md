@@ -108,7 +108,7 @@ The `flags` list is passed to the micro-panda preprocessor and controls `#if`/`#
 flags: [debug, esp8266]
 ```
 
-```python
+```mpd
 #if debug
     log("debug mode")
 #end

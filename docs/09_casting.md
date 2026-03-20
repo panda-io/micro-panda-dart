@@ -6,13 +6,13 @@ All type conversions in Micro Panda are **explicit**. There are no implicit nume
 
 Use the target type as a function call:
 
-```python
+```mpd
 target_type(value)
 ```
 
 ## Integer Casting
 
-```python
+```mpd
 var int32: i32 = 123
 
 var int64 := i64(int32)   # widen to 64-bit
@@ -22,7 +22,7 @@ var uint  := u32(int32)   # signed → unsigned
 
 ## Float Casting
 
-```python
+```mpd
 var float32: float = 1.0
 
 var float64 := f64(float32)   # widen to 64-bit
@@ -30,7 +30,7 @@ var float64 := f64(float32)   # widen to 64-bit
 
 ## Integer ↔ Float
 
-```python
+```mpd
 var f := float(42)       # integer to float
 var i := i32(3.14)     # float to integer (truncates)
 ```

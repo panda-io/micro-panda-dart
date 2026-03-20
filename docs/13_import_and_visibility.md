@@ -12,7 +12,7 @@ Micro Panda has no namespaces or packages. Like Dart, the file path is the modul
 
 The last path segment becomes the qualifier:
 
-```python
+```mpd
 import util.math
 
 var result := math::min(1, 2)
@@ -20,7 +20,7 @@ var result := math::min(1, 2)
 
 ### Import a specific symbol
 
-```python
+```mpd
 import util.math::min
 
 var result := min(1, 2)
@@ -30,7 +30,7 @@ var result := min(1, 2)
 
 Alias a module:
 
-```python
+```mpd
 import util.math as m
 
 var result := m::min(1, 2)
@@ -38,7 +38,7 @@ var result := m::min(1, 2)
 
 Alias a symbol:
 
-```python
+```mpd
 import util.math::min as minimum
 
 var result := minimum(1, 2)
@@ -59,7 +59,7 @@ There are no `public` / `private` keywords. Visibility is determined by the name
 
 This applies to functions, variables, constants, classes, and enum types.
 
-```python
+```mpd
 fun public_function()         # accessible from other files
     ...
 

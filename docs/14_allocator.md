@@ -15,7 +15,7 @@ There is no `malloc`, no `free` for individual objects, and no garbage collector
 
 Scalars and arrays declared at module scope live in static memory:
 
-```bash
+```mpd
 val max_tasks: i32 = 8
 var buffer: u8[1024]
 ```
@@ -28,7 +28,7 @@ var buffer: u8[1024]
 
 ### Implementation
 
-```bash
+```mpd
 class Allocator(val _memory: u8[])
     var _cursor: i32 = 0
 
@@ -43,14 +43,14 @@ class Allocator(val _memory: u8[])
 
 ### Setup
 
-```bash
+```mpd
 var cache: u8[1024]
 val allocator := Allocator(cache)
 ```
 
 ### Allocating Objects
 
-```bash
+```mpd
 val device := allocator.allocate<Device>()   # returns &Device or null
 ```
 
@@ -58,7 +58,7 @@ val device := allocator.allocate<Device>()   # returns &Device or null
 
 ### Checking for Null
 
-```bash
+```mpd
 val node := allocator.allocate<Node>()
 if node == null
     // out of memory
@@ -70,14 +70,14 @@ if node == null
 
 Returns the byte size of a type at compile time:
 
-```bash
+```mpd
 val s := sizeof<i32>()     # 4
 val s := sizeof<Point>()   # sizeof(struct Point) in C
 ```
 
 Classic form also accepted:
 
-```bash
+```mpd
 val s := sizeof(i32)
 ```
 
@@ -85,7 +85,7 @@ val s := sizeof(i32)
 
 ## Usage Pattern
 
-```bash
+```mpd
 var task_pool: u8[4096]
 val pool := Allocator(task_pool)
 
@@ -105,6 +105,6 @@ fun run_tasks()
 
 Arrays do not require an allocator — their storage is declared statically:
 
-```bash
+```mpd
 var expressions: Expr[10]   # static, no allocator needed
 ```

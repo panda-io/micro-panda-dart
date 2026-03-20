@@ -6,7 +6,7 @@ Micro Panda uses indentation to define blocks — no braces or `end` keywords.
 
 ## if / else
 
-```python
+```mpd
 if condition
     do_something()
 else
@@ -15,7 +15,7 @@ else
 
 Chained conditions:
 
-```python
+```mpd
 if x < 0
     handle_negative()
 else if x == 0
@@ -28,7 +28,7 @@ else
 
 ## while
 
-```python
+```mpd
 while true
     do_something()
 
@@ -42,7 +42,7 @@ while count < MAX
 
 Iterates over a half-open range `[start, end)`:
 
-```python
+```mpd
 for i in range(0, 10)
     print(i)        # prints 0 through 9
 ```
@@ -53,14 +53,14 @@ for i in range(0, 10)
 
 Iterate over items in an array or slice (by value):
 
-```python
+```mpd
 for item in data
     print(item)
 ```
 
 Iterate with index:
 
-```python
+```mpd
 for index, item in data
     print(index, item)
 ```
@@ -69,7 +69,7 @@ for index, item in data
 
 Use `&` to iterate by reference, so the loop variable is a pointer to each element. This allows mutating elements in place:
 
-```python
+```mpd
 // clear all elements
 for &item in data
     item = 0
@@ -85,7 +85,7 @@ Reference iteration works on both fixed arrays and slices. The loop variable has
 
 ## break / continue
 
-```python
+```mpd
 while true
     if done
         break

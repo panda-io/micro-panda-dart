@@ -4,7 +4,7 @@ Micro Panda supports generic functions with one or more type parameters.
 
 ## Syntax
 
-```bash
+```mpd
 fun name<T>(params): ReturnType
     body
 ```
@@ -13,7 +13,7 @@ Type parameters go between `<` and `>` after the function name.
 
 ## Example
 
-```bash
+```mpd
 fun identity<T>(ptr: &T): &T
     return ptr
 ```
@@ -22,7 +22,7 @@ fun identity<T>(ptr: &T): &T
 
 Generic functions are **not** monomorphized. Instead, the compiler generates a single C function using `void*` for the generic return type and a hidden `size_t __sizeof_T` parameter for each type parameter.
 
-```bash
+```mpd
 fun allocate<T>(): &T
     val size := sizeof<T>()
     ...
@@ -39,7 +39,7 @@ void* Allocator_allocate(Allocator* this, size_t __sizeof_T) {
 
 ## Call Sites
 
-```bash
+```mpd
 val ptr := allocator.allocate<Point>()
 ```
 
@@ -58,7 +58,7 @@ The compiler automatically:
 
 Inside a generic function body, `sizeof<T>()` expands to the hidden `__sizeof_T` parameter:
 
-```bash
+```mpd
 fun alloc<T>(): &T
     val size := sizeof<T>()   # → __sizeof_T in C
 ```
@@ -69,7 +69,7 @@ Outside a generic body, `sizeof<T>()` (or `sizeof(T)`) emits `sizeof(T)` in C.
 
 Inside a generic body, `&T(expr)` casts `expr` to `void*`:
 
-```bash
+```mpd
 val ptr := &T(&buf[offset])   # → void* ptr = (void*)(&buf.ptr[offset]);
 ```
 
@@ -79,7 +79,7 @@ At the call site, the returned `void*` is cast to the concrete type.
 
 The `null` literal compiles to `NULL`:
 
-```bash
+```mpd
 fun alloc<T>(): &T
     return null       # → return NULL;
 ```

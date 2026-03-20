@@ -13,14 +13,14 @@ Micro Panda has two array forms:
 
 Storage lives inline (on the stack or inside a struct). The size must be a compile-time constant.
 
-```bash
+```mpd
 var my_array: i32[10]       # 10 i32 values, inline
 var buffer:   u8[256]       # 256-byte buffer, inline
 ```
 
 `.size()` on a fixed array returns the compile-time literal:
 
-```bash
+```mpd
 var len := my_array.size()  # expands to the literal 10
 ```
 
@@ -30,7 +30,7 @@ var len := my_array.size()  # expands to the literal 10
 
 A slice is a fat pointer (pointer + length). Use `T[]` with no size:
 
-```bash
+```mpd
 fun process(data: u8[])
     var n := data.size()    # runtime .size field
     var b := data[0]        # data.ptr[0] in C
@@ -51,7 +51,7 @@ Only slices can be passed to functions (not fixed arrays). Fixed arrays convert 
 
 ## .size()
 
-```bash
+```mpd
 var buf: u8[32]
 var n := buf.size()         # compile-time 32
 
@@ -65,7 +65,7 @@ fun f(data: u8[])
 
 Use `&` to take the address of an element:
 
-```bash
+```mpd
 var ptr: &u8 = &buf[4]     # pointer to 5th byte
 ```
 
@@ -75,7 +75,7 @@ var ptr: &u8 = &buf[4]     # pointer to 5th byte
 
 Indexing an array of struct/class types returns a **reference** to avoid a copy:
 
-```bash
+```mpd
 var expressions: Expr[10]
 var e: &Expr = expressions[0]
 ```
@@ -84,6 +84,6 @@ var e: &Expr = expressions[0]
 
 ## Array Initializer
 
-```bash
+```mpd
 var data := [1, 2, 3, 4, 5]   # inferred as i32[5]
 ```

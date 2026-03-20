@@ -6,7 +6,7 @@ References are pointers with syntax sugar. They always refer to a valid, statica
 
 Use `&` to take the address of a variable:
 
-```python
+```mpd
 var int32: i32 = 123
 var int32_ref: &i32 = &int32
 
@@ -18,7 +18,7 @@ int32_ref = 456        # int32 is now 456
 
 Prefix any type with `&` to get its reference type:
 
-```python
+```mpd
 &i32          # reference to i32
 &Device       # reference to Device
 &Expression   # reference to Expression
@@ -30,7 +30,7 @@ Prefix any type with `&` to get its reference type:
 
 Can be passed **by value** or **by reference**:
 
-```python
+```mpd
 fun double(x: i32) i32
     return x * 2
 
@@ -42,7 +42,7 @@ fun increment(x: &i32)
 
 Must **always** be passed by reference. There are no implicit struct copies.
 
-```python
+```mpd
 fun process(expr: &Expression)
     match expr
         Binary(left, op, right):
@@ -53,7 +53,7 @@ fun process(expr: &Expression)
 
 Indexing an array of class or tagged enum types returns a **reference** — not a copy:
 
-```python
+```mpd
 var expressions: Expression[10]
 
 var expr1: &Expression = expressions[0]

@@ -2,7 +2,7 @@
 
 ## Syntax
 
-```python
+```mpd
 fun function_name(param1: Type1, param2: Type2) ReturnType
     body
 ```
@@ -17,7 +17,7 @@ fun function_name(param1: Type1, param2: Type2) ReturnType
 
 If a function returns nothing, the return type can be omitted:
 
-```python
+```mpd
 fun greet(name: u8[])
     print(name)
 
@@ -28,7 +28,7 @@ fun greet(name: u8[]) void
 
 ## Return Values
 
-```python
+```mpd
 fun add(x: i32, y: i32) i32
     return x + y
 
@@ -40,7 +40,7 @@ fun max(a: float, b: float) float
 
 ## Multiple Parameters
 
-```python
+```mpd
 fun configure(address: u32, baud: u32, bits: u8) bool
     # ...
     return true
@@ -48,7 +48,7 @@ fun configure(address: u32, baud: u32, bits: u8) bool
 
 ## Calling Functions
 
-```python
+```mpd
 var result := add(1, 2)
 configure(0x4001_1000, 115200, 8)
 ```
@@ -57,7 +57,7 @@ configure(0x4001_1000, 115200, 8)
 
 Indentation defines the function body. The first line at the same or lesser indentation as `fun` ends the function.
 
-```python
+```mpd
 fun foo()
     var x := 1
     var y := 2

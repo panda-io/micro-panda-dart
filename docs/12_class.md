@@ -2,7 +2,7 @@
 
 ## Declaration
 
-```python
+```mpd
 class ClassName(
     val x: i32,
     val y: i32)
@@ -17,7 +17,7 @@ class ClassName(
 
 Parameters listed in the class declaration line become **member fields** when annotated with `val` or `var`. Parameters without these modifiers are local to the constructor only.
 
-```python
+```mpd
 class Point(
     val x: i32,    # becomes a field
     val y: i32)    # becomes a field
@@ -27,7 +27,7 @@ class Point(
 
 Extra fields can be declared in the class body with a default value:
 
-```python
+```mpd
 class Counter(
     val start: i32)
 
@@ -39,7 +39,7 @@ class Counter(
 
 Member functions are declared inside the class body using `fun`. Use `this` to access the instance explicitly, or access fields directly:
 
-```python
+```mpd
 class Counter(val start: i32)
     var count: i32 = 0
 
@@ -63,7 +63,7 @@ There is no `new` keyword. Call the class name directly.
 
 **Global scope only** — class instances created without an allocator live in static memory for the lifetime of the program:
 
-```python
+```mpd
 # Global scope — OK, static lifetime
 val _vm := VM()
 val _uart := UART(0x4001_1000)
@@ -71,7 +71,7 @@ val _uart := UART(0x4001_1000)
 
 Inside a function, you must use an allocator:
 
-```python
+```mpd
 fun setup()
     val allocator := Allocator(buffer)
     val p: &Point = allocator.allocate(sizeof(Point))
@@ -83,7 +83,7 @@ See [Allocator](14_allocator.md) for details.
 
 Micro Panda has no inheritance. Use **composition** instead:
 
-```python
+```mpd
 class Engine(val rpm: i32)
     fun run()
         ...
@@ -97,7 +97,7 @@ class Car(val engine: &Engine)
 
 There are no interfaces. Use **tagged enums** to achieve polymorphic dispatch:
 
-```python
+```mpd
 enum Shape
     Circle(radius: float)
     Rectangle(width: float, height: float)

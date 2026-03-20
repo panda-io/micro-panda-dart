@@ -5,7 +5,7 @@ and changes how code is generated.
 
 ## Syntax
 
-```bash
+```mpd
 @annotation_name
 fun my_function()
 
@@ -16,7 +16,7 @@ fun my_function()
 Annotations appear on their own line immediately before the declaration they apply to.
 Multiple annotations can be stacked:
 
-```bash
+```mpd
 @extern("assert($condition)")
 fun assert_true(condition: bool)
 ```
@@ -29,7 +29,7 @@ Instead, every call site is transformed according to the template rule.
 
 ### No template — call by function name
 
-```bash
+```mpd
 @extern
 fun tick()
 ```
@@ -38,7 +38,7 @@ A call `tick()` emits `tick()` in C unchanged.
 
 ### C rename — no `$` placeholders
 
-```bash
+```mpd
 @extern("malloc")
 fun alloc(size: u32) &u8
 ```
@@ -47,7 +47,7 @@ A call `alloc(64)` emits `malloc(64)`.
 
 ### Template with named placeholders
 
-```bash
+```mpd
 @extern("assert({condition})")
 fun assert_true(condition: bool)
 
@@ -67,7 +67,7 @@ Each `{paramName}` in the template is replaced by the corresponding argument exp
 Marks a function for inlining. The compiler emits `static inline` in C and lets
 the C compiler (gcc/clang) decide whether to actually inline each call site.
 
-```bash
+```mpd
 @inline
 fun min(a: i32, b: i32): i32
     if a < b
@@ -98,7 +98,7 @@ static inline int32_t min(int32_t a, int32_t b) {
 When the micro panda compiler is rewritten in micro panda itself, annotation types
 will be declared with `@interface`:
 
-```bash
+```mpd
 @interface
 extern
     template: u8[]

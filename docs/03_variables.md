@@ -12,7 +12,7 @@ Micro Panda has three kinds of bindings:
 
 ## Syntax
 
-```python
+```mpd
 # Explicit type annotation
 var my_int: i32 = 0
 var my_float: float = 1.0
@@ -34,7 +34,7 @@ const MAX_TASK = 8
 Use `:=` to let the compiler infer the type from the right-hand side.
 Using `=` without a type annotation is a **compile error**.
 
-```python
+```mpd
 var x := 100          # OK — inferred as i32
 var y := 3.14         # OK — inferred as float
 var z = 100           # compile error — must use := or explicit type
@@ -53,7 +53,7 @@ When no type annotation is given and the literal has no explicit cast:
 It does **not** affect mutability of the pointed-to data: field writes and method calls
 through a `val` reference are allowed.
 
-```python
+```mpd
 class Point(var x: i32, var y: i32)
 
 fun f()
@@ -73,7 +73,7 @@ fun f()
 
 `const` values are resolved entirely at compile time and have no runtime storage:
 
-```python
+```mpd
 const MAX_TASK   = 8
 const BAUD_RATE  = 115200
 const PI         = 3.14159

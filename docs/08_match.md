@@ -8,7 +8,7 @@ No colon after the `match` expression. Each arm ends with `:` as a separator bet
 
 ## Match on Integer / Value
 
-```python
+```mpd
 match op_code
     0x01:
         return left + right
@@ -20,7 +20,7 @@ match op_code
 
 ## Match on Plain Enum
 
-```python
+```mpd
 enum Color
     Red
     Green
@@ -45,7 +45,7 @@ The `_` arm is the wildcard / default case.
 
 Tagged enum variants can be destructured directly in the match arm, binding their fields to local variables:
 
-```python
+```mpd
 enum Expression
     Binary(left: &Expression, op: OpCode, right: &Expression)
     Unary(op: OpCode, exp: &Expression)

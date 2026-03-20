@@ -21,7 +21,7 @@
 
 ## Integer Literals
 
-```python
+```mpd
 const decimal_int    = 98222
 const hex_int        = 0xff
 const another_hex    = 0xFF
@@ -31,7 +31,7 @@ const binary_int     = 0b11110000
 
 Underscores can be placed between digits as a visual separator:
 
-```python
+```mpd
 const one_billion  = 1_000_000_000
 const binary_mask  = 0b1_1111_1111
 const permissions  = 0o7_5_5
@@ -40,7 +40,7 @@ const big_address  = 0xFF80_0000_0000_0000
 
 ## Float Literals
 
-```python
+```mpd
 const another_float = 123.0
 
 # Underscores as visual separator
