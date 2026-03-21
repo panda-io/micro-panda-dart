@@ -204,7 +204,7 @@ void main() {
     });
 
     test('for range', () {
-      final src = 'fun f()\n    for i in range(0, 10)\n        x = i\n';
+      final src = 'fun f()\n    for i in 0..10\n        x = i\n';
       final c = gen(src);
       expect(c, contains('for (int32_t i = 0; i < 10; i++)'));
     });

@@ -35,7 +35,6 @@ enum TokenType {
   kImport('import'),
   kIn('in'),
   kMatch('match'),
-  kRange('range'),
   kReturn('return'),
   kSizeof('sizeof'),
   kThis('this'),
@@ -113,6 +112,7 @@ enum TokenType {
   colon(':'),
   doubleColon('::'),
   dot('.'),
+  dotDot('..'),
   operatorEnd;
 
   final String? literal;

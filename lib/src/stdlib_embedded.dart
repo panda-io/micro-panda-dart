@@ -518,6 +518,75 @@ class File()
 
 #end
 """,
+  'hosted.folder': """#if HOSTED
+
+@raw('''
+#include <dirent.h>
+#include <sys/stat.h>
+#include <errno.h>
+#include <string.h>
+''')
+
+@extern('''({
+    char __p[512];
+    uint32_t __l = {path}.size < 511 ? {path}.size : 511;
+    memcpy(__p, {path}.ptr, __l);
+    __p[__l] = '\\0';
+    (uint8_t*)opendir(__p);
+})''')
+fun _opendir(path: u8[]): &u8
+
+@extern('''({
+    struct dirent* __e = readdir((DIR*){handle});
+    __e ? (uint8_t*)__e->d_name : (uint8_t*)NULL;
+})''')
+fun _readdir(handle: &u8): &u8
+
+@extern("closedir((DIR*){handle})")
+fun _closedir(handle: &u8)
+
+@extern("(({handle}) != NULL)")
+fun _dir_valid(handle: &u8): bool
+
+// Create a directory. Returns true on success or if it already exists.
+@extern('''({
+    char __p[512];
+    uint32_t __l = {path}.size < 511 ? {path}.size : 511;
+    memcpy(__p, {path}.ptr, __l);
+    __p[__l] = '\\0';
+    int __r = mkdir(__p, 0755);
+    __r == 0 || errno == EEXIST;
+})''')
+fun folder_create(path: u8[]): bool
+
+class Folder
+    var _handle: &u8
+
+    // Open a directory. Returns true on success.
+    fun open(path: u8[]): bool
+        _handle = _opendir(path)
+        return _dir_valid(_handle)
+
+    // Copy the next entry name into buf. Returns bytes written, 0 when done.
+    // Call in a loop until 0 is returned.
+    fun next(buf: u8[]): u32
+        val name: &u8 = _readdir(_handle)
+        if !_dir_valid(name)
+            return u32(0)
+        var i: u32 = 0
+        while i < buf.size()
+            val c: u8 = name[i]
+            if c == u8(0)
+                break
+            buf[i] = c
+            i++
+        return i
+
+    fun close()
+        _closedir(_handle)
+
+#end
+""",
   'hosted.memory': """#if HOSTED
 
 @raw("#include <stdlib.h>")

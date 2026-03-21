@@ -99,12 +99,11 @@ extension ParserStatement on Parser {
   // ── for ──────────────────────────────────────────────────────────────────────
 
   /// Disambiguates:
-  ///   for i in range(start, end)       → ForRangeStatement
+  ///   for i in start..end              → ForRangeStatement
   ///   for item in iterable             → ForInStatement(null, item, false, ...)
   ///   for index, item in iterable      → ForInStatement(index, item, false, ...)
   ///   for &item in iterable            → ForInStatement(null, item, true, ...)
   ///   for item: &T in iterable         → ForInStatement(null, item, true, ...)
-  ///   for item: T in range(start, end) → ForRangeStatement (type annotation ignored)
   Statement _parseForStatement() {
     final pos = _current.offset;
     _expect(TokenType.kFor);
@@ -137,20 +136,16 @@ extension ParserStatement on Parser {
 
     _expect(TokenType.kIn);
 
-    // range(...) shorthand — only for single-variable form
-    if (index == null && !isRef && _current.type == TokenType.kRange) {
+    final iterable = _parseExpression();
+
+    // start..end range form — only for single-variable, non-ref form
+    if (index == null && !isRef && _current.type == TokenType.dotDot) {
       _advance();
-      _expect(TokenType.leftParen);
-      final start = _parseExpression();
-      _expect(TokenType.comma);
       final end = _parseExpression();
-      _expect(TokenType.rightParen);
       _expectNewline();
       final body = _parseBlock();
-      return ForRangeStatement(item, start, end, body, pos);
+      return ForRangeStatement(item, iterable, end, body, pos);
     }
-
-    final iterable = _parseExpression();
     _expectNewline();
     final body = _parseBlock();
     return ForInStatement(index, item, isRef, iterable, body, pos);

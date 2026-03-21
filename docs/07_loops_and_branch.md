@@ -43,7 +43,7 @@ while count < MAX
 Iterates over a half-open range `[start, end)`:
 
 ```mpd
-for i in range(0, 10)
+for i in 0..10
     print(i)        # prints 0 through 9
 ```
 

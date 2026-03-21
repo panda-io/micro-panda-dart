@@ -255,7 +255,7 @@ fun f(): i32
     test('for range loop variable scoped', () {
       expectNoErrors('''
 fun f()
-    for i in range(0, 10)
+    for i in 0..10
         val x: i32 = i
 ''');
     });

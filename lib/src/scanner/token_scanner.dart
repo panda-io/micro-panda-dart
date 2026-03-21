@@ -58,11 +58,16 @@ extension ScannerTokens on Scanner {
     }
 
     if (_reader.peek() == 46) { // '.'
+      // Don't consume if this is '..' (range operator)
       _reader.consume();
-      type = TokenType.floatLiteral;
-      if (_bypassDigits(10) == 0) {
-        _error(offset, "Illegal fraction (no digits after decimal point)");
-        return Token(offset, TokenType.illegal, _reader.cutOut());
+      if (_reader.peek() == 46) { // second '.' → range op; put back
+        _reader.back();
+      } else {
+        type = TokenType.floatLiteral;
+        if (_bypassDigits(10) == 0) {
+          _error(offset, "Illegal fraction (no digits after decimal point)");
+          return Token(offset, TokenType.illegal, _reader.cutOut());
+        }
       }
     }
 
@@ -130,8 +135,12 @@ extension ScannerTokens on Scanner {
       case 64: // '@'
         _reader.consume();
         return Token(offset, TokenType.annotation, "@");
-      case 46: // '.'
+      case 46: // '.' or '..'
         _reader.consume();
+        if (_reader.peek() == 46) {
+          _reader.consume();
+          return Token(offset, TokenType.dotDot, "..");
+        }
         return Token(offset, TokenType.dot, ".");
       case 35: // '#'
         return _scanPreprocessor();
@@ -226,14 +235,7 @@ extension ScannerTokens on Scanner {
         case 10: sb.write(r'\n'); break;  // newline    → \n
         case 13: sb.write(r'\r'); break;  // CR         → \r
         case  9: sb.write(r'\t'); break;  // tab        → \t
-        case 34:                          // double-quote
-          if (delimiter == 34) {
-            sb.write(r'\"');
-          }
-          else {
-            sb.writeCharCode(c);
-          }
-          break;
+        case 34: sb.write(r'\"'); break;  // double-quote → \" (C strings always use ")"
         default: sb.writeCharCode(c);
       }
     }

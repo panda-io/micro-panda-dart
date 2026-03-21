@@ -68,21 +68,21 @@ fun while_not_entered()
 @test
 fun for_range_sum()
     var sum: i32 = 0
-    for i in range(0, 5)
+    for i in 0..5
         sum += i
     assert(sum == 10)   // 0+1+2+3+4
 
 @test
 fun for_range_empty()
     var count: i32 = 0
-    for i in range(5, 5)
+    for i in 5..5
         count++
     assert(count == 0)
 
 @test
 fun for_range_variable()
     var last: i32 = -1
-    for i in range(0, 4)
+    for i in 0..4
         last = i
     assert(last == 3)
 
@@ -160,7 +160,7 @@ fun break_while()
 @test
 fun break_for_range()
     var found: i32 = -1
-    for i in range(0, 10)
+    for i in 0..10
         if i == 6
             found = i
             break
@@ -182,7 +182,7 @@ fun continue_while()
 @test
 fun continue_for_range()
     var sum: i32 = 0
-    for i in range(0, 10)
+    for i in 0..10
         if i % 2 == 0
             continue
         sum += i       // sum odd: 1+3+5+7+9 = 25

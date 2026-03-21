@@ -246,7 +246,7 @@ void main() {
     });
 
     test('for range loop', () {
-      final src = 'fun f()\n    for i in range(0, 10)\n        x = i\n';
+      final src = 'fun f()\n    for i in 0..10\n        x = i\n';
       final m = parse(src);
       final f = m.functions[0].body!.statements[0] as ForRangeStatement;
       expect(f.variable, 'i');
