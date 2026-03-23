@@ -23,13 +23,19 @@ class Target {
   /// Extra C compiler flags (e.g. ["-O2", "-Wall"]).
   final List<String> cflags;
 
-  /// Platform identifier (e.g. "linux-x64", "arm-cortex-m4").
+  /// Platform identifier — must match a key under `platforms:` in mpd.yaml.
   final String? platform;
 
   // ── custom mode (external build system) ──────────────────────────────────
 
   /// Shell command to run after C generation (e.g. "make -C sdk/ -j4").
   final String? buildCmd;
+
+  // ── mcu / platform ────────────────────────────────────────────────────────
+
+  /// Entry function name. Defaults to `main`. Use `app_main` for ESP-IDF targets.
+  /// Resolved from: explicit `entry_fn` key > platform defaults > `'main'`.
+  final String entryFn;
 
   // ── shared ────────────────────────────────────────────────────────────────
 
@@ -50,11 +56,28 @@ class Target {
     this.cflags = const [],
     this.platform,
     this.buildCmd,
+    this.entryFn = 'main',
     this.out,
     this.output,
   });
 
-  factory Target.fromYaml(String name, YamlMap yaml) {
+  factory Target.fromYaml(
+    String name,
+    YamlMap yaml, {
+    Map<String, Map<String, String>> platforms = const {},
+  }) {
+    final platform = yaml['platform'] as String?;
+
+    // Resolve entry_fn: explicit target key > platform defaults > 'main'.
+    String resolvedEntryFn = 'main';
+    if (platform != null) {
+      final platformDef = platforms[platform];
+      if (platformDef != null && platformDef['entry_fn'] != null) {
+        resolvedEntryFn = platformDef['entry_fn']!;
+      }
+    }
+    if (yaml['entry_fn'] is String) resolvedEntryFn = yaml['entry_fn'] as String;
+
     return Target(
       name: name,
       entry: yaml['entry'] as String? ?? 'main',
@@ -62,8 +85,9 @@ class Target {
       cc: yaml['cc'] as String?,
       ccPath: yaml['cc_path'] as String?,
       cflags: _stringList(yaml['cflags']),
-      platform: yaml['platform'] as String?,
+      platform: platform,
       buildCmd: yaml['build_cmd'] as String?,
+      entryFn: resolvedEntryFn,
       out: yaml['out'] as String?,
       output: yaml['output'] as String?,
     );
@@ -122,13 +146,30 @@ class Project {
     final outRel = doc['out'] as String? ?? 'out';
     final testRel = doc['test'] as String? ?? srcRel;
 
+    // Parse platform definitions.
+    final platforms = <String, Map<String, String>>{};
+    final rawPlatforms = doc['platforms'];
+    if (rawPlatforms is YamlMap) {
+      for (final entry in rawPlatforms.entries) {
+        final pName = entry.key as String;
+        final pYaml = entry.value;
+        if (pYaml is YamlMap) {
+          platforms[pName] = {
+            for (final kv in pYaml.entries)
+              kv.key.toString(): kv.value.toString()
+          };
+        }
+      }
+    }
+
     final targets = <String, Target>{};
     final rawTargets = doc['targets'];
     if (rawTargets is YamlMap) {
       for (final entry in rawTargets.entries) {
         final targetName = entry.key as String;
         final targetYaml = entry.value as YamlMap;
-        targets[targetName] = Target.fromYaml(targetName, targetYaml);
+        targets[targetName] =
+            Target.fromYaml(targetName, targetYaml, platforms: platforms);
       }
     }
 

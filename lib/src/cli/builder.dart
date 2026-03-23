@@ -71,7 +71,8 @@ class Builder {
       // Don't overwrite a project-level module.
       if (File(p.join(project.src, rel)).existsSync()) continue;
       final dest = File(p.join(_stdCacheDir, rel));
-      if (!dest.existsSync()) {
+      // Write if missing or outdated (compiler was updated with a new stdlib).
+      if (!dest.existsSync() || dest.readAsStringSync() != entry.value) {
         dest.parent.createSync(recursive: true);
         dest.writeAsStringSync(entry.value);
       }
@@ -175,7 +176,7 @@ class Builder {
 
   String _generateC(List<Module> modules) {
     _log('  Generating C...');
-    return CGenerator().generate(modules, entryModPath: target.entry);
+    return CGenerator().generate(modules, entryModPath: target.entry, entryFn: target.entryFn);
   }
 
   // ── step 3: write C file ──────────────────────────────────────────────────

@@ -17,17 +17,19 @@ Commands:
   clean            Delete generated C files and binaries
 
 Options:
+  -C <dir>         Project directory (where mpd.yaml lives). Defaults to cwd.
   -v, --verbose    Print detailed build steps
   -h, --help       Show this help
 
 Examples:
-  mpd gen                   Generate C for all targets
-  mpd gen firmware          Generate C for a specific target
-  mpd build                 Build all targets
-  mpd build firmware        Build a specific target
-  mpd run main              Build and run the main target
-  mpd test                  Run all *_test.mpd files
-  mpd test main_test.mpd    Run a specific test file
+  mpd gen                       Generate C for all targets
+  mpd gen firmware              Generate C for a specific target
+  mpd build                     Build all targets
+  mpd build firmware            Build a specific target
+  mpd run main                  Build and run the main target
+  mpd test                      Run all *_test.mpd files
+  mpd test main_test.mpd        Run a specific test file
+  mpd -C /path/to/project gen   Generate C from a specific project directory
   mpd clean
 ''';
 
@@ -38,22 +40,32 @@ Future<void> main(List<String> args) async {
   }
 
   final verbose = args.contains('-v') || args.contains('--verbose');
-  final cleanArgs = args.where((a) => !a.startsWith('-')).toList();
+
+  // Extract -C <dir> option.
+  String? projectDir;
+  final mutableArgs = args.toList();
+  final cIdx = mutableArgs.indexOf('-C');
+  if (cIdx != -1 && cIdx + 1 < mutableArgs.length) {
+    projectDir = mutableArgs[cIdx + 1];
+    mutableArgs.removeRange(cIdx, cIdx + 2);
+  }
+
+  final cleanArgs = mutableArgs.where((a) => !a.startsWith('-')).toList();
 
   final command = cleanArgs.isNotEmpty ? cleanArgs[0] : '';
   final targetArg = cleanArgs.length > 1 ? cleanArgs[1] : null;
 
   switch (command) {
     case 'gen':
-      await _cmdGen(targetArg, verbose: verbose);
+      await _cmdGen(targetArg, verbose: verbose, projectDir: projectDir);
     case 'build':
-      await _cmdBuild(targetArg, verbose: verbose);
+      await _cmdBuild(targetArg, verbose: verbose, projectDir: projectDir);
     case 'run':
-      await _cmdRun(targetArg, verbose: verbose);
+      await _cmdRun(targetArg, verbose: verbose, projectDir: projectDir);
     case 'test':
-      await _cmdTest(targetArg, verbose: verbose);
+      await _cmdTest(targetArg, verbose: verbose, projectDir: projectDir);
     case 'clean':
-      await _cmdClean(verbose: verbose);
+      await _cmdClean(verbose: verbose, projectDir: projectDir);
     default:
       stderr.writeln('Unknown command: "$command"');
       stderr.writeln('Run "mpd --help" for usage.');
@@ -63,8 +75,8 @@ Future<void> main(List<String> args) async {
 
 // ── commands ─────────────────────────────────────────────────────────────────
 
-Future<void> _cmdGen(String? targetName, {required bool verbose}) async {
-  final project = _loadProject();
+Future<void> _cmdGen(String? targetName, {required bool verbose, String? projectDir}) async {
+  final project = _loadProject(projectDir);
   final targets = _resolveTargets(project, targetName);
 
   var allOk = true;
@@ -79,8 +91,8 @@ Future<void> _cmdGen(String? targetName, {required bool verbose}) async {
   exit(allOk ? 0 : 1);
 }
 
-Future<void> _cmdBuild(String? targetName, {required bool verbose}) async {
-  final project = _loadProject();
+Future<void> _cmdBuild(String? targetName, {required bool verbose, String? projectDir}) async {
+  final project = _loadProject(projectDir);
   final targets = _resolveTargets(project, targetName);
 
   var allOk = true;
@@ -92,13 +104,13 @@ Future<void> _cmdBuild(String? targetName, {required bool verbose}) async {
   exit(allOk ? 0 : 1);
 }
 
-Future<void> _cmdRun(String? targetName, {required bool verbose}) async {
+Future<void> _cmdRun(String? targetName, {required bool verbose, String? projectDir}) async {
   if (targetName == null) {
     stderr.writeln('error: "run" requires a target name.');
     exit(1);
   }
 
-  final project = _loadProject();
+  final project = _loadProject(projectDir);
   final targets = _resolveTargets(project, targetName);
   final target = targets.first;
 
@@ -117,8 +129,8 @@ Future<void> _cmdRun(String? targetName, {required bool verbose}) async {
   exit(result.exitCode);
 }
 
-Future<void> _cmdTest(String? fileArg, {required bool verbose}) async {
-  final project = _loadProject();
+Future<void> _cmdTest(String? fileArg, {required bool verbose, String? projectDir}) async {
+  final project = _loadProject(projectDir);
 
   // Discover test files: explicit arg or all *_test.mpd in test dir.
   final testFiles = <File>[];
@@ -183,8 +195,8 @@ Future<void> _cmdTest(String? fileArg, {required bool verbose}) async {
   exit(allPassed ? 0 : 1);
 }
 
-Future<void> _cmdClean({required bool verbose}) async {
-  final project = _loadProject();
+Future<void> _cmdClean({required bool verbose, String? projectDir}) async {
+  final project = _loadProject(projectDir);
 
   _deleteDir(project.out, project.rootDir, verbose: verbose);
 
@@ -201,9 +213,9 @@ Future<void> _cmdClean({required bool verbose}) async {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-Project _loadProject() {
+Project _loadProject([String? projectDir]) {
   try {
-    return Project.load();
+    return Project.load(projectDir);
   } catch (e) {
     stderr.writeln('error: $e');
     exit(1);

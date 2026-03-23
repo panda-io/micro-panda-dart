@@ -207,7 +207,7 @@ class CGenerator {
     return modules.where((m) => visited.contains(m.path)).toList();
   }
 
-  String generate(List<Module> modules, {String? entryModPath}) {
+  String generate(List<Module> modules, {String? entryModPath, String entryFn = 'main'}) {
     modules = _filterReachable(modules, entryModPath);
     _buildSymbolTables(modules);
     _collectInstantiations(modules);
@@ -223,8 +223,8 @@ class CGenerator {
     _emitStructDefs(modules);
     _emitFunctionPrototypes(modules);
     _emitGlobalVars(modules);
-    _emitArgcArgvStatics(entryModPath);
-    _emitFunctionDefs(modules, entryModPath: entryModPath);
+    _emitArgcArgvStatics(entryModPath, entryFn: entryFn);
+    _emitFunctionDefs(modules, entryModPath: entryModPath, entryFn: entryFn);
     return _out.toString();
   }
 

@@ -196,6 +196,13 @@ extension GeneratorExpression on CGenerator {
         final args = inv.arguments.map(_expr).join(', ');
         return '($name){$args}';
       }
+      // Plain/value enum cast: PinLevel(expr) → ((PinLevel)(expr))
+      if (_enums.containsKey(name)) {
+        final enm = _enums[name]!;
+        if (!enm.members.any((m) => m.isTagged) && inv.arguments.length == 1) {
+          return '(($name)(${_expr(inv.arguments.first)}))';
+        }
+      }
       // Resolve to namespaced C name via per-module call map.
       final cName = _localCallMap[name];
       if (cName != null) return _callByCName(cName, inv.arguments, inv.typeArgs);

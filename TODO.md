@@ -13,6 +13,144 @@ actual MSVC build target.
 
 ## Language
 
+### MCU platform: `@service`, `@task`, `@interrupt` annotations
+
+Annotations for structured MCU/RTOS programming, targeting ESP32/FreeRTOS initially.
+
+#### `@service` — compile-time managed singletons
+
+```
+@service
+class Wifi
+    var _connected: bool = false
+
+    __init()
+        wifi_driver_init()
+
+@service
+class MqttClient
+    var _wifi: &Wifi
+    var _connected: bool = false
+
+    __init(wifi: &Wifi)
+        _wifi = wifi
+        _wifi.connect()
+```
+
+**Rules:**
+- One global instance per `@service` class, zero-constructed at startup
+- `__init(deps...)` is the framework lifecycle hook — compiler calls it, user does not
+- `__init` params must all be `@service` types — compiler error otherwise (framework can
+  only inject what it manages)
+- Two-phase startup: zero-construct ALL services first, then call `__init` in dependency
+  order — guarantees all service pointers are valid (non-null) before any `__init` runs
+- Dependency order resolved by topological sort of `__init` signatures
+- Circular dependency → compile-time error
+- Generated getter per service: `fun wifi() &Wifi` returning `&g_wifi`
+- `__init` on a non-`@service` class → compile error
+
+**Remove constructor params from class syntax** (`class Foo(x: int)` zero-inits and
+ignores args — misleading). All fields go in the class body. Constructor params are
+replaced by `__init` for `@service` classes.
+
+#### `@task` — FreeRTOS tasks
+
+```
+@task(stack=4096, priority=5)
+fun sensor_loop()
+    while true
+        var v: int = adc_read(0)
+        signal_send(SIGNAL_SENSOR_DATA, v)
+        sleep_ms(50)
+```
+
+- Creates a FreeRTOS task wrapping the function
+- `stack` and `priority` configurable via annotation params
+- Tasks can SEND signals to the main task but do not have their own signal dispatcher (v1)
+- Tasks can read `@service` singletons freely (they're globals)
+
+#### `@interrupt` — deferred ISR via signal
+
+```
+@interrupt(GPIO_NUM_4, RISING)
+fun on_button()
+    // runs on main task, not in ISR context
+    gpio_toggle(LED_PIN)
+```
+
+- Framework generates a real ISR that calls `xQueueSendFromISR` to post a signal
+- User's function runs as a deferred handler on the main task — no ISR restrictions
+- User never writes ISR-unsafe code
+- Covers ~90% of use cases (buttons, sensors, GPIO events)
+
+#### `@isr` — raw interrupt service routine
+
+```
+@isr
+fun on_dma_done()
+    dma_clear_interrupt_flag()       // must clear or ISR fires again immediately
+    notify(render_task)              // xTaskNotifyFromISR — FreeRTOS task notification
+    portYIELD_FROM_ISR(...)          // yield if higher-priority task was woken
+```
+
+- Generated C gets `IRAM_ATTR` automatically (ESP32 requires ISR code in IRAM)
+- Runs immediately in interrupt context — user is responsible for ISR safety
+- No blocking, no heap, only `FromISR` FreeRTOS variants
+- Full power of Micro-Panda available: `asm()`, `@extern` for `FromISR` APIs
+- Use cases: encoder counting, ultrasonic timing, DMA completion, bit-bang protocols
+
+#### `notify` / `wait` — FreeRTOS task notifications
+
+Inter-task and ISR-to-task synchronization. Distinct from the panda-boot signal system
+(`signal_send` dispatches on the main task event bus — `notify`/`wait` are low-level
+FreeRTOS primitives for direct task coordination).
+
+```
+// Render pipeline example:
+// Main task writes back buffer, render task copies to DMA, ISR signals completion.
+
+@task(stack=4096, priority=10)
+fun render_task()
+    while true
+        wait()                   // ulTaskNotifyTake — blocks until notified
+        copy_buffer_to_dma()
+        dma_start()
+
+@isr
+fun on_dma_done()
+    dma_clear_flag()
+    notify(render_task)          // xTaskNotifyFromISR — wakes render_task
+```
+
+Maps to FreeRTOS task notifications — lightest-weight primitive (no separate object,
+one 32-bit slot per task). Clear naming split:
+
+| | Scope | Mechanism | Use |
+|---|---|---|---|
+| `signal_send` | main task only | panda-boot event bus | game logic, app events |
+| `notify` / `wait` | any task / ISR | FreeRTOS task notification | system-level sync |
+
+#### Main task (`app_main`)
+
+`@signal`, `@tick`, `@interval` handlers all run on the main task (the FreeRTOS task
+that calls `app_main`). The main task runs a `while(true) { xQueueReceive(...) }` event
+loop. On ESP-IDF, FreeRTOS is already running before `app_main` is called — no
+"before/after RTOS" split to handle.
+
+#### `mpd.yaml` target additions needed
+
+```yaml
+targets:
+  esp32:
+    entry: main
+    flags: [MCU, ESP32]
+    gen_c_only: true      # stop after C emission, don't invoke gcc
+    entry_fn: app_main    # emit void app_main() instead of int main()
+    output: out/app.c
+```
+
+---
+
 ### Debugger / breakpoint support
 
 Allow setting breakpoints and stepping through Micro Panda source in a debugger.

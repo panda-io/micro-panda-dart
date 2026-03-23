@@ -4,6 +4,14 @@ version: 0.1.0
 src: src/    # micro-panda source root
 out: out/    # generated C files (default)
 
+# Platform definitions — referenced by targets via `platform:`.
+# Each platform sets default properties (e.g. entry_fn) for all targets that use it.
+# platforms:
+#   esp32:
+#     entry_fn: app_main
+#   rp2040:
+#     entry_fn: main
+
 targets:
   # Simple mode: mpd drives compilation directly
   main:
@@ -24,11 +32,11 @@ targets:
 
   # Custom mode: mpd generates C, external build system compiles
   # esp_firmware:
-  #   entry: firmware/main
-  #   out: sdk/components/app/    # place generated C where SDK expects it
-  #   build_cmd: make -C sdk/ -j4
-  #   flags: [release, esp8266]
-  #   output: sdk/build/firmware.bin
+  #   entry: main
+  #   platform: esp32
+  #   out: components/app/        # place generated C where IDF expects it
+  #   build_cmd: idf.py build
+  #   flags: [mcu32]
 
   # Multi-toolchain example
   # arm_firmware:

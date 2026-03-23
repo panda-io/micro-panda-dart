@@ -8,10 +8,10 @@ const Map<String, String> kStdlib = {
   'console': """// ── transport ────────────────────────────────────────────────────────────────
 //
 // write_byte dispatches through a function pointer.
-// Default: HOSTED → putchar wrapper.  MCU → NULL (call console::init(fn) before use).
+// Default: HOSTED/MCU32 → putchar wrapper.  Other MCU → NULL (call console::init(fn) before use).
 // Override at runtime: console::init(fn) for custom transports (UART, USB, mock tests).
 
-#if HOSTED
+#if HOSTED || MCU32
 @raw("#include <stdio.h>")
 
 @extern("putchar({b})")

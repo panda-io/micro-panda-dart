@@ -326,7 +326,7 @@ extension GeneratorDeclaration on CGenerator {
 
   // ── function definitions ──────────────────────────────────────────────────────
 
-  void _emitFunctionDefs(List<Module> modules, {String? entryModPath}) {
+  void _emitFunctionDefs(List<Module> modules, {String? entryModPath, String entryFn = 'main'}) {
     // First pass: collect all @test functions across all modules (with their module).
     final testFns = <(Module, FunctionDecl)>[];
     for (final mod in modules) {
@@ -336,12 +336,12 @@ extension GeneratorDeclaration on CGenerator {
     }
     final isTestMode = testFns.isNotEmpty;
 
-    // Second pass: emit non-test functions (suppressing main() in test mode).
+    // Second pass: emit non-test functions (suppressing entry fn in test mode).
     for (final mod in modules) {
       _setupModuleContext(mod);
       for (final fn in mod.functions) {
         if (fn.isTest) continue;
-        if (isTestMode && fn.name == 'main') continue; // test runner provides main
+        if (isTestMode && fn.name == entryFn) continue; // test runner provides main
         if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
         _emitFunctionDef(fn, null, mod.path);
       }
@@ -372,7 +372,7 @@ extension GeneratorDeclaration on CGenerator {
       _emitTestFunctions(testFns);
       _emitTestMain(testFns);
     } else if (entryModPath != null) {
-      _emitMainWrapper(entryModPath);
+      _emitMainWrapper(entryModPath, entryFn: entryFn);
     }
   }
 
@@ -401,8 +401,10 @@ extension GeneratorDeclaration on CGenerator {
 
   /// Emit file-scope statics for argc/argv so @extern("__mp_argc") and
   /// @extern("__mp_argv[{i}]") are visible to all function definitions above main.
-  void _emitArgcArgvStatics(String? entryModPath) {
+  void _emitArgcArgvStatics(String? entryModPath, {String entryFn = 'main'}) {
     if (entryModPath == null) return;
+    // argc/argv only apply to the standard hosted `main(int argc, char** argv)` entry.
+    if (entryFn != 'main') return;
     final entryMod = _moduleByPath[entryModPath];
     if (entryMod == null) return;
     final hasMain = entryMod.functions.any(
@@ -415,19 +417,24 @@ extension GeneratorDeclaration on CGenerator {
     _writeln();
   }
 
-  /// Emit a thin C `main` that calls the entry module's namespaced main.
-  void _emitMainWrapper(String entryModPath) {
+  /// Emit a thin C entry-point wrapper that calls the entry module's namespaced function.
+  /// For the standard hosted build (`entryFn == 'main'`), emits `int main(int argc, char** argv)`.
+  /// For MCU targets (e.g. `entryFn == 'app_main'`), emits `void app_main(void)`.
+  void _emitMainWrapper(String entryModPath, {String entryFn = 'main'}) {
     final entryMod = _moduleByPath[entryModPath];
     if (entryMod == null) return;
-    final entryFn = entryMod.functions.where(
-        (fn) => fn.name == 'main' && !fn.isExtern && !fn.isTest).firstOrNull;
-    if (entryFn == null) return;
-    final entryFnCName = _cFnName(entryModPath, 'main');
-    // If main() returns a value, forward it as the C exit code; otherwise return 0.
-    final body = entryFn.returnType != null
-        ? 'return $entryFnCName();'
-        : '$entryFnCName(); return 0;';
-    _writeln('int main(int argc, char** argv) { __mp_argc = argc; __mp_argv = argv; $body }');
+    final fn = entryMod.functions.where(
+        (f) => f.name == entryFn && !f.isExtern && !f.isTest).firstOrNull;
+    if (fn == null) return;
+    final cName = _cFnName(entryModPath, entryFn);
+    if (entryFn == 'main') {
+      // Hosted: forward argc/argv, propagate return value as exit code.
+      final body = fn.returnType != null ? 'return $cName();' : '$cName(); return 0;';
+      _writeln('int main(int argc, char** argv) { __mp_argc = argc; __mp_argv = argv; $body }');
+    } else {
+      // MCU: void entry, no argc/argv.
+      _writeln('void $entryFn(void) { $cName(); }');
+    }
     _writeln();
   }
 
