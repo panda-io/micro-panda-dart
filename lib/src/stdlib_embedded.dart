@@ -106,33 +106,30 @@ fun print_i8(v: i8)
 // digits by successive * 10. Accurate to ~6 significant digits (float precision).
 // Does not handle NaN or Inf.
 
-fun print_float(v: float, decimals: u32)
+fun print_float(v: float)
     var abs: float = v
     if v < 0.0
         write_byte('-')
         abs = 0.0 - v
     val int_part := i32(abs)
     print_i32(int_part)
-    if decimals > 0
-        write_byte('.')
-        var frac: float = abs - float(int_part)
-        var i: u32 = 0
-        while i < decimals
-            frac = frac * 10.0
-            val digit := i32(frac)
-            write_byte(u8(digit + 48))
-            frac = frac - float(digit)
-            i += 1
+    write_byte('.')
+    var frac: float = abs - float(int_part)
+    var i: u32 = 0
+    while i < 4
+        frac = frac * 10.0
+        val digit := i32(frac)
+        write_byte(u8(digit + 48))
+        frac = frac - float(digit)
+        i += 1
 
 // ── fixed-point ───────────────────────────────────────────────────────────────
 //
 // 16.16 fixed-point: high 16 bits = integer part, low 16 bits = fractional part.
-// e.g. print_fixed(0x00018000, 2) → "1.50"   (1 + 32768/65536)
-//      print_fixed(0xFFFE8000, 2) → "-1.50"
-//
-// decimals: how many fractional decimal digits to emit (0 = integer only).
+// e.g. print_fixed(0x00018000) → "1.5000"   (1 + 32768/65536)
+//      print_fixed(0xFFFE8000) → "-1.5000"
 
-fun print_fixed(v: fixed, decimals: u32)
+fun print_fixed(v: fixed)
     var abs: u32 = 0
     if v < 0
         write_byte('-')
@@ -143,17 +140,16 @@ fun print_fixed(v: fixed, decimals: u32)
     // integer part: high 16 bits
     print_u32(abs >> 16)
 
-    if decimals > 0
-        write_byte('.')
-        // fractional part: low 16 bits
-        // extract each decimal digit: multiply frac by 10, digit = high 16 bits
-        var frac: u32 = abs & 0xFFFF
-        var i: u32 = 0
-        while i < decimals
-            frac *= 10
-            write_byte(u8((frac >> 16) + 48))
-            frac = frac & 0xFFFF
-            i += 1
+    write_byte('.')
+    // fractional part: low 16 bits
+    // extract each decimal digit: multiply frac by 10, digit = high 16 bits
+    var frac: u32 = abs & 0xFFFF
+    var i: u32 = 0
+    while i < 4
+        frac *= 10
+        write_byte(u8((frac >> 16) + 48))
+        frac = frac & 0xFFFF
+        i += 1
 """,
   'hosted.args': """#if HOSTED
 
@@ -733,13 +729,13 @@ fun error(msg: u8[])
 //   info_args("count={0i} alive={1b}", args)
 
 fun info_args(fmt: u8[], args: i32[])
-    info(build_string(fmt, _buf, args))
+    info(format(fmt, _buf, args))
 
 fun warn_args(fmt: u8[], args: i32[])
-    warn(build_string(fmt, _buf, args))
+    warn(format(fmt, _buf, args))
 
 fun error_args(fmt: u8[], args: i32[])
-    error(build_string(fmt, _buf, args))
+    error(format(fmt, _buf, args))
 """,
   'math': """#if HOSTED || MCU32
 @raw("#include <math.h>")
@@ -1197,7 +1193,7 @@ fun _format_float(buf: u8[], v: float) u32
     bi += 1
     var frac: float = abs - float(int_part)
     var d: u32 = 0
-    while d < 2
+    while d < 4
         frac = frac * 10.0
         val digit := i32(frac)
         buf[bi] = u8(digit + 48)
@@ -1220,7 +1216,7 @@ fun _format_fixed(buf: u8[], v: i32) u32
     bi += 1
     var frac: u32 = abs & 0xFFFF
     var d: u32 = 0
-    while d < 2
+    while d < 4
         frac *= 10
         buf[bi] = u8((frac >> 16) + 48)
         bi += 1
@@ -1242,7 +1238,7 @@ fun _format_bool(buf: u8[], v: i32) u32
     buf[4] = 'e'
     return 5
 
-fun build_string(text: u8[], buf: u8[], args: i32[]): u8[]
+fun format(text: u8[], buf: u8[], args: i32[]): u8[]
     var ti: u32 = 0
     var bi: u32 = 0
     while ti < text.size() && bi < buf.size()

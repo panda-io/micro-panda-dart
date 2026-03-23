@@ -44,10 +44,10 @@ fun error(msg: u8[])
 //   info_args("count={0i} alive={1b}", args)
 
 fun info_args(fmt: u8[], args: i32[])
-    info(build_string(fmt, _buf, args))
+    info(format(fmt, _buf, args))
 
 fun warn_args(fmt: u8[], args: i32[])
-    warn(build_string(fmt, _buf, args))
+    warn(format(fmt, _buf, args))
 
 fun error_args(fmt: u8[], args: i32[])
-    error(build_string(fmt, _buf, args))
+    error(format(fmt, _buf, args))

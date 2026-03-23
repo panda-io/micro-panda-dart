@@ -189,7 +189,7 @@ fun _format_float(buf: u8[], v: float) u32
     bi += 1
     var frac: float = abs - float(int_part)
     var d: u32 = 0
-    while d < 2
+    while d < 4
         frac = frac * 10.0
         val digit := i32(frac)
         buf[bi] = u8(digit + 48)
@@ -212,7 +212,7 @@ fun _format_fixed(buf: u8[], v: i32) u32
     bi += 1
     var frac: u32 = abs & 0xFFFF
     var d: u32 = 0
-    while d < 2
+    while d < 4
         frac *= 10
         buf[bi] = u8((frac >> 16) + 48)
         bi += 1
@@ -234,7 +234,7 @@ fun _format_bool(buf: u8[], v: i32) u32
     buf[4] = 'e'
     return 5
 
-fun build_string(text: u8[], buf: u8[], args: i32[]): u8[]
+fun format(text: u8[], buf: u8[], args: i32[]): u8[]
     var ti: u32 = 0
     var bi: u32 = 0
     while ti < text.size() && bi < buf.size()
