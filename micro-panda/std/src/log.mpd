@@ -1,0 +1,53 @@
+import console::*
+import string::*
+
+// ── internal ──────────────────────────────────────────────────────────────────
+
+var _buf: u8[128]
+
+// Emit ESC[ + seq (e.g. "32m" → green, "33m" → orange, "31m" → red, "0m" → reset)
+@inline
+fun _esc(seq: u8[])
+    write_byte(27)
+    write_byte('[')
+    print_str(seq)
+
+// ── simple log (no format args) ───────────────────────────────────────────────
+
+fun info(msg: u8[])
+    _esc("32m")
+    print_str("[INFO] ")
+    print_str(msg)
+    _esc("0m")
+    println()
+
+fun warn(msg: u8[])
+    _esc("33m")
+    print_str("[WARN] ")
+    print_str(msg)
+    _esc("0m")
+    println()
+
+fun error(msg: u8[])
+    _esc("31m")
+    print_str("[ERROR] ")
+    print_str(msg)
+    _esc("0m")
+    println()
+
+// ── formatted log (build_string args) ────────────────────────────────────────
+//
+// Uses an internal 128-byte buffer — no buffer needed at the call site.
+//
+// Example:
+//   var args: i32[2] = {count, i32(alive)}
+//   info_args("count={0i} alive={1b}", args)
+
+fun info_args(fmt: u8[], args: i32[])
+    info(build_string(fmt, _buf, args))
+
+fun warn_args(fmt: u8[], args: i32[])
+    warn(build_string(fmt, _buf, args))
+
+fun error_args(fmt: u8[], args: i32[])
+    error(build_string(fmt, _buf, args))

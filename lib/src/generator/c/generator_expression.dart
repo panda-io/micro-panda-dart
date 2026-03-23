@@ -245,8 +245,14 @@ extension GeneratorExpression on CGenerator {
         }
       }
     }
-    // Erased version (existing behavior).
-    final regularArgs = args.map(_expr).join(', ');
+    // Erased version — coerce fixed-array args to slices when param type is known.
+    final fnDecl = _fnDeclByCName[cName];
+    final params = fnDecl?.parameters ?? <Parameter>[];
+    final coercedArgs = List.generate(args.length, (i) {
+      final expectedType = i < params.length ? params[i].type : null;
+      return _exprCoerce(args[i], expectedType);
+    });
+    final regularArgs = coercedArgs.join(', ');
     final sizeofArgs = typeArgs.map((t) => 'sizeof(${_cType(t)})').join(', ');
     final allArgs = [
       if (regularArgs.isNotEmpty) regularArgs,
@@ -255,6 +261,38 @@ extension GeneratorExpression on CGenerator {
     final call = '$cName($allArgs)';
     if (typeArgs.length == 1) return '(${_cType(typeArgs.first)}*)$call';
     return call;
+  }
+
+  /// Emit [arg] expression, coercing to the expected type where needed:
+  /// - Fixed-size array → slice: wrap as `(__Slice_T){arr, dim}`
+  /// - Untyped slice literal `{ptr, len}` → typed compound literal
+  String _exprCoerce(Expression arg, Type? expectedType) {
+    if (expectedType is TypeArray && expectedType.isSlice) {
+      final argType = _inferType(arg);
+      // Fixed-size local array passed to slice param → wrap as fat pointer.
+      if (argType is TypeArray && argType.isFixed) {
+        final elemC = _cType(argType.elementType);
+        int? dim;
+        if (argType.dimension.isNotEmpty) {
+          final d = argType.dimension[0];
+          if (d == -1 && argType.dimExprs.isNotEmpty) {
+            dim = _evalConstExpr(argType.dimExprs[0]);
+          } else {
+            dim = d;
+          }
+        }
+        if (dim != null) {
+          return '(__Slice_$elemC){${_expr(arg)}, $dim}';
+        }
+      }
+      // Untyped slice literal {ptr, len} used as argument — add compound-literal cast.
+      if (arg is ArrayInitializer && arg.isSliceLiteral && arg.type == null) {
+        final elemC = _cType(expectedType.elementType);
+        final elems = arg.elements.map(_expr).join(', ');
+        return '(__Slice_$elemC){$elems}';
+      }
+    }
+    return _expr(arg);
   }
 
   /// Reverse scanner normalisation on triple-quoted @extern templates.

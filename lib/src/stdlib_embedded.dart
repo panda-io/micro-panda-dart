@@ -687,6 +687,60 @@ fun time_us(): i64
 
 #end
 """,
+  'log': """import console::*
+import string::*
+
+// ── internal ──────────────────────────────────────────────────────────────────
+
+var _buf: u8[128]
+
+// Emit ESC[ + seq (e.g. "32m" → green, "33m" → orange, "31m" → red, "0m" → reset)
+@inline
+fun _esc(seq: u8[])
+    write_byte(27)
+    write_byte('[')
+    print_str(seq)
+
+// ── simple log (no format args) ───────────────────────────────────────────────
+
+fun info(msg: u8[])
+    _esc("32m")
+    print_str("[INFO] ")
+    print_str(msg)
+    _esc("0m")
+    println()
+
+fun warn(msg: u8[])
+    _esc("33m")
+    print_str("[WARN] ")
+    print_str(msg)
+    _esc("0m")
+    println()
+
+fun error(msg: u8[])
+    _esc("31m")
+    print_str("[ERROR] ")
+    print_str(msg)
+    _esc("0m")
+    println()
+
+// ── formatted log (build_string args) ────────────────────────────────────────
+//
+// Uses an internal 128-byte buffer — no buffer needed at the call site.
+//
+// Example:
+//   var args: i32[2] = {count, i32(alive)}
+//   info_args("count={0i} alive={1b}", args)
+
+fun info_args(fmt: u8[], args: i32[])
+    info(build_string(fmt, _buf, args))
+
+fun warn_args(fmt: u8[], args: i32[])
+    warn(build_string(fmt, _buf, args))
+
+fun error_args(fmt: u8[], args: i32[])
+    error(build_string(fmt, _buf, args))
+""",
   'math': """#if HOSTED || MCU32
 @raw("#include <math.h>")
 
@@ -1096,6 +1150,133 @@ fun format_i32(buf: u8[], v: i32): u32
         val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-v))
         return written + 1
     return format_u32(buf, u32(v))
+
+// ── String building ───────────────────────────────────────────────────────────
+//
+// Renders `text` into `buf`, replacing {Ni} {Nu} {Nf} {Nd} {Nb} placeholders.
+// All args are stored as i32 — the type specifier controls formatting:
+//   {0i}  signed int (default when no specifier)
+//   {0u}  unsigned int
+//   {0f}  float       — pass bits via float_bits(v)
+//   {0d}  fixed 16.16 — pass as i32(v) (fixed is i32 internally)
+//   {0b}  bool        — prints "true" / "false"
+//
+// Returns a u8[] slice into buf with the final length.
+//
+// Example:
+//   var buf:  u8[64]
+//   var args: i32[3] = {hp, max_hp, i32(alive)}
+//   val s := build_string("HP: {0i}/{1i} alive={2b}", buf, args)
+
+// Bit-cast helpers — raw 32-bit reinterpret, no value conversion.
+@raw("static inline int32_t __mp_float_to_bits(float f) { int32_t v; __builtin_memcpy(&v, &f, 4); return v; }")
+@raw("static inline float __mp_bits_to_float(int32_t v) { float f; __builtin_memcpy(&f, &v, 4); return f; }")
+
+@extern("__mp_float_to_bits")
+fun float_bits(f: float) i32
+
+@extern("__mp_bits_to_float")
+fun _bits_to_float(v: i32) float
+
+// fixed and i32 share the same 32-bit representation — this is the explicit,
+// intention-clear way to pass a fixed value into an i32[] args array.
+// Do NOT use i32(my_fixed): semantically that means "extract integer part".
+@extern("((int32_t){f})")
+fun fixed_bits(f: fixed) i32
+
+fun _format_float(buf: u8[], v: float) u32
+    var bi: u32 = 0
+    var abs: float = v
+    if v < 0.0
+        buf[bi] = 45  // '-'
+        bi += 1
+        abs = 0.0 - v
+    val int_part := i32(abs)
+    bi += format_i32({buf.ptr + bi, buf.size() - bi}, int_part)
+    buf[bi] = 46  // '.'
+    bi += 1
+    var frac: float = abs - float(int_part)
+    var d: u32 = 0
+    while d < 2
+        frac = frac * 10.0
+        val digit := i32(frac)
+        buf[bi] = u8(digit + 48)
+        bi += 1
+        frac = frac - float(digit)
+        d += 1
+    return bi
+
+fun _format_fixed(buf: u8[], v: i32) u32
+    var bi: u32 = 0
+    var abs: u32 = 0
+    if v < 0
+        buf[bi] = 45  // '-'
+        bi += 1
+        abs = u32(0 - v)
+    else
+        abs = u32(v)
+    bi += format_u32({buf.ptr + bi, buf.size() - bi}, abs >> 16)
+    buf[bi] = 46  // '.'
+    bi += 1
+    var frac: u32 = abs & 0xFFFF
+    var d: u32 = 0
+    while d < 2
+        frac *= 10
+        buf[bi] = u8((frac >> 16) + 48)
+        bi += 1
+        frac = frac & 0xFFFF
+        d += 1
+    return bi
+
+fun _format_bool(buf: u8[], v: i32) u32
+    if v != 0
+        buf[0] = 't'
+        buf[1] = 'r'
+        buf[2] = 'u'
+        buf[3] = 'e'
+        return 4
+    buf[0] = 'f'
+    buf[1] = 'a'
+    buf[2] = 'l'
+    buf[3] = 's'
+    buf[4] = 'e'
+    return 5
+
+fun build_string(text: u8[], buf: u8[], args: i32[]): u8[]
+    var ti: u32 = 0
+    var bi: u32 = 0
+    while ti < text.size() && bi < buf.size()
+        val c := text[ti]
+        if c == '{'
+            ti += 1
+            var idx: i32 = 0
+            while ti < text.size() && text[ti] != '}' && text[ti] != 'i' && text[ti] != 'u' && text[ti] != 'f' && text[ti] != 'd' && text[ti] != 'b'
+                idx = idx * 10 + i32(text[ti]) - 48
+                ti += 1
+            var spec: u8 = 'i'
+            if ti < text.size() && text[ti] != '}'
+                spec = text[ti]
+                ti += 1
+            ti += 1  // skip '}'
+            if idx >= 0 && idx < i32(args.size())
+                val sub := {buf.ptr + bi, buf.size() - bi}
+                var written: u32 = 0
+                if spec == 'u'
+                    written = format_u32(sub, u32(args[idx]))
+                else if spec == 'f'
+                    written = _format_float(sub, _bits_to_float(args[idx]))
+                else if spec == 'd'
+                    written = _format_fixed(sub, args[idx])
+                else if spec == 'b'
+                    written = _format_bool(sub, args[idx])
+                else
+                    written = format_i32(sub, args[idx])
+                bi += written
+        else
+            buf[bi] = c
+            bi += 1
+            ti += 1
+    return {buf.ptr, bi}
 """,
   'test': """import console::*
 

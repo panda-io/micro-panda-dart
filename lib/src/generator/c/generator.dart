@@ -113,6 +113,9 @@ class CGenerator {
   final Map<String, ({FunctionDecl fn, String? className, String? modPath})>
       _fnDeclByKey = {};
 
+  /// C function name → FunctionDecl, for coercing arguments at call sites.
+  final Map<String, FunctionDecl> _fnDeclByCName = {};
+
   /// Return type of the currently-emitting function (used for null→zero-struct fix).
   Type? _currentFnReturnType;
 
@@ -256,6 +259,8 @@ class CGenerator {
       }
       for (final fn in mod.functions) {
         if (fn.isExtern) _externFns[fn.name] = fn;
+        // Map C name → FunctionDecl for argument coercion at call sites.
+        _fnDeclByCName[_cFnName(mod.path, fn.name)] = fn;
         // Detect the module that contains the test utilities.
         if (fn.name == '_test_begin') {
           _testModulePrefix = _modulePrefix(mod.path);
@@ -507,6 +512,30 @@ class CGenerator {
         // Generic call with type args → return type is pointer to first type arg
         if (value.typeArgs.isNotEmpty) return TypeRef(value.typeArgs.first);
       }
+    }
+    // Slice literal {ptr_expr, len_expr} — infer element type from the ptr expression.
+    // The ptr is typically `arr.ptr`, `arr.ptr + offset`, or `&arr[0]`.
+    if (value is ArrayInitializer && value.isSliceLiteral && value.elements.isNotEmpty) {
+      final ptrExpr = value.elements[0];
+      Type? elemType = _inferSliceElemType(ptrExpr);
+      if (elemType != null) {
+        final slice = TypeArray(elemType);
+        slice.dimension = [0]; // dimension[0] == 0 means unsized slice
+        return slice;
+      }
+    }
+    return null;
+  }
+
+  /// Infer the element type from a pointer-valued expression (e.g. `buf.ptr + i`).
+  Type? _inferSliceElemType(Expression expr) {
+    // arr.ptr or arr.ptr + offset
+    if (expr is MemberAccess && expr.member == 'ptr') {
+      final parentType = _inferType(expr.parent);
+      if (parentType is TypeArray) return parentType.elementType;
+    }
+    if (expr is Binary) {
+      return _inferSliceElemType(expr.left) ?? _inferSliceElemType(expr.right);
     }
     return null;
   }
