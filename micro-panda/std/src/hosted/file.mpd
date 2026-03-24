@@ -1,32 +1,32 @@
 #if HOSTED
 @raw("#include <stdio.h>")
 
-@extern("(uint8_t*)fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
-fun _fopen(path: u8[], mode: u8[]): &u8
+@extern("fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
+fun _fopen(path: u8[], mode: u8[]): &void
 
 @extern("fclose((FILE*){handle})")
-fun _fclose(handle: &u8)
+fun _fclose(handle: &void)
 
 @extern("(uint32_t)fread({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fread(buf: u8[], handle: &u8): u32
+fun _fread(buf: u8[], handle: &void): u32
 
 @extern("(uint32_t)fwrite({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fwrite(buf: u8[], handle: &u8): u32
+fun _fwrite(buf: u8[], handle: &void): u32
 
 @extern("(fgets((char*){buf}.ptr, (int){buf}.size, (FILE*){handle}) != NULL)")
-fun _fgets(buf: u8[], handle: &u8): bool
+fun _fgets(buf: u8[], handle: &void): bool
 
 @extern("fflush((FILE*){handle})")
-fun _fflush(handle: &u8)
+fun _fflush(handle: &void)
 
 @extern("fseek((FILE*){handle}, (long){pos}, 0)")
-fun _fseek(handle: &u8, pos: u32)
+fun _fseek(handle: &void, pos: u32)
 
 @extern("(uint32_t)ftell((FILE*){handle})")
-fun _ftell(handle: &u8): u32
+fun _ftell(handle: &void): u32
 
 @extern("(({handle}) != NULL)")
-fun _ptr_valid(handle: &u8): bool
+fun _ptr_valid(handle: &void): bool
 
 const READ        = "r"
 const WRITE       = "w"
@@ -36,7 +36,7 @@ const WRITE_READ  = "w+"
 const APPEND_READ = "a+"
 
 class File()
-    var _handle: &u8
+    var _handle: &void
     var _open: bool
 
     fun open(path: u8[], mode: u8[]): bool

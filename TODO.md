@@ -254,6 +254,42 @@ no external toolchain needed for the full write-run loop.
 
 ---
 
+### Project config file for user overrides and HAL selection
+
+Libraries like `pwm`, `i2c`, `spi` have compile-time constants (e.g. `PWM_MAX_CHANNELS`)
+that differ by chip variant. Currently these live in a `config.mpd` inside the library,
+which the user cannot easily override without editing library source.
+
+**Idea:** a non-`.mpd` config file at the project root (e.g. `mpd.config` or a `[config]`
+section in `mpd.yaml`) that injects named constants into the build — no `.mpd` parsing
+needed, just key=value pairs the compiler exposes as module-level `const` or C `#define`.
+
+```yaml
+# mpd.yaml
+config:
+  PWM_MAX_CHANNELS: 8      # override lib default (6 for C3, 8 for ESP32/S2/S3)
+  I2C_MAX_DEVICES: 4
+```
+
+**HAL consideration:** the config file could also declare which HAL implementation to use
+per peripheral, decoupling the library API from the chip-specific driver:
+
+```yaml
+hal:
+  pwm: ledc          # ESP32 LEDC (default)
+  i2c: esp_idf       # ESP-IDF I2C master driver
+  uart: esp_idf
+```
+
+The compiler maps `hal.pwm = ledc` to `import pwm_ledc as pwm` (or similar), so the
+application code stays chip-agnostic.
+
+Deferred until the language and build pipeline are stable. Module-resolution-based
+shadowing (app `src/config.mpd` overrides lib `config.mpd`) is an alternative but
+requires file-path namespacing in the import resolver — also deferred.
+
+---
+
 ### Package / library management
 
 Support declaring and fetching external library dependencies, with a layered resolution
