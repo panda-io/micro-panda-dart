@@ -159,8 +159,10 @@ Future<void> _cmdTest(String? fileArg, {required bool verbose, String? projectDi
     exit(0);
   }
 
-  // Reference target for cc/cflags — use first defined target as template.
-  final refTarget = project.targets.values.firstOrNull;
+  // Reference target for cc config — use first bin target as template, fallback to gcc.
+  final refTarget = project.targets.values
+      .where((t) => t.type == TargetType.bin)
+      .firstOrNull;
 
   var allPassed = true;
   for (final file in testFiles) {
@@ -170,14 +172,13 @@ Future<void> _cmdTest(String? fileArg, {required bool verbose, String? projectDi
       entry: p.withoutExtension(
           p.relative(file.path, from: project.test))
           .replaceAll(p.separator, '.'),
+      type: TargetType.bin,
       flags: [
         ...?refTarget?.flags.where((f) => f != 'RELEASE' && f != 'DEBUG'),
         'HOSTED',
       ],
-      cc: refTarget?.cc ?? 'gcc',
-      ccPath: refTarget?.ccPath,
-      cflags: refTarget?.cflags ?? ['-O0'],
-      out: p.join(project.rootDir, '.micro-panda', 'test'),
+      cc: refTarget?.cc ?? CcConfig(flags: ['-O0']),
+      out: p.join(project.rootDir, '.micro-panda', 'test', '$name.c'),
       output: p.join('.micro-panda', 'test', name),
     );
 

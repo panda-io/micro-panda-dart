@@ -2,6 +2,43 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+enum TargetType { c, bin }
+
+/// C compiler settings — lives under the `cc:` sub-node of a target.
+class CcConfig {
+  /// Compiler executable name (e.g. "gcc", "arm-none-eabi-gcc").
+  final String bin;
+
+  /// Directory containing [bin]. If null, resolved from PATH.
+  final String? path;
+
+  /// Extra compiler flags (e.g. ["-O2", "-Wall"]).
+  final List<String> flags;
+
+  CcConfig({this.bin = 'gcc', this.path, this.flags = const []});
+
+  factory CcConfig.fromYaml(YamlMap yaml) => CcConfig(
+        bin: yaml['bin'] as String? ?? 'gcc',
+        path: yaml['path'] as String?,
+        flags: _stringList(yaml['flags']),
+      );
+
+  /// Resolved compiler binary path.
+  String get exe => path != null ? p.join(path!, bin) : bin;
+}
+
+/// Code-generation settings — lives under the `gen:` sub-node of a target.
+class GenConfig {
+  /// C entry function name (e.g. "main", "app_main").
+  final String entryFn;
+
+  GenConfig({this.entryFn = 'main'});
+
+  factory GenConfig.fromYaml(YamlMap yaml) => GenConfig(
+        entryFn: yaml['entry_fn'] as String? ?? 'main',
+      );
+}
+
 /// A build target defined in mpd.yaml.
 class Target {
   final String name;
@@ -9,95 +46,67 @@ class Target {
   /// Entry module name (e.g. "main" → resolves to `src/main.mpd`).
   final String entry;
 
-  /// Micro-panda conditional compile flags (e.g. [debug, esp8266]).
+  /// What this target produces: [TargetType.c] = C file only, [TargetType.bin] = compiled binary.
+  final TargetType type;
+
+  /// Micro-panda conditional compile flags (e.g. [DEBUG, MCU32]).
   final List<String> flags;
 
-  // ── simple mode (mpd drives compilation) ─────────────────────────────────
-
-  /// C compiler executable name (e.g. "gcc", "arm-none-eabi-gcc").
-  final String? cc;
-
-  /// Directory containing `cc` binary. If null, resolved from PATH.
-  final String? ccPath;
-
-  /// Extra C compiler flags (e.g. ["-O2", "-Wall"]).
-  final List<String> cflags;
-
-  /// Platform identifier — must match a key under `platforms:` in mpd.yaml.
-  final String? platform;
-
-  // ── custom mode (external build system) ──────────────────────────────────
-
-  /// Shell command to run after C generation (e.g. "make -C sdk/ -j4").
+  /// Shell command to run after C generation (e.g. "idf.py build").
   final String? buildCmd;
 
-  // ── mcu / platform ────────────────────────────────────────────────────────
+  /// Code-generation settings (entry function name).
+  final GenConfig gen;
 
-  /// Entry function name. Defaults to `main`. Use `app_main` for ESP-IDF targets.
-  /// Resolved from: explicit `entry_fn` key > platform defaults > `'main'`.
-  final String entryFn;
+  /// C compiler settings. Required when [type] is [TargetType.bin].
+  final CcConfig? cc;
 
-  // ── shared ────────────────────────────────────────────────────────────────
+  /// Per-target source folder. Defaults to `src/` when omitted.
+  final String? src;
 
-  /// Where generated C files are written. Overrides project-level [Project.out].
+  /// Output file path (e.g. "main/esp32.c"). Falls back to `out/<name>.c`.
   final String? out;
 
-  /// Final output artifact path (exe or firmware binary).
+  /// Final binary artifact path (exe). Used by simple-mode compilation.
   final String? output;
-
-  bool get isCustomMode => buildCmd != null;
 
   Target({
     required this.name,
     required this.entry,
+    required this.type,
     this.flags = const [],
-    this.cc,
-    this.ccPath,
-    this.cflags = const [],
-    this.platform,
     this.buildCmd,
-    this.entryFn = 'main',
+    GenConfig? gen,
+    this.cc,
+    this.src,
     this.out,
     this.output,
-  });
+  }) : gen = gen ?? GenConfig();
 
-  factory Target.fromYaml(
-    String name,
-    YamlMap yaml, {
-    Map<String, Map<String, String>> platforms = const {},
-  }) {
-    final platform = yaml['platform'] as String?;
+  factory Target.fromYaml(String name, YamlMap yaml) {
+    final rawType = yaml['type'] as String?;
+    if (rawType == null) throw Exception('target "$name": missing required field "type"');
+    final type = switch (rawType) {
+      'c'   => TargetType.c,
+      'bin' => TargetType.bin,
+      _     => throw Exception('target "$name": unknown type "$rawType" (expected "c" or "bin")'),
+    };
 
-    // Resolve entry_fn: explicit target key > platform defaults > 'main'.
-    String resolvedEntryFn = 'main';
-    if (platform != null) {
-      final platformDef = platforms[platform];
-      if (platformDef != null && platformDef['entry_fn'] != null) {
-        resolvedEntryFn = platformDef['entry_fn']!;
-      }
-    }
-    if (yaml['entry_fn'] is String) resolvedEntryFn = yaml['entry_fn'] as String;
+    final rawGen = yaml['gen'];
+    final rawCc  = yaml['cc'];
 
     return Target(
-      name: name,
-      entry: yaml['entry'] as String? ?? 'main',
-      flags: _stringList(yaml['flags']),
-      cc: yaml['cc'] as String?,
-      ccPath: yaml['cc_path'] as String?,
-      cflags: _stringList(yaml['cflags']),
-      platform: platform,
+      name:     name,
+      entry:    yaml['entry'] as String? ?? 'main',
+      type:     type,
+      flags:    _stringList(yaml['flags']),
       buildCmd: yaml['build_cmd'] as String?,
-      entryFn: resolvedEntryFn,
-      out: yaml['out'] as String?,
-      output: yaml['output'] as String?,
+      gen:      rawGen is YamlMap ? GenConfig.fromYaml(rawGen) : GenConfig(),
+      cc:       rawCc  is YamlMap ? CcConfig.fromYaml(rawCc)   : null,
+      src:      yaml['src'] as String?,
+      out:      yaml['out'] as String?,
+      output:   yaml['output'] as String?,
     );
-  }
-
-  /// Resolved compiler binary path.
-  String get ccBin {
-    final name = cc ?? 'gcc';
-    if (ccPath != null) return p.join(ccPath!, name);
-    return name;
   }
 }
 
@@ -105,27 +114,20 @@ class Target {
 class Project {
   final String name;
   final String version;
-
-  /// Source root directory (absolute).
-  final String src;
-
-  /// Default output directory for generated C files (absolute).
-  final String out;
-
-  /// Test files directory (absolute). Defaults to src/.
-  final String test;
-
   final Map<String, Target> targets;
 
   /// Project root directory (where mpd.yaml lives).
   final String rootDir;
 
+  /// Default output directory for generated C files. Convention: `<root>/out/`.
+  String get out => p.join(rootDir, 'out');
+
+  /// Test files directory. Convention: `<root>/test/`.
+  String get test => p.join(rootDir, 'test');
+
   Project({
     required this.name,
     required this.version,
-    required this.src,
-    required this.out,
-    required this.test,
     required this.targets,
     required this.rootDir,
   });
@@ -134,33 +136,12 @@ class Project {
   static Project load([String? projectDir]) {
     final dir = projectDir ?? Directory.current.path;
     final yamlFile = File(p.join(dir, 'mpd.yaml'));
-    if (!yamlFile.existsSync()) {
-      throw Exception('mpd.yaml not found in $dir');
-    }
+    if (!yamlFile.existsSync()) throw Exception('mpd.yaml not found in $dir');
 
     final doc = loadYaml(yamlFile.readAsStringSync()) as YamlMap;
 
-    final name = doc['name'] as String? ?? p.basename(dir);
+    final name    = doc['name']    as String? ?? p.basename(dir);
     final version = doc['version'] as String? ?? '0.1.0';
-    final srcRel = doc['src'] as String? ?? 'src';
-    final outRel = doc['out'] as String? ?? 'out';
-    final testRel = doc['test'] as String? ?? srcRel;
-
-    // Parse platform definitions.
-    final platforms = <String, Map<String, String>>{};
-    final rawPlatforms = doc['platforms'];
-    if (rawPlatforms is YamlMap) {
-      for (final entry in rawPlatforms.entries) {
-        final pName = entry.key as String;
-        final pYaml = entry.value;
-        if (pYaml is YamlMap) {
-          platforms[pName] = {
-            for (final kv in pYaml.entries)
-              kv.key.toString(): kv.value.toString()
-          };
-        }
-      }
-    }
 
     final targets = <String, Target>{};
     final rawTargets = doc['targets'];
@@ -168,25 +149,20 @@ class Project {
       for (final entry in rawTargets.entries) {
         final targetName = entry.key as String;
         final targetYaml = entry.value as YamlMap;
-        targets[targetName] =
-            Target.fromYaml(targetName, targetYaml, platforms: platforms);
+        targets[targetName] = Target.fromYaml(targetName, targetYaml);
       }
     }
 
-    return Project(
-      name: name,
-      version: version,
-      src: p.join(dir, srcRel),
-      out: p.join(dir, outRel),
-      test: p.join(dir, testRel),
-      targets: targets,
-      rootDir: dir,
-    );
+    return Project(name: name, version: version, targets: targets, rootDir: dir);
   }
 
-  /// Resolve the output directory for a given target (target-level overrides project-level).
-  String outDirFor(Target target) =>
-      target.out != null ? p.join(rootDir, target.out!) : out;
+  /// Resolve the source directory for a given target. Defaults to `<root>/src/`.
+  String srcFor(Target target) => p.join(rootDir, target.src ?? 'src');
+
+  /// Resolve the output file path for a given target.
+  /// Uses [Target.out] when set; otherwise `<out>/<name>.c`.
+  String outFileFor(Target target) =>
+      target.out != null ? p.join(rootDir, target.out!) : p.join(out, '${target.name}.c');
 }
 
 List<String> _stringList(dynamic value) {

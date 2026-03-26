@@ -48,12 +48,10 @@ class Builder {
     final cFile = _writeCFile(cCode);
     if (cFile == null) return false;
 
-    // 5. Compile or delegate to custom build system.
-    if (target.isCustomMode) {
-      return await _runBuildCmd();
-    } else {
-      return await _compile(cFile);
-    }
+    // 5. Run build command, compile, or finish (type: c).
+    if (target.buildCmd != null) return await _runBuildCmd();
+    if (target.type == TargetType.bin) return await _compile(cFile);
+    return true;
   }
 
   // ── step 1: parse ─────────────────────────────────────────────────────────
@@ -63,13 +61,13 @@ class Builder {
       p.join(project.rootDir, '.micro-panda', 'std', 'src');
 
   /// Extract embedded std modules to the local cache if not already present.
-  /// Project-level overrides (files already in project.src) take priority and
+  /// Target source overrides (files already in target's src dir) take priority and
   /// are never overwritten.
   void _ensureStd() {
     for (final entry in kStdlib.entries) {
       final rel = '${entry.key.replaceAll('.', p.separator)}.mpd';
       // Don't overwrite a project-level module.
-      if (File(p.join(project.src, rel)).existsSync()) continue;
+      if (File(p.join(project.srcFor(target), rel)).existsSync()) continue;
       final dest = File(p.join(_stdCacheDir, rel));
       // Write if missing or outdated (compiler was updated with a new stdlib).
       if (!dest.existsSync() || dest.readAsStringSync() != entry.value) {
@@ -126,7 +124,7 @@ class Builder {
     // Entry can be a module path like "firmware/main" or just "main".
     final rel = '${target.entry.replaceAll('.', p.separator)}.mpd';
     // Check src first, then test directory (for test entries).
-    final srcFile = File(p.join(project.src, rel));
+    final srcFile = File(p.join(project.srcFor(target), rel));
     if (srcFile.existsSync()) return srcFile;
     final testFile = File(p.join(project.test, rel));
     if (testFile.existsSync()) return testFile;
@@ -136,7 +134,7 @@ class Builder {
   File? _resolveImport(String importPath) {
     final rel = '${importPath.replaceAll('.', p.separator)}.mpd';
     // 1. Project source (highest priority — allows overriding std).
-    final projectFile = File(p.join(project.src, rel));
+    final projectFile = File(p.join(project.srcFor(target), rel));
     if (projectFile.existsSync()) return projectFile;
     // 2. Extracted std cache (populated from embedded std by _ensureStd).
     final stdFile = File(p.join(_stdCacheDir, rel));
@@ -157,7 +155,7 @@ class Builder {
       final rel = p.relative(absPath, from: project.test);
       return p.withoutExtension(rel).replaceAll(p.separator, '.');
     }
-    final rel = p.relative(absPath, from: project.src);
+    final rel = p.relative(absPath, from: project.srcFor(target));
     return p.withoutExtension(rel).replaceAll(p.separator, '.');
   }
 
@@ -176,17 +174,15 @@ class Builder {
 
   String _generateC(List<Module> modules) {
     _log('  Generating C...');
-    return CGenerator().generate(modules, entryModPath: target.entry, entryFn: target.entryFn);
+    return CGenerator().generate(modules, entryModPath: target.entry, entryFn: target.gen.entryFn);
   }
 
   // ── step 3: write C file ──────────────────────────────────────────────────
 
   File? _writeCFile(String cCode) {
     try {
-      final outDir = Directory(project.outDirFor(target));
-      if (!outDir.existsSync()) outDir.createSync(recursive: true);
-
-      final cFile = File(p.join(outDir.path, '${target.name}.c'));
+      final cFile = File(project.outFileFor(target));
+      cFile.parent.createSync(recursive: true);
       cFile.writeAsStringSync(cCode);
       _log('  Written ${p.relative(cFile.path, from: project.rootDir)}');
       return cFile;
@@ -199,7 +195,7 @@ class Builder {
   // ── step 4a: simple mode — invoke C compiler ──────────────────────────────
 
   Future<bool> _compile(File cFile) async {
-    final cc = target.ccBin;
+    final cc = target.cc?.exe ?? 'gcc';
     final output = _resolveOutput();
 
     // Ensure output directory exists.
@@ -207,7 +203,7 @@ class Builder {
     if (!outDir.existsSync()) outDir.createSync(recursive: true);
 
     final args = [
-      ...target.cflags,
+      ...?target.cc?.flags,
       cFile.path,
       '-o', output,
     ];
