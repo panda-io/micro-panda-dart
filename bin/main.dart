@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:micro_panda/src/cli/builder.dart';
+import 'package:micro_panda/src/cli/dep_manager.dart';
 import 'package:micro_panda/src/cli/project.dart';
 import 'package:micro_panda/src/cli/templates.dart';
 
@@ -17,6 +18,7 @@ Commands:
   run    <target>            Build then run the target executable
   test   [file]              Compile and run test files (*_test.mpd)
   clean                      Delete generated C files and binaries
+  update                     Re-fetch all git dependencies
   target add  <name> <tpl>  Add a target from a template
   target remove <name>       Remove a target from mpd.yaml
   target list                List available target templates
@@ -75,6 +77,8 @@ Future<void> main(List<String> args) async {
       await _cmdTest(targetArg, verbose: verbose, projectDir: projectDir);
     case 'clean':
       await _cmdClean(verbose: verbose, projectDir: projectDir);
+    case 'update':
+      await _cmdUpdate(projectDir: projectDir);
     case 'target':
       final sub = cleanArgs.length > 1 ? cleanArgs[1] : '';
       final arg1 = cleanArgs.length > 2 ? cleanArgs[2] : null;
@@ -114,7 +118,7 @@ Future<void> _cmdGen(String? targetName, {required bool verbose, String? project
 
   var allOk = true;
   for (final target in targets) {
-    final file = Builder(project, target, verbose: verbose).gen();
+    final file = await Builder(project, target, verbose: verbose).gen();
     if (file == null) {
       allOk = false;
     } else {
@@ -249,6 +253,21 @@ Future<void> _cmdClean({required bool verbose, String? projectDir}) async {
   _deleteDir('bin', project.rootDir, verbose: verbose);
 
   stdout.writeln('Cleaned.');
+}
+
+Future<void> _cmdUpdate({String? projectDir}) async {
+  final project = _loadProject(projectDir);
+  if (project.deps.isEmpty) {
+    stdout.writeln('No dependencies declared in mpd.yaml.');
+    return;
+  }
+  try {
+    final infos = await DepManager(project).ensureDeps(forceUpdate: true);
+    stdout.writeln('Updated ${infos.length} ${infos.length == 1 ? 'dependency' : 'dependencies'}.');
+  } catch (e) {
+    stderr.writeln('error: $e');
+    exit(1);
+  }
 }
 
 // ── project scaffold ─────────────────────────────────────────────────────────

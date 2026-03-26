@@ -2,6 +2,30 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+/// A git-based dependency declared under `deps:` in mpd.yaml.
+class Dep {
+  /// Git repository URL (no version suffix).
+  final String url;
+
+  /// Tag, branch, or commit hash. `"latest"` means clone default branch HEAD.
+  final String version;
+
+  Dep({required this.url, required this.version});
+
+  /// Parse a dep spec string like `"https://github.com/org/repo@0.1.0"` or `"...@latest"`.
+  factory Dep.parse(String spec) {
+    final schemeEnd = spec.indexOf('://');
+    final atIdx     = spec.lastIndexOf('@');
+    // Ensure the '@' is after the scheme ("https://") separator, not part of it.
+    if (atIdx > (schemeEnd < 0 ? 0 : schemeEnd + 3)) {
+      final url = spec.substring(0, atIdx);
+      final ver = spec.substring(atIdx + 1);
+      return Dep(url: url, version: ver.isEmpty ? 'latest' : ver);
+    }
+    return Dep(url: spec, version: 'latest');
+  }
+}
+
 enum TargetType { c, bin }
 
 /// C compiler settings — lives under the `cc:` sub-node of a target.
@@ -127,6 +151,9 @@ class Project {
   final String version;
   final Map<String, Target> targets;
 
+  /// Git-based dependencies declared under `deps:`.
+  final List<Dep> deps;
+
   /// Project root directory (where mpd.yaml lives).
   final String rootDir;
 
@@ -138,6 +165,7 @@ class Project {
     required this.version,
     required this.targets,
     required this.rootDir,
+    this.deps = const [],
   });
 
   /// Load and parse [mpd.yaml] from [projectDir] (or current directory).
@@ -161,7 +189,15 @@ class Project {
       }
     }
 
-    return Project(name: name, version: version, targets: targets, rootDir: dir);
+    final deps = <Dep>[];
+    final rawDeps = doc['deps'];
+    if (rawDeps is YamlList) {
+      for (final entry in rawDeps) {
+        deps.add(Dep.parse(entry.toString()));
+      }
+    }
+
+    return Project(name: name, version: version, targets: targets, rootDir: dir, deps: deps);
   }
 
   /// Resolve the source directory for a given target. Defaults to `<root>/src/`.

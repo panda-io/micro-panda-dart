@@ -30,6 +30,7 @@ targets:
 | `name` | string | directory name | Project name |
 | `version` | string | `0.1.0` | Project version |
 | `targets` | map | — | Named build targets (see below) |
+| `deps` | list | `[]` | Git-based dependencies (see [Dependencies](#dependencies)) |
 
 ### Target fields
 
@@ -174,3 +175,44 @@ Built-in conventions (not enforced, but recommended):
 | `DEBUG` | Debug build |
 | `HOSTED` | Running on a desktop OS (Linux / macOS / Windows) |
 | `MCU32` | 32-bit microcontroller target |
+
+## Dependencies
+
+Git-based libraries are declared as a list under `deps:`.
+
+```yaml
+deps:
+  - https://github.com/panda-io/led-driver@0.1.0
+  - https://github.com/panda-io/udisplay@latest
+```
+
+Each entry is a URL with a version suffix after `@`. Use `@latest` to pull the default branch HEAD.
+
+### How deps are fetched
+
+- `mpd build` / `mpd gen` / `mpd test` — fetch missing deps on first use; skip if already cached.
+- `mpd update` — force re-fetch all deps.
+- Deps are cloned into `.micro-panda/deps/<name>/` where `<name>` comes from the dep's own `mpd.yaml` `name:` field.
+
+### Lock file
+
+`.micro-panda/deps.lock` records the resolved git commit for every dep.
+Commit this file to make builds reproducible. Add `.micro-panda/deps/` to `.gitignore`.
+
+### Importing from a dep
+
+The dep's `name:` in its `mpd.yaml` is the import prefix. A dep named `led_driver` with a file at `src/pwm.mpd` is imported as:
+
+```mpd
+import led_driver.pwm
+import led_driver.pwm::*
+```
+
+Within a dep, internal imports use bare names as usual (`import pwm`) — no prefix needed.
+The dep author does not need to change import syntax when publishing.
+
+### Library requirements
+
+Every library intended for reuse must have a valid `name:` in its `mpd.yaml`.
+The name must be a valid micro-panda identifier (start with a letter or `_`, alphanumeric and `_` only).
+The tool validates this on first fetch and fails with a clear error if it is missing or invalid.

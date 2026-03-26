@@ -9,6 +9,7 @@ import '../stdlib_embedded.dart';
 import '../token/position.dart';
 import '../validator/validator.dart';
 import 'config_loader.dart';
+import 'dep_manager.dart';
 import 'project.dart';
 
 /// Drives the full build pipeline for a single [Target].
@@ -20,11 +21,17 @@ class Builder {
   /// Config vars loaded from [Target.config]; populated by [_parseModules].
   Map<String, Type> _configVars = {};
 
+  /// Fetched dep info; populated by [_fetchDeps] before parsing.
+  Map<String, DepInfo> _depInfos = {};
+
+  late final DepManager _depManager = DepManager(project);
+
   Builder(this.project, this.target, {this.verbose = false});
 
   /// Generate C only (no compilation). Returns the written file path, or null on error.
-  File? gen() {
+  Future<File?> gen() async {
     _log('Generating C for target "${target.name}"...');
+    await _fetchDeps();
     final modules = _parseModules();
     if (modules == null) return null;
     if (!_validate(modules)) return null;
@@ -38,6 +45,7 @@ class Builder {
   /// Returns true on success.
   Future<bool> build() async {
     _log('Building target "${target.name}"...');
+    await _fetchDeps();
 
     // 1. Discover all .mpd source files reachable from the entry module.
     final modules = _parseModules();
@@ -57,6 +65,12 @@ class Builder {
     if (target.buildCmd != null) return await _runBuildCmd();
     if (target.type == TargetType.bin) return await _compile(cFile);
     return true;
+  }
+
+  // ── step 0: fetch dependencies ────────────────────────────────────────────
+
+  Future<void> _fetchDeps() async {
+    _depInfos = await _depManager.ensureDeps();
   }
 
   // ── step 1: parse ─────────────────────────────────────────────────────────
@@ -108,10 +122,10 @@ class Builder {
 
     final visited = <String>{};
     final modules = <Module>[];
-    final queue = <File>[entryFile];
+    final queue   = <File>[entryFile];
 
     while (queue.isNotEmpty) {
-      final file = queue.removeAt(0);
+      final file    = queue.removeAt(0);
       final absPath = p.normalize(file.absolute.path);
       if (visited.contains(absPath)) continue;
       visited.add(absPath);
@@ -120,15 +134,15 @@ class Builder {
 
       try {
         final source = file.readAsStringSync();
-        final sf = SourceFile(absPath, 0, source.length);
+        final sf         = SourceFile(absPath, 0, source.length);
         final modulePath = _modulePathFor(absPath);
-        final flags = Set<String>.from(target.flags);
-        final module = Parser(sf, source, flags).parseModule(modulePath);
+        final flags      = Set<String>.from(target.flags);
+        final module     = Parser(sf, source, flags).parseModule(modulePath);
         modules.add(module);
 
         // Enqueue imported modules.
         for (final imp in module.imports) {
-          final importedFile = _resolveImport(imp.path);
+          final importedFile = _resolveImport(imp.path, absPath);
           if (importedFile != null) queue.add(importedFile);
         }
       } catch (e) {
@@ -137,13 +151,14 @@ class Builder {
       }
     }
 
-    return [...extraModules, ...modules];
+    // Normalize dep-internal import paths so the generator's reachability
+    // traversal can follow them (e.g. bare `import pwm` → `led_driver.pwm`).
+    final allModules = [...extraModules, ...modules];
+    return _normalizeDepImports(allModules);
   }
 
   File _resolveEntry() {
-    // Entry can be a module path like "firmware/main" or just "main".
-    final rel = '${target.entry.replaceAll('.', p.separator)}.mpd';
-    // Check src first, then test directory (for test entries).
+    final rel     = '${target.entry.replaceAll('.', p.separator)}.mpd';
     final srcFile = File(p.join(project.srcFor(target), rel));
     if (srcFile.existsSync()) return srcFile;
     final testDir = project.testDirFor(target);
@@ -154,32 +169,123 @@ class Builder {
     return srcFile; // return src path so error message is meaningful
   }
 
-  File? _resolveImport(String importPath) {
+  /// Resolve an [importPath] string to a file.
+  /// [fromAbsPath] is the absolute path of the file that contains the import —
+  /// used to detect dep-internal (bare) imports and search that dep's src first.
+  File? _resolveImport(String importPath, String fromAbsPath) {
     final rel = '${importPath.replaceAll('.', p.separator)}.mpd';
-    // 1. Project source (highest priority — allows overriding std).
+
+    // 1. If the calling file lives inside a dep, search that dep's src first
+    //    so bare imports (e.g. `import utils` within led_driver) resolve locally.
+    for (final dep in _depInfos.values) {
+      final depSrc = p.normalize(_depManager.depSrcDir(dep.name));
+      if (p.normalize(fromAbsPath).startsWith(depSrc)) {
+        final internalFile = File(p.join(depSrc, rel));
+        if (internalFile.existsSync()) return internalFile;
+        break; // a file can only belong to one dep
+      }
+    }
+
+    // 2. First path segment is a known dep name → namespaced import from host.
+    //    e.g. `import led_driver.pwm` → .micro-panda/deps/led_driver/src/pwm.mpd
+    final segments = importPath.split('.');
+    if (segments.length > 1 && _depInfos.containsKey(segments.first)) {
+      final depName  = segments.first;
+      final innerRel = '${segments.skip(1).join(p.separator)}.mpd';
+      final depFile  = File(p.join(_depManager.depSrcDir(depName), innerRel));
+      if (depFile.existsSync()) return depFile;
+    }
+
+    // 3. Project source (highest priority over std — allows overriding std modules).
     final projectFile = File(p.join(project.srcFor(target), rel));
     if (projectFile.existsSync()) return projectFile;
-    // 2. Extracted std cache (populated from embedded std by _ensureStd).
+
+    // 4. Extracted std cache.
     final stdFile = File(p.join(_stdCacheDir, rel));
     if (stdFile.existsSync()) return stdFile;
+
     return null;
   }
 
   String _modulePathFor(String absPath) {
-    // Modules from the std cache use the std cache dir as their root.
+    final normAbs = p.normalize(absPath);
+
+    // Dep modules — prefix with dep name so paths are globally unique.
+    // e.g. .micro-panda/deps/led_driver/src/pwm.mpd → "led_driver.pwm"
+    for (final dep in _depInfos.values) {
+      final depSrc = p.normalize(_depManager.depSrcDir(dep.name));
+      if (normAbs.startsWith(depSrc)) {
+        final rel   = p.relative(absPath, from: _depManager.depSrcDir(dep.name));
+        final inner = p.withoutExtension(rel).replaceAll(p.separator, '.');
+        return '${dep.name}.$inner';
+      }
+    }
+
+    // Std cache modules.
     final stdCache = p.normalize(_stdCacheDir);
-    if (p.normalize(absPath).startsWith(stdCache)) {
-      final rel = p.relative(absPath, from: stdCache);
+    if (normAbs.startsWith(stdCache)) {
+      final rel = p.relative(absPath, from: _stdCacheDir);
       return p.withoutExtension(rel).replaceAll(p.separator, '.');
     }
+
     // Test files live under the target's test directory.
     final testDir = project.testDirFor(target);
-    if (testDir != null && p.normalize(absPath).startsWith(p.normalize(testDir))) {
+    if (testDir != null && normAbs.startsWith(p.normalize(testDir))) {
       final rel = p.relative(absPath, from: testDir);
       return p.withoutExtension(rel).replaceAll(p.separator, '.');
     }
+
+    // Project source files.
     final rel = p.relative(absPath, from: project.srcFor(target));
     return p.withoutExtension(rel).replaceAll(p.separator, '.');
+  }
+
+  /// Rewrite import paths inside dep modules so bare internal imports become
+  /// fully-qualified dep paths (e.g. `pwm` → `led_driver.pwm`).
+  ///
+  /// This is needed because `_filterReachable` in the generator follows import
+  /// paths by string lookup, and the stored module paths are already dep-prefixed.
+  List<Module> _normalizeDepImports(List<Module> modules) {
+    if (_depInfos.isEmpty) return modules;
+
+    return modules.map((module) {
+      // Only rewrite imports in modules that belong to a dep.
+      bool isDepModule = false;
+      for (final dep in _depInfos.values) {
+        if (p.normalize(module.sourceFile.name)
+            .startsWith(p.normalize(_depManager.depSrcDir(dep.name)))) {
+          isDepModule = true;
+          break;
+        }
+      }
+      if (!isDepModule) return module;
+
+      var changed = false;
+      final newImports = module.imports.map((imp) {
+        // Resolve the import from within the dep context.
+        final resolved = _resolveImport(imp.path, module.sourceFile.name);
+        if (resolved == null) return imp;
+
+        final absResolved = p.normalize(resolved.absolute.path);
+        for (final dep in _depInfos.values) {
+          final depSrc = p.normalize(_depManager.depSrcDir(dep.name));
+          if (absResolved.startsWith(depSrc)) {
+            final rel           = p.relative(absResolved, from: _depManager.depSrcDir(dep.name));
+            final qualifiedPath = '${dep.name}.${p.withoutExtension(rel).replaceAll(p.separator, '.')}';
+            if (qualifiedPath == imp.path) return imp; // already qualified
+            changed = true;
+            return Import(qualifiedPath,
+                symbol: imp.symbol, alias: imp.alias,
+                isWildcard: imp.isWildcard, position: imp.position);
+          }
+        }
+        return imp;
+      }).toList();
+
+      if (!changed) return module;
+      return Module(module.path, module.sourceFile, module.rawBlocks,
+          newImports, module.variables, module.functions, module.classes, module.enums);
+    }).toList();
   }
 
   // ── step 2: validate ──────────────────────────────────────────────────────
@@ -200,7 +306,7 @@ class Builder {
     return CGenerator().generate(modules, entryModPath: target.entry, entryFn: target.gen.entryFn);
   }
 
-  // ── step 3: write C file ──────────────────────────────────────────────────
+  // ── step 4: write C file ──────────────────────────────────────────────────
 
   File? _writeCFile(String cCode) {
     try {
@@ -215,10 +321,10 @@ class Builder {
     }
   }
 
-  // ── step 4a: simple mode — invoke C compiler ──────────────────────────────
+  // ── step 5a: simple mode — invoke C compiler ──────────────────────────────
 
   Future<bool> _compile(File cFile) async {
-    final cc = target.cc?.exe ?? 'gcc';
+    final cc     = target.cc?.exe ?? 'gcc';
     final output = _resolveOutput();
 
     // Ensure output directory exists.
@@ -245,7 +351,7 @@ class Builder {
     return true;
   }
 
-  // ── step 4b: custom mode — run external build system ─────────────────────
+  // ── step 5b: custom mode — run external build system ─────────────────────
 
   Future<bool> _runBuildCmd() async {
     final cmd = target.buildCmd!;
@@ -281,7 +387,7 @@ class Builder {
   /// Naive command splitter: splits on whitespace, respects single/double quotes.
   List<String> _splitCommand(String cmd) {
     final parts = <String>[];
-    final buf = StringBuffer();
+    final buf   = StringBuffer();
     String? quote;
     for (final ch in cmd.split('')) {
       if (quote != null) {

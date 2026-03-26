@@ -65,6 +65,15 @@ Removes generated C files (`out/`) and compiled binaries (`bin/`).
 mpd clean
 ```
 
+### `update` — Re-fetch dependencies
+
+Force re-fetches all git dependencies declared in `deps:`, regardless of whether they are already cached.
+Updates `.micro-panda/deps.lock` with the latest resolved commit hashes.
+
+```bash
+mpd update
+```
+
 ### `target` — Manage targets
 
 ```bash
@@ -97,6 +106,10 @@ Available templates:
 mkdir myapp && cd myapp
 mpd init
 
+# Add a dependency
+# (edit mpd.yaml: deps: - https://github.com/panda-io/led-driver@0.1.0)
+mpd build          # deps fetched automatically on first build
+
 # Add an ESP32 target
 mpd target add esp32 esp32-release
 
@@ -109,6 +122,9 @@ mpd run main
 
 # Run tests
 mpd test
+
+# Update all deps to their latest locked versions
+mpd update
 
 # Clean up
 mpd clean
