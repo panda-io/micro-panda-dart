@@ -56,7 +56,7 @@ ConfigData loadConfig(String filePath) {
     }
   }
 
-  final validatorTypes = {for (final e in entries) e.key: e.type as Type};
+  final validatorTypes = {for (final e in entries) e.key: e.type};
   final defines = entries.map((e) => '#define ${e.key} ${e.cValue}').toList();
   final module = _buildModule(filePath, defines);
   return ConfigData(validatorTypes, module);

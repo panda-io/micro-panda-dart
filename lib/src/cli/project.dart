@@ -35,7 +35,7 @@ class GenConfig {
   GenConfig({this.entryFn = 'main'});
 
   factory GenConfig.fromYaml(YamlMap yaml) => GenConfig(
-        entryFn: yaml['entry_fn'] as String? ?? 'main',
+        entryFn: yaml['entry'] as String? ?? 'main',
       );
 }
 

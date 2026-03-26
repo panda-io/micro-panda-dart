@@ -38,10 +38,10 @@ void main() {
     final target = Target(
       name: 'collection_test',
       entry: 'hosted.collection_test',
+      type: TargetType.bin,
       flags: ['HOSTED'],
-      cc: 'gcc',
-      cflags: ['-O0'],
-      out: '/tmp/mpd_test_out',
+      cc: CcConfig(bin: 'gcc', flags: ['-O0']),
+      out: '/tmp/mpd_test_out/collection_test.c',
       output: '/tmp/mpd_test_out/collection_test',
     );
     try {

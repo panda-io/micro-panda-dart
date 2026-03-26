@@ -48,7 +48,7 @@ const kTemplates = <String, TargetTemplate>{
     '    flags: [MCU32, DEBUG]\n'
     '    build_cmd: idf.py build\n'
     '    gen:\n'
-    '      entry_fn: app_main',
+    '      entry: app_main',
   ),
   'esp32-release': TargetTemplate(
     'ESP32 via ESP-IDF, release build',
@@ -59,7 +59,7 @@ const kTemplates = <String, TargetTemplate>{
     '    flags: [MCU32]\n'
     '    build_cmd: idf.py build\n'
     '    gen:\n'
-    '      entry_fn: app_main',
+    '      entry: app_main',
   ),
 };
 

@@ -62,7 +62,7 @@ Code-generation settings.
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
-| `entry_fn` | string | `main` | C entry function name (use `app_main` for ESP-IDF targets) |
+| `entry` | string | `main` | C entry function name (use `app_main` for ESP-IDF targets) |
 
 ## Target types
 
@@ -108,7 +108,7 @@ targets:
     flags: [MCU32]
     build_cmd: idf.py build
     gen:
-      entry_fn: app_main
+      entry: app_main
 ```
 
 ### Multiple toolchains
