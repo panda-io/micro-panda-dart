@@ -19,7 +19,7 @@ class Builder {
   final bool verbose;
 
   /// Config vars loaded from [Target.config]; populated by [_parseModules].
-  Map<String, Type> _configVars = {};
+  Map<String, Type?> _configVars = {};
 
   /// Fetched dep info; populated by [_fetchDeps] before parsing.
   Map<String, DepInfo> _depInfos = {};

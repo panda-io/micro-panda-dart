@@ -13,7 +13,7 @@ import '../ast/type/type_name.dart';
 class Validator {
   List<ValidationError> validate(
     List<Module> modules, {
-    Map<String, Type> configVars = const {},
+    Map<String, Type?> configVars = const {},
   }) {
     final ctx = Context.root(modules, configVars: configVars);
     for (final mod in modules) {

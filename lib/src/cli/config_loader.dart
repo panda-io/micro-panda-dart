@@ -3,26 +3,24 @@ import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 import '../ast/module.dart';
 import '../ast/type/type.dart';
-import '../ast/type/type_builtin.dart';
 import '../token/position.dart';
-import '../token/token_type.dart';
-
-/// Validated and parsed config entry.
-class _Entry {
-  final String key;
-  final Type type;
-  final String cValue; // C literal string for #define
-
-  _Entry(this.key, this.type, this.cValue);
-}
 
 final _keyRe = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');
 
 /// Load and validate a key-value config file.
 ///
-/// Returns a [ConfigData] containing the validator type map and the
-/// synthetic `\$config` module (with `#define` raw blocks) to prepend
-/// to the module list.
+/// Returns a [ConfigData] containing:
+/// - [ConfigData.validatorTypes] — config keys mapped to `null` so the
+///   validator accepts them in any numeric/bool context (they are untyped
+///   `#define` macros at the C level).
+/// - [ConfigData.module] — synthetic `\$config` module whose rawBlocks
+///   emit one `#define` line per entry.
+///
+/// Supported YAML scalar types:
+/// - `int`    → `#define KEY 42`
+/// - `bool`   → `#define KEY 1` / `#define KEY 0`
+/// - `double` → `#define KEY 3.14`
+/// - `String` → `#define KEY value`  (verbatim — user adds quotes if needed)
 ///
 /// Throws [Exception] on parse or validation error.
 ConfigData loadConfig(String filePath) {
@@ -35,7 +33,9 @@ ConfigData loadConfig(String filePath) {
     throw Exception('${p.basename(filePath)}: expected a YAML mapping at the top level');
   }
 
-  final entries = <_Entry>[];
+  final keys    = <String>[];
+  final defines = <String>[];
+
   for (final kv in doc.entries) {
     final key = kv.key.toString();
     if (!_keyRe.hasMatch(key)) {
@@ -44,22 +44,30 @@ ConfigData loadConfig(String filePath) {
           '(must start with a letter or _, followed by letters, digits, or _)');
     }
 
-    final value = kv.value;
+    final value  = kv.value;
+    final String cValue;
     if (value is int) {
-      entries.add(_Entry(key, TypeBuiltin(TokenType.typeInt32), '$value'));
+      cValue = '$value';
     } else if (value is bool) {
-      entries.add(_Entry(key, TypeBuiltin(TokenType.typeBool), value ? '1' : '0'));
+      cValue = value ? '1' : '0';
+    } else if (value is double) {
+      cValue = '$value';
+    } else if (value is String) {
+      cValue = value; // verbatim: user writes IRAM_ATTR or "my_string" as needed
     } else {
       throw Exception(
           '${p.basename(filePath)}: unsupported value type for key "$key" '
-          '(only int and bool are supported)');
+          '(supported: int, bool, double, string)');
     }
+
+    keys.add(key);
+    defines.add('#define $key $cValue');
   }
 
-  final validatorTypes = {for (final e in entries) e.key: e.type};
-  final defines = entries.map((e) => '#define ${e.key} ${e.cValue}').toList();
-  final module = _buildModule(filePath, defines);
-  return ConfigData(validatorTypes, module);
+  // Seed with null so the validator accepts config names in any type context.
+  // The actual type is determined by the C #define at compile time.
+  final validatorTypes = {for (final k in keys) k: null as Type?};
+  return ConfigData(validatorTypes, _buildModule(filePath, defines));
 }
 
 Module _buildModule(String filePath, List<String> defines) {
@@ -74,8 +82,8 @@ Module _emptyModule(String filePath) {
 
 /// Result of loading a config file.
 class ConfigData {
-  /// Types to inject into the validator's global scope.
-  final Map<String, Type> validatorTypes;
+  /// Config keys with null types — compatible with any type in the validator.
+  final Map<String, Type?> validatorTypes;
 
   /// Synthetic module whose rawBlocks contain the `#define` lines.
   final Module module;
