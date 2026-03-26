@@ -79,7 +79,7 @@ class Context {
   })  : _parent = parent,
         _errors = errors;
 
-  factory Context.root(List<Module> modules) {
+  factory Context.root(List<Module> modules, {Map<String, Type> configVars = const {}}) {
     final classes = <String, ClassDecl>{};
     final enums = <String, EnumDecl>{};
     final functions = <String, FunctionDecl>{};
@@ -102,6 +102,7 @@ class Context {
         variables[v.name] = v.type;
       }
     }
+    variables.addAll(configVars);
     return Context._(
       classes: classes,
       enums: enums,

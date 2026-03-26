@@ -2,11 +2,13 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../ast/module.dart';
+import '../ast/type/type.dart';
 import '../generator/c/generator.dart';
 import '../parser/parser.dart';
 import '../stdlib_embedded.dart';
 import '../token/position.dart';
 import '../validator/validator.dart';
+import 'config_loader.dart';
 import 'project.dart';
 
 /// Drives the full build pipeline for a single [Target].
@@ -14,6 +16,9 @@ class Builder {
   final Project project;
   final Target target;
   final bool verbose;
+
+  /// Config vars loaded from [Target.config]; populated by [_parseModules].
+  Map<String, Type> _configVars = {};
 
   Builder(this.project, this.target, {this.verbose = false});
 
@@ -80,6 +85,21 @@ class Builder {
   List<Module>? _parseModules() {
     _ensureStd();
 
+    // Load config if specified — populates _configVars and prepends $config module.
+    final extraModules = <Module>[];
+    if (target.config != null) {
+      final configPath = p.join(project.rootDir, target.config!);
+      try {
+        final data = loadConfig(configPath);
+        _configVars = data.validatorTypes;
+        extraModules.add(data.module);
+        _log('  Config: ${target.config} (${_configVars.length} entries)');
+      } catch (e) {
+        _error(e.toString());
+        return null;
+      }
+    }
+
     final entryFile = _resolveEntry();
     if (!entryFile.existsSync()) {
       _error('Entry file not found: ${entryFile.path}');
@@ -117,7 +137,7 @@ class Builder {
       }
     }
 
-    return modules;
+    return [...extraModules, ...modules];
   }
 
   File _resolveEntry() {
@@ -166,7 +186,7 @@ class Builder {
 
   bool _validate(List<Module> modules) {
     _log('  Validating...');
-    final errors = Validator().validate(modules);
+    final errors = Validator().validate(modules, configVars: _configVars);
     for (final e in errors) {
       stderr.writeln(e.toString());
     }

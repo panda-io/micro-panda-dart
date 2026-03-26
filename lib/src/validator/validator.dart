@@ -3,6 +3,7 @@ import '../ast/module.dart';
 import '../ast/declaration/class_decl.dart';
 import '../ast/declaration/function_decl.dart';
 import '../ast/declaration/variable_decl.dart';
+import '../ast/type/type.dart';
 import '../ast/type/type_ref.dart';
 import '../ast/type/type_name.dart';
 
@@ -10,8 +11,11 @@ import '../ast/type/type_name.dart';
 /// Returns the list of [ValidationError]s found.
 /// If the list is empty, the AST is well-typed and safe to generate.
 class Validator {
-  List<ValidationError> validate(List<Module> modules) {
-    final ctx = Context.root(modules);
+  List<ValidationError> validate(
+    List<Module> modules, {
+    Map<String, Type> configVars = const {},
+  }) {
+    final ctx = Context.root(modules, configVars: configVars);
     for (final mod in modules) {
       final modCtx = ctx.forModule(mod.sourceFile, mod.path);
       for (final v in mod.variables) {

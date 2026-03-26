@@ -207,7 +207,8 @@ class CGenerator {
         queue.add(imp.path);
       }
     }
-    return modules.where((m) => visited.contains(m.path)).toList();
+    // Always keep synthetic modules (path starts with '$') regardless of reachability.
+    return modules.where((m) => visited.contains(m.path) || m.path.startsWith('\$')).toList();
   }
 
   String generate(List<Module> modules, {String? entryModPath, String entryFn = 'main'}) {

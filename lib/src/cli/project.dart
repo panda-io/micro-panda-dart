@@ -61,6 +61,10 @@ class Target {
   /// C compiler settings. Required when [type] is [TargetType.bin].
   final CcConfig? cc;
 
+  /// Key-value config file path (relative to project root).
+  /// Entries are globally visible in all modules without import.
+  final String? config;
+
   /// Per-target source folder. Defaults to `src/` when omitted.
   final String? src;
 
@@ -81,6 +85,7 @@ class Target {
     this.buildCmd,
     GenConfig? gen,
     this.cc,
+    this.config,
     this.src,
     this.test,
     this.out,
@@ -107,6 +112,7 @@ class Target {
       buildCmd: yaml['build_cmd'] as String?,
       gen:      rawGen is YamlMap ? GenConfig.fromYaml(rawGen) : GenConfig(),
       cc:       rawCc  is YamlMap ? CcConfig.fromYaml(rawCc)   : null,
+      config:   yaml['config'] as String?,
       src:      yaml['src']    as String?,
       test:     yaml['test']   as String?,
       out:      yaml['out']    as String?,
