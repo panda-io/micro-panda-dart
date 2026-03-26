@@ -64,6 +64,9 @@ class Target {
   /// Per-target source folder. Defaults to `src/` when omitted.
   final String? src;
 
+  /// Test files folder. When set, `mpd test` discovers `*_test.mpd` here.
+  final String? test;
+
   /// Output file path (e.g. "main/esp32.c"). Falls back to `out/<name>.c`.
   final String? out;
 
@@ -79,6 +82,7 @@ class Target {
     GenConfig? gen,
     this.cc,
     this.src,
+    this.test,
     this.out,
     this.output,
   }) : gen = gen ?? GenConfig();
@@ -103,8 +107,9 @@ class Target {
       buildCmd: yaml['build_cmd'] as String?,
       gen:      rawGen is YamlMap ? GenConfig.fromYaml(rawGen) : GenConfig(),
       cc:       rawCc  is YamlMap ? CcConfig.fromYaml(rawCc)   : null,
-      src:      yaml['src'] as String?,
-      out:      yaml['out'] as String?,
+      src:      yaml['src']    as String?,
+      test:     yaml['test']   as String?,
+      out:      yaml['out']    as String?,
       output:   yaml['output'] as String?,
     );
   }
@@ -121,9 +126,6 @@ class Project {
 
   /// Default output directory for generated C files. Convention: `<root>/out/`.
   String get out => p.join(rootDir, 'out');
-
-  /// Test files directory. Convention: `<root>/test/`.
-  String get test => p.join(rootDir, 'test');
 
   Project({
     required this.name,
@@ -158,6 +160,10 @@ class Project {
 
   /// Resolve the source directory for a given target. Defaults to `<root>/src/`.
   String srcFor(Target target) => p.join(rootDir, target.src ?? 'src');
+
+  /// Resolve the test directory for a given target. Returns null if [Target.test] is unset.
+  String? testDirFor(Target target) =>
+      target.test != null ? p.join(rootDir, target.test!) : null;
 
   /// Resolve the output file path for a given target.
   /// Uses [Target.out] when set; otherwise `<out>/<name>.c`.

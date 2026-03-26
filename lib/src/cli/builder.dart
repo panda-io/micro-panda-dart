@@ -126,8 +126,11 @@ class Builder {
     // Check src first, then test directory (for test entries).
     final srcFile = File(p.join(project.srcFor(target), rel));
     if (srcFile.existsSync()) return srcFile;
-    final testFile = File(p.join(project.test, rel));
-    if (testFile.existsSync()) return testFile;
+    final testDir = project.testDirFor(target);
+    if (testDir != null) {
+      final testFile = File(p.join(testDir, rel));
+      if (testFile.existsSync()) return testFile;
+    }
     return srcFile; // return src path so error message is meaningful
   }
 
@@ -149,10 +152,10 @@ class Builder {
       final rel = p.relative(absPath, from: stdCache);
       return p.withoutExtension(rel).replaceAll(p.separator, '.');
     }
-    // Test files live under project.test.
-    final testDir = p.normalize(project.test);
-    if (p.normalize(absPath).startsWith(testDir)) {
-      final rel = p.relative(absPath, from: project.test);
+    // Test files live under the target's test directory.
+    final testDir = project.testDirFor(target);
+    if (testDir != null && p.normalize(absPath).startsWith(p.normalize(testDir))) {
+      final rel = p.relative(absPath, from: testDir);
       return p.withoutExtension(rel).replaceAll(p.separator, '.');
     }
     final rel = p.relative(absPath, from: project.srcFor(target));

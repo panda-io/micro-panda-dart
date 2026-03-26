@@ -9,14 +9,16 @@ The CLI reads this file to discover sources, flags, and build targets.
 name: my_project
 version: 0.1.0
 
-src: src/    # micro-panda source root  (default: src/)
-out: out/    # generated C output dir   (default: out/)
-
 targets:
   main:
     entry: main
-    cc: gcc
-    output: bin/app
+    src: src/
+    type: bin
+    flags: [DEBUG, HOSTED]
+    output: bin/main
+    cc:
+      bin: gcc
+      flags: [-g, -O0, -Wall]
 ```
 
 ## Full field reference
@@ -27,77 +29,124 @@ targets:
 | --- | --- | --- | --- |
 | `name` | string | directory name | Project name |
 | `version` | string | `0.1.0` | Project version |
-| `src` | string | `src/` | Source root directory |
-| `out` | string | `out/` | Default output dir for generated C files |
 | `targets` | map | — | Named build targets (see below) |
 
 ### Target fields
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `entry` | string | Entry module name, e.g. `main` or `firmware/main` |
-| `flags` | list | Micro-panda conditional compile flags (see [Preprocessor](#flags)) |
-| `platform` | string | Platform hint, e.g. `linux-x64`, `arm-cortex-m4` |
-| `cc` | string | C compiler binary name, e.g. `gcc`, `arm-none-eabi-gcc` |
-| `cc_path` | string | Directory containing `cc` (optional; falls back to PATH) |
-| `cflags` | list | Extra C compiler flags, e.g. `[-O2, -Wall]` |
-| `out` | string | Override project-level output dir for this target |
-| `output` | string | Final executable or binary path |
-| `build_cmd` | string | Custom build command (replaces `cc`/`cflags`) |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `entry` | string | yes | Entry module name, e.g. `main` or `firmware/main` |
+| `type` | string | yes | `bin` — compile to binary; `c` — generate C only |
+| `src` | string | no | Source folder for this target (default: `src/`) |
+| `test` | string | no | Test files folder; enables `mpd test` for this target |
+| `flags` | list | no | Micro-panda conditional compile flags (see [Flags](#flags)) |
+| `out` | string | no | Output C file path, e.g. `main/esp32.c` (default: `out/<name>.c`) |
+| `output` | string | no | Final executable path (used by `type: bin` targets) |
+| `build_cmd` | string | no | Shell command run after C generation, e.g. `idf.py build` |
+| `cc` | map | no | C compiler settings (see below) — required for `type: bin` |
+| `gen` | map | no | Code-generation settings (see below) |
 
-## Build modes
+### `cc:` sub-node
 
-### Simple mode — mpd drives compilation
+C compiler settings. Used when `type: bin` or `build_cmd` is absent.
 
-Set `cc` (and optionally `cc_path`, `cflags`). The CLI generates C then calls the compiler directly.
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `bin` | string | `gcc` | Compiler executable name |
+| `path` | string | — | Directory containing `bin` (falls back to PATH if omitted) |
+| `flags` | list | `[]` | Extra compiler flags, e.g. `[-O2, -Wall]` |
+
+### `gen:` sub-node
+
+Code-generation settings.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `entry_fn` | string | `main` | C entry function name (use `app_main` for ESP-IDF targets) |
+
+## Target types
+
+### `type: bin` — mpd drives compilation
+
+mpd generates C then calls the compiler directly using the `cc:` settings.
 
 ```yaml
 targets:
   main:
     entry: main
-    platform: linux-x64
-    cc: gcc
-    cflags: [-O2, -Wall]
-    flags: [release]
-    output: bin/app
+    src: src/
+    type: bin
+    flags: [DEBUG, HOSTED]
+    output: bin/main
+    cc:
+      bin: gcc
+      flags: [-g, -O0, -Wall]
 
-  debug:
+  release:
     entry: main
-    cc: gcc
-    cflags: [-g, -O0]
-    flags: [debug]
-    output: bin/app_debug
+    src: src/
+    type: bin
+    flags: [HOSTED]
+    output: bin/main
+    cc:
+      bin: gcc
+      flags: [-O2, -Wall]
+```
+
+### `type: c` — generate C only (external build system)
+
+mpd writes the C file; an external tool (CMake, ESP-IDF, etc.) handles compilation.
+Set `build_cmd` to run after generation when using `mpd build`.
+
+```yaml
+targets:
+  esp32:
+    entry: main
+    src: src/
+    out: main/esp32.c
+    type: c
+    flags: [MCU32]
+    build_cmd: idf.py build
+    gen:
+      entry_fn: app_main
 ```
 
 ### Multiple toolchains
 
-Use `cc_path` when several compilers of the same name exist in different directories.
+Use `cc.path` when the compiler is not on PATH.
 
 ```yaml
 targets:
-  arm_firmware:
+  arm:
     entry: firmware/main
-    platform: arm-cortex-m4
-    cc: arm-none-eabi-gcc
-    cc_path: /opt/arm-toolchain/bin
-    cflags: [-mcpu=cortex-m4, -Os, -ffreestanding]
-    flags: [release]
+    src: src/
+    type: bin
+    flags: [MCU32]
     output: bin/firmware.elf
+    cc:
+      bin: arm-none-eabi-gcc
+      path: /opt/arm-toolchain/bin
+      flags: [-mcpu=cortex-m4, -Os, -ffreestanding]
 ```
 
-### Custom mode — external build system
+## Tests
 
-Set `build_cmd` instead of `cc`. The CLI generates C into `out:`, then runs the command.
-Use this for SDKs with their own build system (Make, CMake, ESP-IDF, etc.).
+Set `test:` to a folder path to enable `mpd test` for that target.
+Test files are discovered as `*_test.mpd` under that folder.
+Tests inherit the target's `cc` and `flags` directly.
 
 ```yaml
 targets:
-  esp_firmware:
-    entry: firmware/main
-    out: sdk/components/app/    # place generated C where SDK expects it
-    build_cmd: make -C sdk/ -j4
-    flags: [release, esp8266]
-    output: sdk/build/firmware.bin
+  main:
+    entry: main
+    src: src/
+    test: test/
+    type: bin
+    flags: [DEBUG, HOSTED]
+    output: bin/main
+    cc:
+      bin: gcc
+      flags: [-g, -O0, -Wall]
 ```
 
 ## Flags
@@ -105,16 +154,16 @@ targets:
 The `flags` list is passed to the micro-panda preprocessor and controls `#if`/`#else`/`#end` blocks:
 
 ```yaml
-flags: [debug, esp8266]
+flags: [DEBUG, MCU32]
 ```
 
 ```mpd
-#if debug
+#if DEBUG
     log("debug mode")
 #end
 
-#if esp8266
-    // esp-specific code
+#if MCU32
+    // MCU-specific code
 #end
 ```
 
@@ -122,6 +171,6 @@ Built-in conventions (not enforced, but recommended):
 
 | Flag | Meaning |
 | --- | --- |
-| `debug` | Debug build |
-| `release` | Release / optimised build |
-| platform name | Target platform code paths |
+| `DEBUG` | Debug build |
+| `HOSTED` | Running on a desktop OS (Linux / macOS / Windows) |
+| `MCU32` | 32-bit microcontroller target |
