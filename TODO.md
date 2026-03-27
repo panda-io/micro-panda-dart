@@ -165,6 +165,60 @@ Options to investigate:
 
 ## Tooling
 
+### Build-system integration: platform templates and component auto-update
+
+#### Platform templates (`mpd init <platform>`)
+
+Users must manually write boilerplate to call `mpd gen` and wire the generated C into
+their build system. The CLI should generate this instead.
+
+```sh
+mpd init idf     # ESP-IDF (CMake)
+mpd init pico    # RP2040 pico-sdk (CMake)
+mpd init stm32   # STM32 CubeMX-generated project (CMake)
+```
+
+All three are CMake-based, so the template structure is similar — the differences are
+in the register macro (`idf_component_register` vs `target_sources` / `add_executable`)
+and the two-phase model (IDF runs CMakeLists.txt in script mode before build mode).
+
+Each template should:
+- Run `mpd gen <target>` at configure time so the generated `.c` exists on first build
+- Re-run incrementally when any `.mpd` source or `mpd.yaml` changes (`add_custom_command`)
+- Guard side effects with `if(NOT CMAKE_SCRIPT_MODE_FILE)` where needed (IDF)
+
+Templates embedded in the `mpd` binary (same approach as stdlib).
+
+**PlatformIO** — deferred. PlatformIO manages its own build pipeline well; users only
+need `build_cmd: pio run` in `mpd.yaml`. No template needed, no deep integration.
+
+#### Auto-update `REQUIRES` / `lib_deps` from imported deps
+
+When the user imports `i2c::*` or `spi::*` from the esp32 dep, the IDF
+`idf_component_register REQUIRES` must include `esp_driver_i2c`, `esp_driver_spi`, etc.
+Currently the user adds these manually — easy to forget and hard to debug.
+
+**Proposed: `idf_requires:` field in dep `mpd.yaml`**
+
+```yaml
+# micro-panda-esp32/mpd.yaml
+idf_requires:
+  i2c: [esp_driver_i2c]
+  spi: [esp_driver_spi]
+  gpio: [esp_driver_gpio]
+  pwm: [esp_driver_ledc]
+  adc: [esp_adc]
+```
+
+After `mpd gen`, the CLI could:
+1. Collect `idf_requires` entries for all imported dep modules
+2. Update the `REQUIRES` line in `main/CMakeLists.txt` in-place
+3. Or print a warning: "add esp_driver_i2c to idf_component_register REQUIRES"
+
+Same concept for PlatformIO: `pio_lib_deps:` field maps modules to `lib_deps` entries.
+
+---
+
 ### Revise `mpd.yaml` project config (after language is stable)
 
 Current `mpd.yaml` is minimal and was designed early. Revisit once the language and build

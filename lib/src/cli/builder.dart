@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:path/path.dart' as p;
 
+import '../ast/context.dart' show ValidationError;
 import '../ast/module.dart';
 import '../ast/type/type.dart';
 import '../generator/c/generator.dart';
@@ -8,7 +9,7 @@ import '../parser/parser.dart';
 import '../stdlib_embedded.dart';
 import '../token/position.dart';
 import '../validator/validator.dart';
-import 'config_loader.dart';
+import 'config_loader.dart' show parseConfigEntries, buildConfigData;
 import 'dep_manager.dart';
 import 'project.dart';
 
@@ -99,19 +100,42 @@ class Builder {
   List<Module>? _parseModules() {
     _ensureStd();
 
-    // Load config if specified — populates _configVars and prepends $config module.
+    // Build merged config: dep defaults (lower priority) + project config (overrides).
+    // Dep defaults come from dep's mpd.yaml `default_config:` field.
+    // Result is a single $config module with #define lines, emitted first in the C output.
     final extraModules = <Module>[];
-    if (target.config != null) {
-      final configPath = p.join(project.rootDir, target.config!);
+    final merged = <String, String>{};
+
+    // Layer 1: dep default configs.
+    for (final dep in _depInfos.values) {
+      if (dep.defaultConfig == null) continue;
+      final path = p.join(_depManager.depDir(dep.name), dep.defaultConfig!);
       try {
-        final data = loadConfig(configPath);
-        _configVars = data.validatorTypes;
-        extraModules.add(data.module);
-        _log('  Config: ${target.config} (${_configVars.length} entries)');
+        merged.addAll(parseConfigEntries(path));
+        _log('  Config (dep default): ${dep.name}/${dep.defaultConfig}');
       } catch (e) {
         _error(e.toString());
         return null;
       }
+    }
+
+    // Layer 2: project config (overrides dep defaults).
+    if (target.config != null) {
+      final configPath = p.join(project.rootDir, target.config!);
+      try {
+        merged.addAll(parseConfigEntries(configPath));
+        _log('  Config: ${target.config}');
+      } catch (e) {
+        _error(e.toString());
+        return null;
+      }
+    }
+
+    if (merged.isNotEmpty) {
+      final data = buildConfigData(merged);
+      _configVars = data.validatorTypes;
+      extraModules.add(data.module);
+      _log('  Config: ${merged.length} entries total');
     }
 
     final entryFile = _resolveEntry();
@@ -186,21 +210,36 @@ class Builder {
       }
     }
 
-    // 2. First path segment is a known dep name → namespaced import from host.
-    //    e.g. `import led_driver.pwm` → .micro-panda/deps/led_driver/src/pwm.mpd
+    // 2. First path segment is a known dep name or lib_name → namespaced import from host.
+    //    e.g. `import led_driver.pwm` or `import esp32.spi` with lib_name set
     final segments = importPath.split('.');
-    if (segments.length > 1 && _depInfos.containsKey(segments.first)) {
-      final depName  = segments.first;
-      final innerRel = '${segments.skip(1).join(p.separator)}.mpd';
-      final depFile  = File(p.join(_depManager.depSrcDir(depName), innerRel));
-      if (depFile.existsSync()) return depFile;
+    if (segments.length > 1) {
+      final prefix = segments.first;
+      DepInfo? matched = _depInfos[prefix];
+      if (matched == null) {
+        for (final dep in _depInfos.values) {
+          if (dep.libName == prefix) { matched = dep; break; }
+        }
+      }
+      if (matched != null) {
+        final innerRel = '${segments.skip(1).join(p.separator)}.mpd';
+        final depFile  = File(p.join(_depManager.depSrcDir(matched.name), innerRel));
+        if (depFile.existsSync()) return depFile;
+      }
     }
 
     // 3. Project source (highest priority over std — allows overriding std modules).
     final projectFile = File(p.join(project.srcFor(target), rel));
     if (projectFile.existsSync()) return projectFile;
 
-    // 4. Extracted std cache.
+    // 4. Global deps (lib_name unset) — bare imports like `import i2c` resolve here.
+    for (final dep in _depInfos.values) {
+      if (dep.libName != null && dep.libName!.isNotEmpty) continue;
+      final depFile = File(p.join(_depManager.depSrcDir(dep.name), rel));
+      if (depFile.existsSync()) return depFile;
+    }
+
+    // 5. Extracted std cache.
     final stdFile = File(p.join(_stdCacheDir, rel));
     if (stdFile.existsSync()) return stdFile;
 
@@ -210,14 +249,17 @@ class Builder {
   String _modulePathFor(String absPath) {
     final normAbs = p.normalize(absPath);
 
-    // Dep modules — prefix with dep name so paths are globally unique.
-    // e.g. .micro-panda/deps/led_driver/src/pwm.mpd → "led_driver.pwm"
+    // Dep modules — prefix with lib_name when set, bare path when global (no lib_name).
+    // e.g. lib_name "esp32": deps/esp32_hal/src/spi.mpd → "esp32.spi"
+    //      lib_name unset:   deps/micro_gfx/src/gfx.mpd → "gfx"
     for (final dep in _depInfos.values) {
       final depSrc = p.normalize(_depManager.depSrcDir(dep.name));
       if (normAbs.startsWith(depSrc)) {
-        final rel   = p.relative(absPath, from: _depManager.depSrcDir(dep.name));
-        final inner = p.withoutExtension(rel).replaceAll(p.separator, '.');
-        return '${dep.name}.$inner';
+        final rel    = p.relative(absPath, from: _depManager.depSrcDir(dep.name));
+        final inner  = p.withoutExtension(rel).replaceAll(p.separator, '.');
+        final prefix = dep.libName;
+        if (prefix == null || prefix.isEmpty) return inner;
+        return '$prefix.$inner';
       }
     }
 
@@ -270,8 +312,10 @@ class Builder {
         for (final dep in _depInfos.values) {
           final depSrc = p.normalize(_depManager.depSrcDir(dep.name));
           if (absResolved.startsWith(depSrc)) {
-            final rel           = p.relative(absResolved, from: _depManager.depSrcDir(dep.name));
-            final qualifiedPath = '${dep.name}.${p.withoutExtension(rel).replaceAll(p.separator, '.')}';
+            final rel    = p.relative(absResolved, from: _depManager.depSrcDir(dep.name));
+            final inner  = p.withoutExtension(rel).replaceAll(p.separator, '.');
+            final prefix = dep.libName;
+            final qualifiedPath = (prefix == null || prefix.isEmpty) ? inner : '$prefix.$inner';
             if (qualifiedPath == imp.path) return imp; // already qualified
             changed = true;
             return Import(qualifiedPath,
@@ -284,19 +328,111 @@ class Builder {
 
       if (!changed) return module;
       return Module(module.path, module.sourceFile, module.rawBlocks,
-          newImports, module.variables, module.functions, module.classes, module.enums);
+          module.requiresConfig, newImports, module.variables, module.functions, module.classes, module.enums);
     }).toList();
+  }
+
+  // ── LSP analysis ──────────────────────────────────────────────────────────
+
+  /// Parse and validate all modules for LSP use.
+  /// Unlike [gen]/[build], this never returns null — partial results and all
+  /// errors are returned so the LSP can push diagnostics and still serve completions.
+  Future<LspAnalysis> analyzeForLsp() async {
+    await _fetchDeps();
+    _ensureStd();
+
+    final extraModules = <Module>[];
+    final merged = <String, String>{};
+    final parseErrors = <CompileException>[];
+    final configErrors = <String>[];
+
+    // Merge config (same as _parseModules).
+    for (final dep in _depInfos.values) {
+      if (dep.defaultConfig == null) continue;
+      final path = p.join(_depManager.depDir(dep.name), dep.defaultConfig!);
+      try {
+        merged.addAll(parseConfigEntries(path));
+      } catch (_) {}
+    }
+    if (target.config != null) {
+      final configPath = p.join(project.rootDir, target.config!);
+      try {
+        merged.addAll(parseConfigEntries(configPath));
+      } catch (_) {}
+    }
+    if (merged.isNotEmpty) {
+      final data = buildConfigData(merged);
+      _configVars = data.validatorTypes;
+      extraModules.add(data.module);
+    }
+
+    // Parse all modules tolerantly.
+    final entryFile = _resolveEntry();
+    final visited = <String>{};
+    final modules = <Module>[];
+    final queue = <File>[if (entryFile.existsSync()) entryFile];
+
+    while (queue.isNotEmpty) {
+      final file = queue.removeAt(0);
+      final absPath = p.normalize(file.absolute.path);
+      if (visited.contains(absPath)) continue;
+      visited.add(absPath);
+
+      try {
+        final source = file.readAsStringSync();
+        final sf = SourceFile(absPath, 0, source.length);
+        final modulePath = _modulePathFor(absPath);
+        final flags = Set<String>.from(target.flags);
+        final parser = Parser(sf, source, flags);
+        final (mod, err) = parser.parseModulePartial(modulePath);
+        modules.add(mod);
+        if (err != null) parseErrors.add(err);
+
+        for (final imp in mod.imports) {
+          final importedFile = _resolveImport(imp.path, absPath);
+          if (importedFile != null) queue.add(importedFile);
+        }
+      } catch (_) {}
+    }
+
+    final allModules = _normalizeDepImports([...extraModules, ...modules]);
+
+    // Check @require config keys.
+    for (final mod in allModules) {
+      for (final key in mod.requiresConfig) {
+        if (!_configVars.containsKey(key)) {
+          configErrors.add('${mod.path}: config key "$key" is required but not defined');
+        }
+      }
+    }
+
+    // Semantic validation.
+    final validationErrors = Validator().validate(allModules, configVars: _configVars);
+
+    return LspAnalysis(allModules, parseErrors, configErrors, validationErrors);
   }
 
   // ── step 2: validate ──────────────────────────────────────────────────────
 
   bool _validate(List<Module> modules) {
     _log('  Validating...');
+    var ok = true;
+
+    // Check @require(KEY) annotations against the merged config.
+    for (final mod in modules) {
+      for (final key in mod.requiresConfig) {
+        if (!_configVars.containsKey(key)) {
+          stderr.writeln('${mod.path}: config key "$key" is required but not defined');
+          ok = false;
+        }
+      }
+    }
+
     final errors = Validator().validate(modules, configVars: _configVars);
     for (final e in errors) {
       stderr.writeln(e.toString());
     }
-    return errors.isEmpty;
+    return ok && errors.isEmpty;
   }
 
   // ── step 3: generate C ────────────────────────────────────────────────────
@@ -416,4 +552,14 @@ class Builder {
   }
 
   void _error(String msg) => stderr.writeln('error: $msg');
+}
+
+/// Result of [Builder.analyzeForLsp]: partial modules + all errors.
+class LspAnalysis {
+  final List<Module> modules;
+  final List<CompileException> parseErrors;
+  final List<String> configErrors;
+  final List<ValidationError> validationErrors;
+
+  LspAnalysis(this.modules, this.parseErrors, this.configErrors, this.validationErrors);
 }

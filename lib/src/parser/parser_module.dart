@@ -3,6 +3,7 @@ part of 'parser.dart';
 extension ParserModule on Parser {
   Module _parseModule(String path) {
     final rawBlocks = <String>[];
+    final requiresConfig = <String>[];
     final imports = <Import>[];
     final variables = <VariableDecl>[];
     final functions = <FunctionDecl>[];
@@ -24,11 +25,13 @@ extension ParserModule on Parser {
 
       final allAnnotations = _parseAnnotations();
 
-      // Extract @raw("emit c content") — can appear before any declaration
+      // Extract @raw("...") and @require(KEY) — can appear before any declaration
       final annotations = <Annotation>[];
       for (final a in allAnnotations) {
         if (a.name == 'raw' && a.template != null) {
           rawBlocks.add(a.template!);
+        } else if (a.name == 'require' && a.template != null) {
+          requiresConfig.add(a.template!.trim());
         } else {
           annotations.add(a);
         }
@@ -37,35 +40,40 @@ extension ParserModule on Parser {
       // @raw may appear standalone (no following declaration)
       if (_current.type == TokenType.eof) break;
 
-      switch (_current.type) {
-        case TokenType.kVar:
-        case TokenType.kVal:
-        case TokenType.kConst:
-          if (annotations.isNotEmpty) {
-            _error('annotations are not supported on variable declarations');
-          }
-          variables.add(_parseVariableDecl());
-        case TokenType.kFunction:
-          functions.add(_parseFunctionDecl(annotations: annotations));
-        case TokenType.kClass:
-          if (annotations.isNotEmpty) {
-            _error('annotations are not supported on class declarations');
-          }
-          classes.add(_parseClassDecl());
-        case TokenType.kEnum:
-          if (annotations.isNotEmpty) {
-            _error('annotations are not supported on enum declarations');
-          }
-          enums.add(_parseEnumDecl());
-        case TokenType.newline:
-          break; // standalone @raw with only newlines remaining
-        default:
-          _error('expected top-level declaration (var, val, const, fun, class, enum), '
-              'found ${_current.type.name}');
+      try {
+        switch (_current.type) {
+          case TokenType.kVar:
+          case TokenType.kVal:
+          case TokenType.kConst:
+            if (annotations.isNotEmpty) {
+              _error('annotations are not supported on variable declarations');
+            }
+            variables.add(_parseVariableDecl());
+          case TokenType.kFunction:
+            functions.add(_parseFunctionDecl(annotations: annotations));
+          case TokenType.kClass:
+            if (annotations.isNotEmpty) {
+              _error('annotations are not supported on class declarations');
+            }
+            classes.add(_parseClassDecl());
+          case TokenType.kEnum:
+            if (annotations.isNotEmpty) {
+              _error('annotations are not supported on enum declarations');
+            }
+            enums.add(_parseEnumDecl());
+          case TokenType.newline:
+            break; // standalone @raw with only newlines remaining
+          default:
+            _error('expected top-level declaration (var, val, const, fun, class, enum), '
+                'found ${_current.type.name}');
+        }
+      } on CompileException catch (e) {
+        _firstError = e;
+        break; // stop parsing; return whatever was collected before the error
       }
     }
 
-    return Module(path, file, rawBlocks, imports, variables, functions, classes, enums);
+    return Module(path, file, rawBlocks, requiresConfig, imports, variables, functions, classes, enums);
   }
 
   Import _parseImport() {

@@ -6,12 +6,14 @@ import 'project.dart';
 
 /// Resolved information about a fetched dependency (written to the lock file).
 class DepInfo {
-  final String name;    // from dep's mpd.yaml `name:`
-  final String url;     // original git URL
-  final String version; // "0.1.0" or "latest"
-  final String commit;  // resolved git SHA
+  final String name;           // from dep's mpd.yaml `name:`
+  final String? libName;       // from dep's mpd.yaml `lib_name:` — null = global (no prefix)
+  final String? defaultConfig; // from dep's mpd.yaml `default_config:` — path relative to dep root
+  final String url;            // original git URL
+  final String version;        // "0.1.0" or "latest"
+  final String commit;         // resolved git SHA
 
-  DepInfo({required this.name, required this.url, required this.version, required this.commit});
+  DepInfo({required this.name, this.libName, this.defaultConfig, required this.url, required this.version, required this.commit});
 }
 
 /// Manages git-based dependency fetching and caching under `.micro-panda/deps/`.
@@ -86,6 +88,8 @@ class DepManager {
       throw Exception(
           'Dep ${dep.url}: "name" in mpd.yaml is missing or not a valid identifier (got: $name)');
     }
+    final libName       = doc['lib_name']       as String?;
+    final defaultConfig = doc['default_config'] as String?;
 
     // Resolve commit SHA.
     final revResult = await Process.run('git', ['-C', tempPath, 'rev-parse', 'HEAD']);
@@ -97,7 +101,7 @@ class DepManager {
     Directory(tempPath).renameSync(finalPath);
 
     stdout.writeln('  → $name @ ${commit.length >= 7 ? commit.substring(0, 7) : commit}');
-    return DepInfo(name: name, url: dep.url, version: dep.version, commit: commit);
+    return DepInfo(name: name, libName: libName, defaultConfig: defaultConfig, url: dep.url, version: dep.version, commit: commit);
   }
 
   // ── lock file ──────────────────────────────────────────────────────────────
@@ -113,10 +117,12 @@ class DepManager {
       for (final entry in doc) {
         if (entry is! YamlMap) continue;
         final info = DepInfo(
-          name:    entry['name']    as String? ?? '',
-          url:     entry['url']     as String? ?? '',
-          version: entry['version'] as String? ?? '',
-          commit:  entry['commit']  as String? ?? '',
+          name:          entry['name']           as String? ?? '',
+          libName:       entry['lib_name']        as String?,
+          defaultConfig: entry['default_config']  as String?,
+          url:           entry['url']             as String? ?? '',
+          version:       entry['version']         as String? ?? '',
+          commit:        entry['commit']           as String? ?? '',
         );
         if (info.url.isNotEmpty && info.name.isNotEmpty) result[info.url] = info;
       }
@@ -132,6 +138,8 @@ class DepManager {
     final buf = StringBuffer();
     for (final info in lock.values) {
       buf.writeln('- name: ${info.name}');
+      if (info.libName       != null) buf.writeln('  lib_name: ${info.libName}');
+      if (info.defaultConfig != null) buf.writeln('  default_config: ${info.defaultConfig}');
       buf.writeln('  url: ${info.url}');
       buf.writeln('  version: "${info.version}"');
       buf.writeln('  commit: ${info.commit}');

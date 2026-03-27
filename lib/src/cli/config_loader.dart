@@ -7,35 +7,26 @@ import '../token/position.dart';
 
 final _keyRe = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');
 
-/// Load and validate a key-value config file.
-///
-/// Returns a [ConfigData] containing:
-/// - [ConfigData.validatorTypes] — config keys mapped to `null` so the
-///   validator accepts them in any numeric/bool context (they are untyped
-///   `#define` macros at the C level).
-/// - [ConfigData.module] — synthetic `\$config` module whose rawBlocks
-///   emit one `#define` line per entry.
+/// Parse a config file into a key → C-value-string map.
 ///
 /// Supported YAML scalar types:
-/// - `int`    → `#define KEY 42`
-/// - `bool`   → `#define KEY 1` / `#define KEY 0`
-/// - `double` → `#define KEY 3.14`
-/// - `String` → `#define KEY value`  (verbatim — user adds quotes if needed)
+/// - `int`    → `"42"`
+/// - `bool`   → `"1"` / `"0"`
+/// - `double` → `"3.14"`
+/// - `String` → verbatim string
 ///
 /// Throws [Exception] on parse or validation error.
-ConfigData loadConfig(String filePath) {
+Map<String, String> parseConfigEntries(String filePath) {
   final file = File(filePath);
   if (!file.existsSync()) throw Exception('config file not found: $filePath');
 
   final doc = loadYaml(file.readAsStringSync());
-  if (doc == null) return ConfigData({}, _emptyModule(filePath));
+  if (doc == null) return {};
   if (doc is! YamlMap) {
     throw Exception('${p.basename(filePath)}: expected a YAML mapping at the top level');
   }
 
-  final keys    = <String>[];
-  final defines = <String>[];
-
+  final result = <String, String>{};
   for (final kv in doc.entries) {
     final key = kv.key.toString();
     if (!_keyRe.hasMatch(key)) {
@@ -43,8 +34,7 @@ ConfigData loadConfig(String filePath) {
           '${p.basename(filePath)}: invalid config key "$key" '
           '(must start with a letter or _, followed by letters, digits, or _)');
     }
-
-    final value  = kv.value;
+    final value = kv.value;
     final String cValue;
     if (value is int) {
       cValue = '$value';
@@ -59,25 +49,38 @@ ConfigData loadConfig(String filePath) {
           '${p.basename(filePath)}: unsupported value type for key "$key" '
           '(supported: int, bool, double, string)');
     }
-
-    keys.add(key);
-    defines.add('#define $key $cValue');
+    result[key] = cValue;
   }
-
-  // Seed with null so the validator accepts config names in any type context.
-  // The actual type is determined by the C #define at compile time.
-  final validatorTypes = {for (final k in keys) k: null as Type?};
-  return ConfigData(validatorTypes, _buildModule(filePath, defines));
+  return result;
 }
 
-Module _buildModule(String filePath, List<String> defines) {
-  final sf = SourceFile('\$config:$filePath', 0, 0);
-  return Module('\$config', sf, defines, [], [], [], [], []);
+/// Build a [ConfigData] from a merged key → C-value-string map.
+///
+/// Returns a [ConfigData] containing:
+/// - [ConfigData.validatorTypes] — config keys mapped to `null` so the
+///   validator accepts them in any numeric/bool context (they are untyped
+///   `#define` macros at the C level).
+/// - [ConfigData.module] — synthetic `\$config` module whose rawBlocks
+///   emit one `#define` line per entry.
+ConfigData buildConfigData(Map<String, String> entries) {
+  if (entries.isEmpty) return ConfigData({}, _emptyModule('\$config'));
+  final defines = entries.entries.map((e) => '#define ${e.key} ${e.value}').toList();
+  final validatorTypes = {for (final k in entries.keys) k: null as Type?};
+  return ConfigData(validatorTypes, _buildModule('\$config', defines));
 }
 
-Module _emptyModule(String filePath) {
-  final sf = SourceFile('\$config:$filePath', 0, 0);
-  return Module('\$config', sf, [], [], [], [], [], []);
+/// Load and validate a key-value config file. Convenience wrapper.
+ConfigData loadConfig(String filePath) =>
+    buildConfigData(parseConfigEntries(filePath));
+
+Module _buildModule(String label, List<String> defines) {
+  final sf = SourceFile('\$config:$label', 0, 0);
+  return Module('\$config', sf, defines, [], [], [], [], [], []);
+}
+
+Module _emptyModule(String label) {
+  final sf = SourceFile('\$config:$label', 0, 0);
+  return Module('\$config', sf, [], [], [], [], [], [], []);
 }
 
 /// Result of loading a config file.

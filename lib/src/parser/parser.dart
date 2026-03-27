@@ -57,6 +57,9 @@ class Parser {
   late Token _current;
   final _peekBuffer = Queue<Token>();
 
+  /// First parse error encountered (set by [_parseModule] in tolerant mode).
+  CompileException? _firstError;
+
   Parser(this.file, String source, Set<String> flags)
       : _scanner = Scanner(file, source, HashSet.of(flags)),
         _source = source {
@@ -160,11 +163,12 @@ class Parser {
       String? template;
       if (_current.type == TokenType.leftParen) {
         _advance(); // consume '('
-        if (_current.type != TokenType.stringLiteral) {
-          _error('expected string literal in annotation argument');
+        if (_current.type == TokenType.stringLiteral || _current.type == TokenType.identifier) {
+          template = _current.literal;
+          _advance();
+        } else {
+          _error('expected string literal or identifier in annotation argument');
         }
-        template = _current.literal;
-        _advance();
         _expect(TokenType.rightParen);
       }
       _expectNewline();
@@ -177,4 +181,11 @@ class Parser {
   // ── entry point ──────────────────────────────────────────────────────────────
 
   Module parseModule(String path) => _parseModule(path);
+
+  /// Parse [path] tolerantly: on the first syntax error, stop parsing
+  /// declarations and return the partial module alongside the error.
+  (Module, CompileException?) parseModulePartial(String path) {
+    final mod = _parseModule(path);
+    return (mod, _firstError);
+  }
 }

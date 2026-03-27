@@ -4,6 +4,7 @@ import 'package:micro_panda/src/cli/builder.dart';
 import 'package:micro_panda/src/cli/dep_manager.dart';
 import 'package:micro_panda/src/cli/project.dart';
 import 'package:micro_panda/src/cli/templates.dart';
+import 'package:micro_panda/src/lsp/server.dart';
 
 const _usage = '''
 micro-panda compiler
@@ -19,6 +20,7 @@ Commands:
   test   [file]              Compile and run test files (*_test.mpd)
   clean                      Delete generated C files and binaries
   update                     Re-fetch all git dependencies
+  lsp                        Start Language Server Protocol server (stdin/stdout)
   target add  <name> <tpl>  Add a target from a template
   target remove <name>       Remove a target from mpd.yaml
   target list                List available target templates
@@ -79,6 +81,8 @@ Future<void> main(List<String> args) async {
       await _cmdClean(verbose: verbose, projectDir: projectDir);
     case 'update':
       await _cmdUpdate(projectDir: projectDir);
+    case 'lsp':
+      await LspServer().run();
     case 'target':
       final sub = cleanArgs.length > 1 ? cleanArgs[1] : '';
       final arg1 = cleanArgs.length > 2 ? cleanArgs[2] : null;

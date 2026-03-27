@@ -223,6 +223,7 @@ class CGenerator {
     _emitForwardDeclarations(modules);
     _emitFnPointerTypedefs();
     _emitSliceTypedefs();
+    _emitRawBlocks();
     _emitEnumDefs(modules);
     _emitStructDefs(modules);
     _emitFunctionPrototypes(modules);
@@ -571,6 +572,13 @@ class CGenerator {
     _writeln('#include <stdint.h>');
     _writeln('#include <stdbool.h>');
     _writeln('#include <stddef.h>');
+    _writeln();
+  }
+
+  /// Emit @raw blocks after forward declarations and slice typedefs so that
+  /// raw C code can reference both user-defined struct types and slice types.
+  void _emitRawBlocks() {
+    if (_moduleRawBlocks.isEmpty) return;
     for (final raw in _moduleRawBlocks) {
       _writeln(_unescapeExtern(raw).trim());
     }

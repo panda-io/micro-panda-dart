@@ -43,11 +43,14 @@ class Module {
   /// Raw C blocks emitted verbatim at file level via @raw("...").
   final List<String> rawBlocks;
 
+  /// Config keys required by this module via @require(KEY).
+  final List<String> requiresConfig;
+
   final List<Import> imports;
   final List<VariableDecl> variables;
   final List<FunctionDecl> functions;
   final List<ClassDecl> classes;
   final List<EnumDecl> enums;
 
-  Module(this.path, this.sourceFile, this.rawBlocks, this.imports, this.variables, this.functions, this.classes, this.enums);
+  Module(this.path, this.sourceFile, this.rawBlocks, this.requiresConfig, this.imports, this.variables, this.functions, this.classes, this.enums);
 }

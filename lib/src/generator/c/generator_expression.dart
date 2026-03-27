@@ -333,8 +333,7 @@ extension GeneratorExpression on CGenerator {
     if (!template.contains('{')) {
       // C rename (no placeholders): pass args in order.
       // If the template already contains () it is a full C expression — emit as-is.
-      // If args is empty it may be a bare C expression (e.g. a global variable) — emit as-is.
-      if (args.isEmpty || template.contains('(')) return template;
+      if (template.contains('(')) return template;
       return '$template(${args.join(', ')})';
     }
     // Named placeholder substitution: {paramName} → evaluated arg expression
@@ -379,6 +378,20 @@ extension GeneratorExpression on CGenerator {
     if (className == null) {
       final recv = _expr(receiver);
       return argsStr.isEmpty ? '$recv.$method()' : '$recv.$method($argsStr)';
+    }
+
+    // Check if `method` is a function pointer field (not a real method).
+    // If so, emit `receiver->field(args)` instead of `ClassName_field(receiver, args)`.
+    final classDef = _classes[className];
+    if (classDef != null) {
+      final isFnPtrField =
+          classDef.constructorFields.any((f) => f.name == method && f.type is TypeFunction) ||
+          classDef.bodyFields.any((f) => f.name == method && f.type is TypeFunction);
+      if (isFnPtrField) {
+        return argsStr.isEmpty
+            ? '$receiverArg->$method()'
+            : '$receiverArg->$method($argsStr)';
+      }
     }
 
     // Check for a specialized (monomorphized) version.

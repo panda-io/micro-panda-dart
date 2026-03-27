@@ -148,6 +148,11 @@ class Target {
 /// Parsed representation of mpd.yaml.
 class Project {
   final String name;
+
+  /// Import prefix for this lib. When null or empty, the lib is global (no prefix).
+  /// Set via `lib_name:` in mpd.yaml. Used by dependents to namespace imports.
+  final String? libName;
+
   final String version;
   final Map<String, Target> targets;
 
@@ -162,6 +167,7 @@ class Project {
 
   Project({
     required this.name,
+    this.libName,
     required this.version,
     required this.targets,
     required this.rootDir,
@@ -177,6 +183,7 @@ class Project {
     final doc = loadYaml(yamlFile.readAsStringSync()) as YamlMap;
 
     final name    = doc['name']    as String? ?? p.basename(dir);
+    final libName = doc['lib_name'] as String?;
     final version = doc['version'] as String? ?? '0.1.0';
 
     final targets = <String, Target>{};
@@ -197,7 +204,7 @@ class Project {
       }
     }
 
-    return Project(name: name, version: version, targets: targets, rootDir: dir, deps: deps);
+    return Project(name: name, libName: libName, version: version, targets: targets, rootDir: dir, deps: deps);
   }
 
   /// Resolve the source directory for a given target. Defaults to `<root>/src/`.
