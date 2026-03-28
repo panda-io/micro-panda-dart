@@ -1,10 +1,20 @@
-import 'dart:async';
+import 'dart:async' show Completer;
 import 'dart:convert';
 import 'dart:io';
 
+import '../ast/declaration/class_decl.dart';
+import '../ast/declaration/enum_decl.dart';
 import '../ast/declaration/function_decl.dart';
 import '../ast/declaration/variable_decl.dart';
 import '../ast/module.dart';
+import '../ast/statement/statement.dart';
+import '../ast/statement/statement_block.dart';
+import '../ast/statement/statement_declaration.dart';
+import '../ast/statement/statement_for.dart';
+import '../ast/statement/statement_if.dart';
+import '../ast/statement/statement_match.dart';
+import '../ast/statement/statement_while.dart';
+import '../ast/type/type.dart';
 import '../ast/type/type_builtin.dart';
 import '../ast/type/type_function.dart';
 import '../ast/type/type_name.dart';
@@ -15,11 +25,13 @@ import '../cli/project.dart';
 
 // ── LSP completion item kinds ─────────────────────────────────────────────────
 
-const _kindFunction = 3;
-const _kindVariable = 6;
-const _kindClass    = 7;
-const _kindEnum     = 13;
-const _kindConstant = 21;
+const _kindFunction   = 3;
+const _kindVariable   = 6;
+const _kindClass      = 7;
+const _kindEnum       = 13;
+const _kindKeyword    = 14;
+const _kindEnumMember = 20;
+const _kindConstant   = 21;
 
 // ── LSP diagnostic severities ─────────────────────────────────────────────────
 
@@ -45,16 +57,23 @@ class LspServer {
 
   // ── entry point ─────────────────────────────────────────────────────────────
 
-  Future<void> run() async {
-    final buffer = <int>[];
-    await for (final chunk in stdin) {
-      buffer.addAll(chunk);
-      while (true) {
-        final msg = _tryReadMessage(buffer);
-        if (msg == null) break;
-        await _dispatch(msg);
-      }
-    }
+  Future<void> run() {
+    final buffer   = <int>[];
+    final completer = Completer<void>();
+    stdin.listen(
+      (chunk) {
+        buffer.addAll(chunk);
+        while (true) {
+          final msg = _tryReadMessage(buffer);
+          if (msg == null) break;
+          _dispatch(msg); // fire-and-forget; stdout writes happen outside the stream binding
+        }
+      },
+      onDone: completer.complete,
+      onError: (Object e) => completer.completeError(e),
+      cancelOnError: true,
+    );
+    return completer.future;
   }
 
   // ── JSON-RPC transport ───────────────────────────────────────────────────────
@@ -87,11 +106,10 @@ class LspServer {
   }
 
   void _send(Map<String, dynamic> msg) {
-    final body = jsonEncode(msg);
-    final bytes = utf8.encode(body);
-    stdout.write('Content-Length: ${bytes.length}\r\n\r\n');
-    stdout.add(bytes);
-    stdout.flush();
+    final bodyBytes   = utf8.encode(jsonEncode(msg));
+    final headerBytes = utf8.encode('Content-Length: ${bodyBytes.length}\r\n\r\n');
+    stdout.add(headerBytes);
+    stdout.add(bodyBytes);
   }
 
   void _respond(dynamic id, dynamic result) {
@@ -147,6 +165,12 @@ class LspServer {
             {'uri': doc['uri'], 'diagnostics': <Map<String, dynamic>>[]});
       case 'textDocument/completion':
         _respond(id, _handleCompletion(params));
+      case 'textDocument/signatureHelp':
+        _respond(id, _handleSignatureHelp(params));
+      case 'textDocument/hover':
+        _respond(id, _handleHover(params));
+      case 'textDocument/definition':
+        _respond(id, _handleDefinition(params));
       default:
         if (id != null) _respondError(id, -32601, 'Method not found: $method');
     }
@@ -168,8 +192,13 @@ class LspServer {
           'save': true,
         },
         'completionProvider': {
-          'triggerCharacters': ['_'],
+          'triggerCharacters': ['_', ':', '.'],
         },
+        'signatureHelpProvider': {
+          'triggerCharacters': ['(', ','],
+        },
+        'hoverProvider': true,
+        'definitionProvider': true,
       },
       'serverInfo': {'name': 'mpd-lsp', 'version': '0.1.0'},
     };
@@ -245,12 +274,122 @@ class LspServer {
     final line     = position['line'] as int;     // 0-indexed
     final char     = position['character'] as int; // 0-indexed
 
+    // Import member completion: `import some.module::<prefix>`
+    final content = _openFiles[uri];
+    if (content != null) {
+      final lines = content.split('\n');
+      if (line < lines.length) {
+        final linePrefix = lines[line].substring(0, char.clamp(0, lines[line].length));
+        final importMatch = RegExp(r'^import\s+([\w.]+)::([\w*]*)$').firstMatch(linePrefix);
+        if (importMatch != null) {
+          final modPath    = importMatch.group(1)!;
+          final memPrefix  = importMatch.group(2)!;
+          return {'isIncomplete': false, 'items': _importItems(modPath, memPrefix)};
+        }
+      }
+    }
+
+    // Member access completion: `obj.prefix` or `EnumName.prefix`
+    if (content != null) {
+      final lines = content.split('\n');
+      if (line < lines.length) {
+        final linePrefix = lines[line].substring(0, char.clamp(0, lines[line].length));
+        final memberMatch = RegExp(r'([\w]+)\.([\w]*)$').firstMatch(linePrefix);
+        if (memberMatch != null) {
+          final objName   = memberMatch.group(1)!;
+          final memPrefix = memberMatch.group(2)!;
+          final members   = _memberItems(uri, line, char, objName, memPrefix);
+          if (members != null) {
+            return {'isIncomplete': false, 'items': members};
+          }
+        }
+      }
+    }
+
     final prefix = _prefixAt(uri, line, char);
-    final items  = _completionItems(prefix);
+    final locals = _localsAt(uri, line, char);
+    final items  = _completionItems(prefix, locals: locals);
     return {'isIncomplete': false, 'items': items};
   }
 
   /// Extract the identifier prefix the user is currently typing.
+  // ── signature help ───────────────────────────────────────────────────────────
+
+  Map<String, dynamic>? _handleSignatureHelp(Map<String, dynamic> params) {
+    final uri      = (params['textDocument'] as Map)['uri'] as String;
+    final position = params['position'] as Map<String, dynamic>;
+    final line     = position['line'] as int;
+    final char     = position['character'] as int;
+
+    final content = _openFiles[uri];
+    if (content == null) return null;
+
+    // Find the function name and active parameter index from text before cursor.
+    final (fnName, activeParam) = _callContextAt(content, line, char);
+    if (fnName == null) return null;
+
+    // Find the function declaration in loaded modules.
+    for (final mod in _modules) {
+      for (final fn in mod.functions) {
+        if (fn.name != fnName || !fn.isPublic) continue;
+        final params = fn.parameters
+            .map((p) => '${p.name}: ${_typeStr(p.type)}')
+            .toList();
+        final label = 'fun $fnName(${params.join(', ')})${fn.returnType != null ? ' ${_typeStr(fn.returnType!)}' : ''}';
+
+        // Build parameter spans — needed for VS Code to highlight active param.
+        final paramInfos = <Map<String, dynamic>>[];
+        int offset = 'fun $fnName('.length;
+        for (int i = 0; i < params.length; i++) {
+          paramInfos.add({'label': [offset, offset + params[i].length]});
+          offset += params[i].length + (i < params.length - 1 ? 2 : 0); // +2 for ", "
+        }
+
+        return {
+          'signatures': [
+            {
+              'label': label,
+              'parameters': paramInfos,
+            }
+          ],
+          'activeSignature': 0,
+          'activeParameter': activeParam.clamp(0, (fn.parameters.length - 1).clamp(0, 99)),
+        };
+      }
+    }
+    return null;
+  }
+
+  /// Scan backwards from [line]:[char] to find the enclosing function call name
+  /// and the index of the current argument (counting commas).
+  (String?, int) _callContextAt(String content, int line, int char) {
+    final lines = content.split('\n');
+    if (line >= lines.length) return (null, 0);
+
+    // Build a flat string from start of line up to cursor.
+    final text = lines[line].substring(0, char.clamp(0, lines[line].length));
+
+    // Walk backwards to find the opening '(' that isn't closed.
+    int depth      = 0;
+    int commas     = 0;
+    for (int i = text.length - 1; i >= 0; i--) {
+      final ch = text[i];
+      if (ch == ')') { depth++; continue; }
+      if (ch == '(') {
+        if (depth > 0) { depth--; continue; }
+        // Found the opening paren — read the function name before it.
+        int nameEnd = i;
+        while (nameEnd > 0 && text[nameEnd - 1] == ' ') { nameEnd--; }
+        int nameStart = nameEnd;
+        while (nameStart > 0 && _isIdentChar(text[nameStart - 1])) { nameStart--; }
+        final name = text.substring(nameStart, nameEnd);
+        return (name.isEmpty ? null : name, commas);
+      }
+      if (ch == ',' && depth == 0) commas++;
+    }
+    return (null, 0);
+  }
+
   String _prefixAt(String uri, int line, int character) {
     final content = _openFiles[uri];
     if (content == null) return '';
@@ -266,6 +405,92 @@ class LspServer {
     return lineText.substring(start, col);
   }
 
+  // ── hover ────────────────────────────────────────────────────────────────────
+
+  Map<String, dynamic>? _handleHover(Map<String, dynamic> params) {
+    final uri  = (params['textDocument'] as Map)['uri'] as String;
+    final pos  = params['position'] as Map<String, dynamic>;
+    final word = _wordAt(uri, pos['line'] as int, pos['character'] as int);
+    if (word.isEmpty) return null;
+
+    for (final mod in _modules) {
+      for (final fn in mod.functions) {
+        if (fn.name != word || !fn.isPublic) continue;
+        final ps  = fn.parameters.map((p) => '${p.name}: ${_typeStr(p.type)}').join(', ');
+        final ret = fn.returnType != null ? ' ${_typeStr(fn.returnType!)}' : '';
+        return {
+          'contents': {'kind': 'markdown', 'value': '```mpd\nfun $word($ps)$ret\n```'},
+        };
+      }
+      for (final v in mod.variables) {
+        if (v.name != word || !v.isPublic) continue;
+        final kw   = v.isConst ? 'const' : (v.isMutable ? 'var' : 'val');
+        final type = v.type != null ? ': ${_typeStr(v.type!)}' : '';
+        return {
+          'contents': {'kind': 'markdown', 'value': '```mpd\n$kw $word$type\n```'},
+        };
+      }
+      for (final cls in mod.classes) {
+        if (cls.name != word || !cls.isPublic) continue;
+        return {
+          'contents': {'kind': 'markdown', 'value': '```mpd\nclass $word\n```'},
+        };
+      }
+      for (final enm in mod.enums) {
+        if (enm.name != word || !enm.isPublic) continue;
+        final members = enm.members.map((m) => m.name).join(', ');
+        return {
+          'contents': {'kind': 'markdown', 'value': '```mpd\nenum $word { $members }\n```'},
+        };
+      }
+    }
+    return null;
+  }
+
+  // ── go-to-definition ─────────────────────────────────────────────────────────
+
+  Map<String, dynamic>? _handleDefinition(Map<String, dynamic> params) {
+    final uri  = (params['textDocument'] as Map)['uri'] as String;
+    final pos  = params['position'] as Map<String, dynamic>;
+    final word = _wordAt(uri, pos['line'] as int, pos['character'] as int);
+    if (word.isEmpty) return null;
+
+    for (final mod in _modules) {
+      // Skip pseudo-modules.
+      if (mod.path.startsWith(r'$')) continue;
+
+      int? declPos;
+      for (final fn  in mod.functions) { if (fn.name  == word) { declPos = fn.position;  break; } }
+      for (final v   in mod.variables) { if (v.name   == word) { declPos = v.position;   break; } }
+      for (final cls in mod.classes)   { if (cls.name == word) { declPos = cls.position; break; } }
+      for (final enm in mod.enums)     { if (enm.name == word) { declPos = enm.position; break; } }
+
+      if (declPos == null) continue;
+
+      final (line, col) = mod.sourceFile.getLocation(declPos);
+      return {
+        'uri': _pathToUri(mod.sourceFile.name),
+        'range': _range(line - 1, col - 1, line - 1, col - 1 + word.length),
+      };
+    }
+    return null;
+  }
+
+  /// Extract the full identifier word at [line]:[character] (extends both directions).
+  String _wordAt(String uri, int line, int character) {
+    final content = _openFiles[uri];
+    if (content == null) return '';
+    final lines = content.split('\n');
+    if (line >= lines.length) return '';
+    final text = lines[line];
+    final col  = character.clamp(0, text.length);
+    int start = col;
+    int end   = col;
+    while (start > 0       && _isIdentChar(text[start - 1])) { start--; }
+    while (end   < text.length && _isIdentChar(text[end]))   { end++;   }
+    return text.substring(start, end);
+  }
+
   bool _isIdentChar(String ch) {
     final c = ch.codeUnitAt(0);
     return (c >= 65 && c <= 90) ||  // A-Z
@@ -274,9 +499,123 @@ class LspServer {
            c == 95;                  // _
   }
 
-  List<Map<String, dynamic>> _completionItems(String prefix) {
+  /// Completion items for `obj.prefix` — resolves [objName]'s type then returns
+  /// matching class fields/methods, or enum members if [objName] is an enum name.
+  List<Map<String, dynamic>>? _memberItems(
+      String uri, int line, int char, String objName, String prefix) {
+    // 1. Resolve type of objName: check locals first, then module variables.
+    Type? objType;
+    final locals = _localsAt(uri, line, char);
+    for (final (name, type) in locals) {
+      if (name == objName) { objType = type; break; }
+    }
+    if (objType == null) {
+      for (final mod in _modules) {
+        for (final v in mod.variables) {
+          if (v.name == objName) { objType = v.type; break; }
+        }
+        if (objType != null) break;
+      }
+    }
+
+    // 2. Unwrap &T → T to get the base type name.
+    final baseType = objType is TypeRef ? (objType as TypeRef).elementType : objType;
+    final className = baseType is TypeName ? (baseType as TypeName).name : null;
+
+    // 3a. Class member access.
+    if (className != null) {
+      for (final mod in _modules) {
+        for (final cls in mod.classes) {
+          if (cls.name != className) continue;
+          final items = <Map<String, dynamic>>[];
+          for (final f in cls.constructorFields) {
+            if (!f.name.startsWith(prefix)) continue;
+            items.add({'label': f.name, 'kind': _kindVariable, 'detail': _typeStr(f.type)});
+          }
+          for (final f in cls.bodyFields) {
+            if (!f.name.startsWith(prefix)) continue;
+            final detail = f.type != null ? _typeStr(f.type!) : 'var';
+            items.add({'label': f.name, 'kind': _kindVariable, 'detail': detail});
+          }
+          for (final m in cls.methods) {
+            if (!m.isPublic) continue;
+            if (!m.name.startsWith(prefix)) continue;
+            items.add(_fnItem(m));
+          }
+          return items;
+        }
+      }
+    }
+
+    // 3b. Enum member access: `EnumName.prefix`
+    for (final mod in _modules) {
+      for (final enm in mod.enums) {
+        if (enm.name != objName) continue;
+        final items = <Map<String, dynamic>>[];
+        for (final member in enm.members) {
+          if (!member.name.startsWith(prefix)) continue;
+          items.add({'label': member.name, 'kind': _kindEnumMember, 'detail': enm.name});
+        }
+        return items;
+      }
+    }
+
+    return null;
+  }
+
+  /// Completion items for `import <modPath>::<prefix>` — lists public symbols
+  /// from modules whose path matches [modPath], plus `*`.
+  List<Map<String, dynamic>> _importItems(String modPath, String prefix) {
     final items = <Map<String, dynamic>>[];
     final seen  = <String>{};
+
+    if ('*'.startsWith(prefix) && seen.add('*')) {
+      items.add({'label': '*', 'kind': _kindKeyword, 'detail': 'import all'});
+    }
+
+    for (final mod in _modules) {
+      if (mod.path != modPath) continue;
+
+      for (final fn in mod.functions) {
+        if (!fn.isPublic) continue;
+        if (!fn.name.startsWith(prefix)) continue;
+        if (!seen.add(fn.name)) continue;
+        items.add(_fnItem(fn));
+      }
+      for (final v in mod.variables) {
+        if (!v.isPublic) continue;
+        if (!v.name.startsWith(prefix)) continue;
+        if (!seen.add(v.name)) continue;
+        items.add(_varItem(v));
+      }
+      for (final cls in mod.classes) {
+        if (!cls.isPublic) continue;
+        if (!cls.name.startsWith(prefix)) continue;
+        if (!seen.add(cls.name)) continue;
+        items.add({'label': cls.name, 'kind': _kindClass});
+      }
+      for (final enm in mod.enums) {
+        if (!enm.isPublic) continue;
+        if (!enm.name.startsWith(prefix)) continue;
+        if (!seen.add(enm.name)) continue;
+        items.add({'label': enm.name, 'kind': _kindEnum});
+      }
+    }
+    return items;
+  }
+
+  List<Map<String, dynamic>> _completionItems(String prefix,
+      {List<(String, Type?)> locals = const []}) {
+    final items = <Map<String, dynamic>>[];
+    final seen  = <String>{};
+
+    // Local variables and parameters take priority (innermost scope first).
+    for (final (name, type) in locals) {
+      if (!name.startsWith(prefix)) continue;
+      if (!seen.add(name)) continue;
+      final detail = type != null ? _typeStr(type) : 'var';
+      items.add({'label': name, 'kind': _kindVariable, 'detail': detail});
+    }
 
     for (final mod in _modules) {
       // Skip private/internal modules and the config pseudo-module.
@@ -312,6 +651,73 @@ class LspServer {
     }
 
     return items;
+  }
+
+  /// Returns locals (params + declared variables) visible in the function
+  /// containing the cursor at [line]:[char] in [uri].
+  List<(String, Type?)> _localsAt(String uri, int line, int char) {
+    final content = _openFiles[uri];
+    if (content == null) return [];
+
+    // Cursor byte offset.
+    final lines = content.split('\n');
+    int offset = 0;
+    for (int i = 0; i < line && i < lines.length; i++) {
+      offset += lines[i].length + 1; // +1 for '\n'
+    }
+    offset += char.clamp(0, line < lines.length ? lines[line].length : 0);
+
+    // Match URI to module by source file path.
+    final filePath = Uri.parse(uri).toFilePath();
+    for (final mod in _modules) {
+      if (mod.sourceFile.name != filePath) continue;
+
+      // Collect all functions (module-level + class methods) sorted by position.
+      final allFns = <FunctionDecl>[
+        ...mod.functions,
+        for (final cls in mod.classes) ...cls.methods,
+      ]..sort((a, b) => a.position.compareTo(b.position));
+
+      // Find the last function whose start is at or before the cursor.
+      FunctionDecl? enclosing;
+      for (int i = 0; i < allFns.length; i++) {
+        if (allFns[i].position > offset) break;
+        final nextStart = i + 1 < allFns.length ? allFns[i + 1].position : content.length;
+        if (offset <= nextStart) enclosing = allFns[i];
+      }
+      if (enclosing == null) return [];
+
+      final result = <(String, Type?)>[];
+      for (final p in enclosing.parameters) {
+        result.add((p.name, p.type));
+      }
+      if (enclosing.body != null) _collectLocals(enclosing.body!, result);
+      return result;
+    }
+    return [];
+  }
+
+  /// Recursively collect all [DeclarationStatement] names+types from [stmt].
+  void _collectLocals(Statement stmt, List<(String, Type?)> out) {
+    if (stmt is DeclarationStatement) {
+      out.add((stmt.name, stmt.type));
+    } else if (stmt is Block) {
+      for (final s in stmt.statements) _collectLocals(s, out);
+    } else if (stmt is IfStatement) {
+      _collectLocals(stmt.body, out);
+      if (stmt.else_ != null) _collectLocals(stmt.else_!, out);
+    } else if (stmt is WhileStatement) {
+      _collectLocals(stmt.body, out);
+    } else if (stmt is ForRangeStatement) {
+      out.add((stmt.variable, null));
+      _collectLocals(stmt.body, out);
+    } else if (stmt is ForInStatement) {
+      out.add((stmt.item, null));
+      if (stmt.index != null) out.add((stmt.index!, null));
+      _collectLocals(stmt.body, out);
+    } else if (stmt is MatchStatement) {
+      for (final arm in stmt.arms) _collectLocals(arm.body, out);
+    }
   }
 
   Map<String, dynamic> _fnItem(FunctionDecl fn) {

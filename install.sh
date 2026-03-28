@@ -16,4 +16,9 @@ echo "Installing to $INSTALL_DIR/mpd..."
 cp bin/mpd "$INSTALL_DIR/mpd"
 chmod +x "$INSTALL_DIR/mpd"
 
+# macOS: ad-hoc sign so Gatekeeper doesn't kill the freshly compiled binary.
+if [[ "$(uname)" == "Darwin" ]]; then
+  codesign --sign - "$INSTALL_DIR/mpd"
+fi
+
 echo "Done. Run 'mpd --help' to verify."

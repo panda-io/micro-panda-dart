@@ -151,17 +151,16 @@ targets:
 
 ---
 
-### Debugger / breakpoint support
+### Debugger support — `#line` directives (Option A)
 
-Allow setting breakpoints and stepping through Micro Panda source in a debugger.
+Emit `#line <n> "<file.mpd>"` directives in generated C so GDB/LLDB automatically map
+stack frames, breakpoints, and variable locations back to `.mpd` source. No custom DAP
+server needed — the existing C/C++ debugger in VS Code handles everything.
 
-Options to investigate:
-
-- Emit `#line <n> "<file>"` directives in generated C so GDB/LLDB map back to `.mpd` source.
-- VS Code debug adapter (DAP) integration in the extension — launch/attach, set breakpoints,
-  step, inspect variables.
-- Possible intermediate: `@breakpoint` annotation or built-in `break()` that emits
-  `__builtin_trap()` / `DebugBreak()` for crash-on-demand debugging.
+- Emit `#line` at the start of each function body and before each statement
+- Works for hosted builds (GDB/LLDB) and MCU builds (OpenOCD + GDB on ESP32/Cortex-M)
+- Variable names in the debugger will be C-mangled (`__mp_foo`) — acceptable for now
+- The VS Code extension side (DAP client config) is tracked in micro-panda-vscode TODO
 
 ## Tooling
 

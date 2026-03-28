@@ -418,15 +418,18 @@ extension GeneratorDeclaration on CGenerator {
   }
 
   /// Emit a thin C entry-point wrapper that calls the entry module's namespaced function.
-  /// For the standard hosted build (`entryFn == 'main'`), emits `int main(int argc, char** argv)`.
-  /// For MCU targets (e.g. `entryFn == 'app_main'`), emits `void app_main(void)`.
+  /// The mpd entry function is always named `main`. [entryFn] controls only the emitted
+  /// C wrapper name:
+  ///   - `"main"` → `int main(int argc, char** argv)` (hosted)
+  ///   - anything else (e.g. `"app_main"`) → `void app_main(void)` (MCU)
   void _emitMainWrapper(String entryModPath, {String entryFn = 'main'}) {
     final entryMod = _moduleByPath[entryModPath];
     if (entryMod == null) return;
+    // Always look for `fun main()` in the entry module regardless of C wrapper name.
     final fn = entryMod.functions.where(
-        (f) => f.name == entryFn && !f.isExtern && !f.isTest).firstOrNull;
+        (f) => f.name == 'main' && !f.isExtern && !f.isTest).firstOrNull;
     if (fn == null) return;
-    final cName = _cFnName(entryModPath, entryFn);
+    final cName = _cFnName(entryModPath, 'main');
     if (entryFn == 'main') {
       // Hosted: forward argc/argv, propagate return value as exit code.
       final body = fn.returnType != null ? 'return $cName();' : '$cName(); return 0;';
