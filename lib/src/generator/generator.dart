@@ -825,7 +825,9 @@ class CGenerator {
     } else if (expr is Decrement) {
       _walkExprForInst(expr.expression, classSubst);
     } else if (expr is ArrayInitializer) {
-      for (final e in expr.elements) _walkExprForInst(e, classSubst);
+      for (final e in expr.elements) {
+        _walkExprForInst(e, classSubst);
+      }
     }
   }
 
