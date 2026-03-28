@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 
-import 'package:micro_panda/src/generator/c/generator.dart';
+import 'package:micro_panda/src/generator/generator.dart';
 import 'package:micro_panda/src/parser/parser.dart';
 import 'package:micro_panda/src/token/position.dart' show SourceFile;
 import 'package:micro_panda/src/validator/validator.dart';

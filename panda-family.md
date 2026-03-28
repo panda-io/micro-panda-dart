@@ -10,16 +10,17 @@ each targeting a different domain and memory model.
 | Language | Domain | Memory model | Backend |
 |---|---|---|---|
 | **pico-panda** | Tiny bytecode VM, embedded scripting | VM-managed | Custom bytecode |
-| **micro-panda** | MCU + hosted systems, bare-metal | Manual (no GC, no RC) | C (permanent), LLVM IR (hosted) |
-| **panda** | Modern systems applications | Reference counting (ARC), no GC | LLVM IR only |
+| **micro-panda** | MCU + hosted systems, bare-metal | Manual (no GC, no RC) | C only (permanent) |
+| **panda** | Modern PC applications | Reference counting (ARC), no GC | LLVM IR only |
 
 ---
 
 ## pico-panda
 
 A tiny stack-based bytecode VM designed to run on severely constrained hardware.
-`.ppd` source files compile to `.ppbc` bytecode via the `ppd` tool.
-The VM is itself written in `micro-panda` and can be embedded in any host application.
+Source files compile to bytecode via the `ppd` tool.
+The VM is itself written in `micro-panda`, so it compiles to C and can be embedded
+in any host application — Godot, SDL2, bare-metal firmware, or any C-compatible environment.
 
 Use when you need a safe, sandboxed scripting layer on a device with kilobytes of RAM.
 
@@ -37,52 +38,66 @@ Designed for microcontrollers (ESP32, Cortex-M, AVR, RISC-V) and STDC hosted env
 - Compiles to readable C — works with any C toolchain
 - Minimal runtime — suitable for bare-metal with no OS
 
-**The C backend is permanent.** Many MCU platforms have no LLVM backend or a limited one.
-C is the only viable universal compilation target, and `micro-panda` will always support it.
+**C is the only backend, and that is a permanent decision.**
+Not all 32-bit MCU platforms support LLVM well. C is the universal compilation target
+that works everywhere — from a $2 microcontroller to a hosted desktop build.
+`micro-panda` does not need LLVM and will not pursue it.
 
-**Long-term roadmap:**
+**Compiler roadmap:**
 
-1. Dart compiler (current) — bootstrap stage, C backend only
-2. Self-hosted compiler — rewritten in `micro-panda`, validated by compiling itself
-3. LLVM IR backend — added to the self-hosted compiler for hosted platforms (AOT + JIT)
-4. Embedded `libLLVM` + ORC JIT — `mpd run script.mpd` with near-native speed
+1. Dart compiler (current) — bootstrap stage
+2. Once `panda` is mature, the `panda` compiler hosts both `micro-panda` and `panda`
 
 ---
 
 ## panda
 
-A modern systems language born with LLVM. No C intermediary — LLVM IR is the only and
-native target from day one.
+A modern systems language for PC platforms. No C intermediary — LLVM IR is the only
+and native target from day one.
 
 **Key properties:**
+
 - Same syntax style and philosophy as `micro-panda`
 - Automatic memory management via reference counting (ARC) — no GC, no manual free
-- Designed for applications where ergonomics matter alongside performance
+- Modern language features not constrained by what C can express (closures, sum types, etc.)
 - LLVM IR only — full optimization pipeline, cross-compilation, sanitizers out of the box
+- Targets modern platforms: Linux, macOS, Windows — not MCUs
 
 **Why LLVM-only:**
-Targeting LLVM IR instead of C removes C's constraints entirely. Language features that
-don't map cleanly to C — closures, sum types, first-class RC semantics, write barriers,
-retain/release — all fit naturally at the IR level. `panda` can be designed purely around
-what is right for the language, not what C can express.
+`panda` is designed purely around what is right for the language. Features that don't
+map cleanly to C — closures, sum types, first-class RC semantics, write barriers —
+fit naturally at the IR level. LLVM is mature on all modern PC platforms.
 
 **Why no GC:**
 Reference counting gives automatic memory safety without GC pauses. Combined with LLVM's
-optimization passes, `panda` programs run at near-native speed — significantly faster than
-GC languages and Python in practice.
+optimization passes, `panda` programs run at near-native speed.
 
 **Bootstrap path:**
-`panda` is written in `micro-panda` and compiled via the `micro-panda` LLVM IR backend.
-No separate bootstrap toolchain needed.
 
 ```plaintext
-micro-panda (Dart)         →  C only, initial bootstrap
-micro-panda (self-hosted)  →  C + LLVM IR, validates the language
-panda compiler             →  written in micro-panda, targets LLVM IR
-panda (self-hosted)        →  compiles itself
+Dart   →  micro-panda compiler  (C backend, current)
+Dart   →  panda compiler        (LLVM IR backend, initial bootstrap)
+
+Once panda is mature:
+panda  →  micro-panda compiler  (replaces Dart bootstrap)
+panda  →  panda compiler        (self-hosted)
 ```
 
 Each stage builds on the previous — no wasted work.
+
+---
+
+## pico-panda compiler
+
+The pico-panda compiler is written in `micro-panda`. This is an important design point:
+the compiler source is Micro-Panda, which generates C, which can be compiled and linked
+into any host:
+
+- **Godot** — embed pico-panda as a scripting engine alongside GDScript
+- **SDL2** — a standalone game or app with a pico-panda scripting layer
+- **ESP32 / bare-metal** — a programmable device that runs pico-panda programs from flash
+
+The C output is self-contained and portable — no VM binary to distribute separately.
 
 ---
 
@@ -92,7 +107,7 @@ Each stage builds on the previous — no wasted work.
 - **No hidden costs** — what you write is what runs; no invisible GC, no runtime surprises
 - **C interop** — `@extern` for calling C functions and libraries directly
 - **Portable** — from a 256 KB microcontroller to a desktop server
-- **Small toolchain** — `mpd` is a single binary; no complex build systems required
+- **Small toolchain** — single binary compilers; no complex build systems required
 
 ---
 
@@ -100,9 +115,9 @@ Each stage builds on the previous — no wasted work.
 
 ```plaintext
 256 KB MCU, no OS          →  micro-panda  (C backend, bare-metal)
-Embedded scripting layer   →  pico-panda   (bytecode VM, sandboxed)
+Embedded scripting layer   →  pico-panda   (bytecode VM, sandboxed, C-embeddable)
 Desktop / server app       →  panda        (LLVM IR, ARC, modern ergonomics)
-Hosted CLI / tooling       →  micro-panda or panda  (both work)
+Hosted CLI / tooling       →  micro-panda  (C backend, simple and portable)
 ```
 
 ---

@@ -233,77 +233,18 @@ Things to consider:
 - Output directory configuration.
 
 
-### Self-hosted compiler + LLVM IR backend + JIT
+### Compiler handoff to Panda
 
-The Dart compiler targets C only and serves as the bootstrap stage. The long-term goal
-is a self-hosted Micro Panda compiler that targets LLVM IR, embeds `libLLVM`, and supports
-both AOT compilation and JIT execution of `.mpd` scripts.
+The Dart compiler is the permanent bootstrap stage. C is the only backend — this is a
+final decision (not all 32-bit MCU platforms support LLVM well; C is the universal target).
 
-**The C backend is permanent.** Many MCU platforms (ESP32, Cortex-M, AVR, RISC-V) have
-no LLVM backend or a limited one — C is the only viable compilation target there. The C
-backend remains the default for all MCU targets and a valid option for hosted builds too.
-LLVM IR is an additive backend for hosted platforms, not a replacement.
-
-| Backend | MCU | Hosted | Use case |
-|---|---|---|---|
-| C | always | yes | Universal — every platform with a C compiler |
-| LLVM IR (AOT) | no | yes | Optimized native binaries on desktop/server |
-| LLVM JIT | no | yes | `mpd run` scripting, near-native speed |
-
-**Roadmap:**
-
-**Stage 1 — Bootstrap (current)**
-The Dart compiler is the reference implementation. C is the only backend. All language
-features are designed and validated here.
-
-**Stage 2 — Self-hosted compiler**
-Rewrite the compiler in Micro Panda itself. Compile it with the Dart compiler to produce
-a native `mpd` binary. The Dart compiler becomes the bootstrap tool and can eventually
-be retired.
+Once the `panda` language is mature, it will take over hosting the `micro-panda` compiler,
+replacing the Dart bootstrap. No self-hosted `micro-panda` compiler step — Panda does it.
 
 ```
-micro-panda-dart (Dart)  →  compiles  →  mpd-native (Micro Panda)
-mpd-native               →  compiles  →  mpd-native   (self-hosting confirmed)
+Dart   →  mpd (current bootstrap)
+panda  →  mpd (future, once panda is ready)
 ```
-
-Self-hosting validates the language — if Micro Panda can compile itself, it is mature
-enough for serious use.
-
-**Stage 3 — LLVM IR backend**
-Add an LLVM IR code generator to the self-hosted compiler alongside the existing C backend.
-
-```
-.mpd  →  LLVM IR  →  llc / lld  →  native binary   (AOT)
-```
-
-Since Micro Panda has no GC, the IR backend is straightforward — types map directly:
-
-| Micro Panda | LLVM IR |
-|---|---|
-| `i32`, `u8`, `bool` | `i32`, `i8`, `i1` |
-| `float` / `fixed` | `float` / `i32` |
-| struct / class | `%T = type { ... }` |
-| `u8[]` slice | `{ i8*, i32 }` |
-| `&T` reference | `T*` |
-
-No stack maps, no write barriers, no GC intrinsics needed. `@raw` C blocks are the only
-gap — compiled separately as `.c` → `.o` and linked into the module.
-
-**Stage 4 — Embedded libLLVM + ORC JIT (`mpd run`)**
-Link `libLLVM` directly into the self-hosted `mpd` binary. Use LLVM's ORC JIT to compile
-IR to native code at runtime and execute `main()` in-process.
-
-```
-mpd run script.mpd  →  parse  →  LLVM IR  →  ORC JIT  →  execute
-```
-
-- Runs at full native speed — no interpreter, no GC pauses
-- Statically typed + no boxing → significantly faster than CPython in practice
-- `@extern` symbols resolve through ORC's dynamic linker automatically
-- Import resolution for scripts: script directory → user lib → system lib → std
-
-`libLLVM` adds ~15–30 MB to the binary but makes `mpd` entirely self-contained —
-no external toolchain needed for the full write-run loop.
 
 ---
 

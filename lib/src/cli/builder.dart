@@ -4,7 +4,7 @@ import 'package:path/path.dart' as p;
 import '../ast/context.dart' show ValidationError;
 import '../ast/module.dart';
 import '../ast/type/type.dart';
-import '../generator/c/generator.dart';
+import '../generator/generator.dart';
 import '../parser/parser.dart';
 import '../stdlib_embedded.dart';
 import '../token/position.dart';

@@ -2,8 +2,6 @@ import 'dart:async' show Completer;
 import 'dart:convert';
 import 'dart:io';
 
-import '../ast/declaration/class_decl.dart';
-import '../ast/declaration/enum_decl.dart';
 import '../ast/declaration/function_decl.dart';
 import '../ast/declaration/variable_decl.dart';
 import '../ast/module.dart';
@@ -519,8 +517,8 @@ class LspServer {
     }
 
     // 2. Unwrap &T → T to get the base type name.
-    final baseType = objType is TypeRef ? (objType as TypeRef).elementType : objType;
-    final className = baseType is TypeName ? (baseType as TypeName).name : null;
+    final baseType = objType is TypeRef ? objType.elementType : objType;
+    final className = baseType is TypeName ? baseType.name : null;
 
     // 3a. Class member access.
     if (className != null) {
@@ -702,7 +700,9 @@ class LspServer {
     if (stmt is DeclarationStatement) {
       out.add((stmt.name, stmt.type));
     } else if (stmt is Block) {
-      for (final s in stmt.statements) _collectLocals(s, out);
+      for (final s in stmt.statements) {
+        _collectLocals(s, out);
+      }
     } else if (stmt is IfStatement) {
       _collectLocals(stmt.body, out);
       if (stmt.else_ != null) _collectLocals(stmt.else_!, out);
@@ -716,7 +716,9 @@ class LspServer {
       if (stmt.index != null) out.add((stmt.index!, null));
       _collectLocals(stmt.body, out);
     } else if (stmt is MatchStatement) {
-      for (final arm in stmt.arms) _collectLocals(arm.body, out);
+      for (final arm in stmt.arms) {
+        _collectLocals(arm.body, out);
+      }
     }
   }
 
