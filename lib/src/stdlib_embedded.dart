@@ -151,6 +151,39 @@ fun print_fixed(v: fixed)
         frac = frac & 0xFFFF
         i += 1
 """,
+  'hosted.allocator': """#if HOSTED
+
+@raw("#include <stdlib.h>")
+
+@extern("malloc")
+fun _malloc(size: u32): &u8
+
+@extern("realloc")
+fun _realloc(ptr: &u8, new_size: u32): &u8
+
+@extern("free")
+fun _free(ptr: &u8)
+
+// Heap allocator for growable containers (HOSTED only).
+// Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
+class HeapAllocator()
+    var _pad: u8 = 0    // keeps struct non-empty
+
+    fun allocate_array<T>(length: u32): T[]
+        val size := sizeof<T>() * length
+        val ptr := &T(_malloc(size))
+        return {ptr, length}
+
+    fun realloc_array<T>(arr: T[], new_length: u32): T[]
+        val size := sizeof<T>() * new_length
+        val ptr := &T(_realloc(&u8(arr.ptr), size))
+        return {ptr, new_length}
+
+    fun free_array<T>(arr: T[])
+        _free(&u8(arr.ptr))
+
+#end
+""",
   'hosted.args': """#if HOSTED
 
 // Access to C main() argc / argv.
@@ -583,39 +616,6 @@ class Folder
 
 #end
 """,
-  'hosted.memory': """#if HOSTED
-
-@raw("#include <stdlib.h>")
-
-@extern("malloc")
-fun _malloc(size: u32): &u8
-
-@extern("realloc")
-fun _realloc(ptr: &u8, new_size: u32): &u8
-
-@extern("free")
-fun _free(ptr: &u8)
-
-// Heap allocator for growable containers (HOSTED only).
-// Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
-class HeapAllocator()
-    var _pad: u8 = 0    // keeps struct non-empty
-
-    fun allocate_array<T>(length: u32): T[]
-        val size := sizeof<T>() * length
-        val ptr := &T(_malloc(size))
-        return {ptr, length}
-
-    fun realloc_array<T>(arr: T[], new_length: u32): T[]
-        val size := sizeof<T>() * new_length
-        val ptr := &T(_realloc(&u8(arr.ptr), size))
-        return {ptr, new_length}
-
-    fun free_array<T>(arr: T[])
-        _free(&u8(arr.ptr))
-
-#end
-""",
   'hosted.signal': """#if HOSTED
 
 @raw("#include <signal.h>")
@@ -837,6 +837,40 @@ fun round(x: float): float
 
 #end
 """,
+  'mcu32.allocator': """#if HOSTED || MCU32
+
+class Allocator()
+    var _memory: u8[] = {null, 0}
+    var _cursor: u32 = 0
+
+    fun init(mem: u8[])
+        _memory = mem
+        _cursor = 0
+
+    @inline
+    fun allocate<T>(): &T
+        val size := sizeof<T>()
+        if _cursor + size > _memory.size()
+            return null
+        val ptr := &T(&_memory[_cursor])
+        _cursor = (_cursor + size + 3) & ~u32(3)
+        return ptr
+
+    @inline
+    fun allocate_array<T>(length: u32): T[]
+        val size := sizeof<T>() * length
+        if _cursor + size > _memory.size()
+            return {null, 0}
+        val ptr := &T(&_memory[_cursor])
+        _cursor = (_cursor + size + 3) & ~u32(3)
+        return {ptr, length}
+
+    @inline
+    fun reset()
+        _cursor = 0
+
+#end
+""",
   'mcu32.collection': """#if HOSTED || MCU32
 import mcu32.memory::Allocator
 
@@ -968,39 +1002,20 @@ class RingBuffer<T>()
         
 #end
 """,
-  'mcu32.memory': """#if HOSTED || MCU32
+  'memory': """@raw("#include <string.h>")
 
-class Allocator()
-    var _memory: u8[] = {null, 0}
-    var _cursor: u32 = 0
+@extern("memset({dst}, {value}, {size})")
+fun memory_set(dst: u8[], value: u8, size: u32)
 
-    fun init(mem: u8[])
-        _memory = mem
-        _cursor = 0
+@extern("memcpy({dst}, {src}, {size})")
+fun memory_copy(dst: u8[], src: u8[], size: u32)
 
-    @inline
-    fun allocate<T>(): &T
-        val size := sizeof<T>()
-        if _cursor + size > _memory.size()
-            return null
-        val ptr := &T(&_memory[_cursor])
-        _cursor = (_cursor + size + 3) & ~u32(3)
-        return ptr
+@extern("memmove({dst}, {src}, {size})")
+fun memory_move(dst: u8[], src: u8[], size: u32)
 
-    @inline
-    fun allocate_array<T>(length: u32): T[]
-        val size := sizeof<T>() * length
-        if _cursor + size > _memory.size()
-            return {null, 0}
-        val ptr := &T(&_memory[_cursor])
-        _cursor = (_cursor + size + 3) & ~u32(3)
-        return {ptr, length}
-
-    @inline
-    fun reset()
-        _cursor = 0
-
-#end
+@inline
+fun memory_zero(dst: u8[], size: u32)
+    memory_set(dst, u8(0), size)
 """,
   'string': """// ── Comparison / search ───────────────────────────────────────────────────────
 

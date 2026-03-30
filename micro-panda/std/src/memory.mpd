@@ -1,0 +1,14 @@
+@raw("#include <string.h>")
+
+@extern("memset({dst}, {value}, {size})")
+fun memory_set(dst: u8[], value: u8, size: u32)
+
+@extern("memcpy({dst}, {src}, {size})")
+fun memory_copy(dst: u8[], src: u8[], size: u32)
+
+@extern("memmove({dst}, {src}, {size})")
+fun memory_move(dst: u8[], src: u8[], size: u32)
+
+@inline
+fun memory_zero(dst: u8[], size: u32)
+    memory_set(dst, u8(0), size)
