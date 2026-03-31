@@ -338,7 +338,8 @@ class Builder {
   /// Unlike [gen]/[build], this never returns null — partial results and all
   /// errors are returned so the LSP can push diagnostics and still serve completions.
   Future<LspAnalysis> analyzeForLsp() async {
-    await _fetchDeps();
+    // LSP: use only cached deps — never fetch over the network during editing.
+    _depInfos = await _depManager.ensureDeps(lspMode: true);
     _ensureStd();
 
     final extraModules = <Module>[];
@@ -367,10 +368,20 @@ class Builder {
     }
 
     // Parse all modules tolerantly.
+    // In LSP mode, seed the queue with every .mpd file under the project src dir
+    // so completions work in library files that aren't imported from the entry.
     final entryFile = _resolveEntry();
     final visited = <String>{};
     final modules = <Module>[];
     final queue = <File>[if (entryFile.existsSync()) entryFile];
+    final srcDir = Directory(project.srcFor(target));
+    if (srcDir.existsSync()) {
+      for (final entity in srcDir.listSync(recursive: true)) {
+        if (entity is File && entity.path.endsWith('.mpd')) {
+          queue.add(entity);
+        }
+      }
+    }
 
     while (queue.isNotEmpty) {
       final file = queue.removeAt(0);

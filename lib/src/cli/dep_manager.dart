@@ -35,7 +35,7 @@ class DepManager {
   /// Skips a dep if it is already cached at the matching version (per lock file).
   /// If [forceUpdate] is true, re-fetches every dep regardless.
   /// Returns a map of dep name → [DepInfo].
-  Future<Map<String, DepInfo>> ensureDeps({bool forceUpdate = false}) async {
+  Future<Map<String, DepInfo>> ensureDeps({bool forceUpdate = false, bool lspMode = false}) async {
     if (project.deps.isEmpty) return {};
 
     final lock   = _loadLock();
@@ -43,6 +43,12 @@ class DepManager {
 
     for (final dep in project.deps) {
       final cached = lock[dep.url];
+      if (cached != null && Directory(depDir(cached.name)).existsSync()) {
+        result[cached.name] = cached;
+        continue;
+      }
+      // LSP mode: skip network fetch — dep not cached yet, just ignore it.
+      if (lspMode) continue;
       if (!forceUpdate &&
           cached != null &&
           cached.version == dep.version &&

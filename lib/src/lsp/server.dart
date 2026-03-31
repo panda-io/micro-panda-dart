@@ -172,6 +172,7 @@ class LspServer {
       default:
         if (id != null) _respondError(id, -32601, 'Method not found: $method');
     }
+    await stdout.flush();
   }
 
   // ── initialize ───────────────────────────────────────────────────────────────
