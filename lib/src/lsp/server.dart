@@ -53,6 +53,9 @@ class LspServer {
   /// True after the client sends `shutdown`.
   bool _shuttingDown = false;
 
+  /// Serializes async dispatches so stdout writes never overlap.
+  var _pendingDispatch = Future<void>.value();
+
   // ── entry point ─────────────────────────────────────────────────────────────
 
   Future<void> run() {
@@ -64,7 +67,7 @@ class LspServer {
         while (true) {
           final msg = _tryReadMessage(buffer);
           if (msg == null) break;
-          _dispatch(msg); // fire-and-forget; stdout writes happen outside the stream binding
+          _pendingDispatch = _pendingDispatch.then((_) => _dispatch(msg));
         }
       },
       onDone: completer.complete,
