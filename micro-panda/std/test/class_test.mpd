@@ -1,0 +1,31 @@
+import test::assert
+import console::*
+
+class Inner
+    var inner_value: i32
+
+    fun inner_method()
+        print_str("Inner method called\n")
+
+class Outer
+    var outter_value: i32
+    var inner: Inner
+
+    fun outer_method()
+        print_str("Outer method called\n")
+
+val inner: Inner
+val outer: Outer
+
+@test
+fun test_class()
+    inner.inner_value = 10
+    outer.outter_value = 20
+    outer.inner = inner
+
+    assert(inner.inner_value == 10)
+    assert(outer.outter_value == 20)
+    assert(outer.inner.inner_value == 10)
+
+    outer.outer_method()
+    outer.inner.inner_method()

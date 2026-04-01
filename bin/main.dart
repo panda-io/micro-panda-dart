@@ -173,6 +173,47 @@ Future<void> _cmdRun(String? targetName, {required bool verbose, String? project
 Future<void> _cmdTest(String? targetName, {required bool verbose, String? projectDir}) async {
   final project = _loadProject(projectDir);
 
+  // If the argument looks like a file path, run just that single test file.
+  if (targetName != null && targetName.endsWith('.mpd')) {
+    final file = File(p.isAbsolute(targetName) ? targetName : p.join(project.rootDir, targetName));
+    if (!file.existsSync()) {
+      stderr.writeln('error: test file not found: ${file.path}');
+      exit(1);
+    }
+    // Find the target whose test dir contains this file.
+    Target? owner;
+    for (final t in project.targets.values) {
+      if (t.test == null) continue;
+      final testDir = project.testDirFor(t)!;
+      if (p.isWithin(testDir, file.path)) { owner = t; break; }
+    }
+    if (owner == null) {
+      stderr.writeln('error: "$targetName" is not inside any target\'s test directory');
+      exit(1);
+    }
+    final testDir = project.testDirFor(owner)!;
+    final name = p.basenameWithoutExtension(file.path);
+    final testTarget = Target(
+      name: name,
+      entry: p.withoutExtension(p.relative(file.path, from: testDir))
+          .replaceAll(p.separator, '.'),
+      type: TargetType.bin,
+      flags: owner.flags,
+      cc: owner.cc ?? CcConfig(flags: ['-g', '-O0', '-Wall']),
+      src: owner.src,
+      test: owner.test,
+      out: p.join(project.rootDir, '.micro-panda', 'test', '$name.c'),
+      output: p.join('.micro-panda', 'test', name),
+    );
+    final ok = await Builder(project, testTarget, verbose: verbose).build();
+    if (!ok) exit(1);
+    final binary = p.join(project.rootDir, '.micro-panda', 'test', name);
+    final result = await Process.run(binary, [], workingDirectory: project.rootDir);
+    stdout.write(result.stdout);
+    if (result.stderr.toString().isNotEmpty) stderr.write(result.stderr);
+    exit(result.exitCode);
+  }
+
   // Resolve which targets to test.
   final List<Target> targets;
   if (targetName != null) {
