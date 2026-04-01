@@ -33,7 +33,7 @@ void main() {
   });
 
   test('build collection_test through full pipeline', () async {
-    final projDir = '/Users/sang/Dev/panda-io/micro-panda-dart/micro-panda/std';
+    final projDir = './micro-panda/std';
     final proj = Project.load(projDir);
     final target = Target(
       name: 'collection_test',

@@ -129,7 +129,7 @@ Test binary cwd = project rootDir (`micro-panda/std/`), so resource paths are `r
 - const `:=` added this session for type inference consistency with var/val.
 
 ## VSCode extension
-Path: `/Users/sang/Dev/panda-io/micro-panda-vscode`
+Path: `../micro-panda-vscode`
 - `src/extension.ts` — activates MicroPandaTestRunner
 - `src/testRunner.ts` — VS Code Testing API; watches *_test.mpd, runs `mpd test <absPath>`
 - Build: `npm install && npm run compile`
