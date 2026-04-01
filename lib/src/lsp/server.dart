@@ -67,7 +67,11 @@ class LspServer {
         while (true) {
           final msg = _tryReadMessage(buffer);
           if (msg == null) break;
-          _pendingDispatch = _pendingDispatch.then((_) => _dispatch(msg));
+          _pendingDispatch = _pendingDispatch
+              .then((_) => _dispatch(msg))
+              .catchError((Object e, StackTrace st) {
+            stderr.writeln('[mpd-lsp] dispatch error: $e\n$st');
+          });
         }
       },
       onDone: completer.complete,
@@ -223,7 +227,13 @@ class LspServer {
 
     // Use first target for analysis.
     final target = project.targets.values.first;
-    final analysis = await Builder(project, target).analyzeForLsp();
+    late final LspAnalysis analysis;
+    try {
+      analysis = await Builder(project, target).analyzeForLsp();
+    } catch (e, st) {
+      stderr.writeln('[mpd-lsp] analyzeForLsp error: $e\n$st');
+      return;
+    }
     _modules = analysis.modules;
 
     // Group all errors by file path.
