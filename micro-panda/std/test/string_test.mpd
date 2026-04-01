@@ -1,18 +1,5 @@
 import test::assert
-import string::equals
-import string::starts_with
-import string::ends_with
-import string::index_of
-import string::sub
-import string::trim_start
-import string::trim_end
-import string::trim
-import string::token
-import string::skip
-import string::parse_u32
-import string::parse_i32
-import string::format_u32
-import string::format_i32
+import string::*
 
 @test
 fun test_equals()
