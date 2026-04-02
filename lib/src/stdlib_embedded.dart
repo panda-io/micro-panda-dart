@@ -10,6 +10,7 @@ const Map<String, String> kStdlib = {
 // write_byte dispatches through a function pointer.
 // Default: HOSTED/MCU32 → putchar wrapper.  Other MCU → NULL (call console::init(fn) before use).
 // Override at runtime: console::init(fn) for custom transports (UART, USB, mock tests).
+import string::format
 
 #if HOSTED || MCU32
 @raw("#include <stdio.h>")
@@ -34,17 +35,20 @@ fun write_byte(b: u8)
 
 // ── primitives ───────────────────────────────────────────────────────────────
 
-fun println()
+fun print(string: u8[])
+    write_string(string)
     write_byte(10)
 
-fun print_str(s: u8[])
-    var i: i32 = 0
-    while i < s.size()
-        write_byte(s[i])
-        i += 1
+fun print_args(string: u8[], args: i32[])
+    var buf: u8[128]
+    print(format(string, buf, args))
 
-fun print_bool(v: bool)
-    if v
+fun write_string(string: u8[])
+    for i in 0..string.size()
+        write_byte(string[i])
+
+fun write_bool(value: bool)
+    if value
         write_byte('t')
         write_byte('r')
         write_byte('u')
@@ -58,98 +62,92 @@ fun print_bool(v: bool)
 
 // ── unsigned integers ─────────────────────────────────────────────────────────
 
-fun print_u64(v: u64)
+fun write_u64(value: u64)
     var buf: u8[20]
     var i: i32 = 19
-    if v == 0
+    if value == 0
         write_byte('0')
         return
-    while v > 0
-        buf[i] = u8(v % 10 + 48)
-        v = v / 10
+    while value > 0
+        buf[i] = u8(value % 10 + 48)
+        value = value / 10
         i -= 1
-    var j: i32 = i + 1
-    while j < 20
+    for  j in (i + 1)..20
         write_byte(buf[j])
-        j += 1
 
-fun print_u32(v: u32)
-    print_u64(u64(v))
+fun write_u32(value: u32)
+    write_u64(u64(value))
 
-fun print_u16(v: u16)
-    print_u64(u64(v))
+fun write_u16(value: u16)
+    write_u64(u64(value))
 
-fun print_u8(v: u8)
-    print_u64(u64(v))
+fun write_u8(value: u8)
+    write_u64(u64(value))
 
 // ── signed integers ───────────────────────────────────────────────────────────
 
-fun print_i64(v: i64)
-    if v < 0
+fun write_i64(value: i64)
+    if value < 0
         write_byte('-')
-        print_u64(u64(i64(0) - v))
+        write_u64(u64(i64(0) - value))
     else
-        print_u64(u64(v))
+        write_u64(u64(value))
 
-fun print_i32(v: i32)
-    print_i64(i64(v))
+fun write_i32(value: i32)
+    write_i64(i64(value))
 
-fun print_i16(v: i16)
-    print_i64(i64(v))
+fun write_i16(value: i16)
+    write_i64(i64(value))
 
-fun print_i8(v: i8)
-    print_i64(i64(v))
+fun write_i8(value: i8)
+    write_i64(i64(value))
 
 // ── float ─────────────────────────────────────────────────────────────────────
 //
-// Naive float print: separates integer and fractional parts, extracts decimal
+// Naive float write: separates integer and fractional parts, extracts decimal
 // digits by successive * 10. Accurate to ~6 significant digits (float precision).
 // Does not handle NaN or Inf.
 
-fun print_float(v: float)
-    var abs: float = v
-    if v < 0.0
+fun write_float(value: float)
+    var abs: float = value
+    if value < 0.0
         write_byte('-')
-        abs = 0.0 - v
+        abs = 0.0 - value
     val int_part := i32(abs)
-    print_i32(int_part)
+    write_i32(int_part)
     write_byte('.')
     var frac: float = abs - float(int_part)
-    var i: u32 = 0
-    while i < 4
+    for i in 0..4
         frac = frac * 10.0
         val digit := i32(frac)
         write_byte(u8(digit + 48))
         frac = frac - float(digit)
-        i += 1
 
 // ── fixed-point ───────────────────────────────────────────────────────────────
 //
 // 16.16 fixed-point: high 16 bits = integer part, low 16 bits = fractional part.
-// e.g. print_fixed(0x00018000) → "1.5000"   (1 + 32768/65536)
-//      print_fixed(0xFFFE8000) → "-1.5000"
+// e.g. write_fixed(0x00018000) → "1.5000"   (1 + 32768/65536)
+//      write_fixed(0xFFFE8000) → "-1.5000"
 
-fun print_fixed(v: fixed)
+fun write_fixed(value: fixed)
     var abs: u32 = 0
-    if v < 0
+    if value < 0
         write_byte('-')
-        abs = u32(0 - v)
+        abs = u32(0 - value)
     else
-        abs = u32(v)
+        abs = u32(value)
 
     // integer part: high 16 bits
-    print_u32(abs >> 16)
+    write_u32(abs >> 16)
 
     write_byte('.')
     // fractional part: low 16 bits
     // extract each decimal digit: multiply frac by 10, digit = high 16 bits
     var frac: u32 = abs & 0xFFFF
-    var i: u32 = 0
-    while i < 4
+    for i in 0..4
         frac *= 10
         write_byte(u8((frac >> 16) + 48))
         frac = frac & 0xFFFF
-        i += 1
 """,
   'hosted.allocator': """#if HOSTED
 
@@ -686,39 +684,35 @@ fun time_us(): i64
   'log': """import console::*
 import string::*
 
-// ── internal ──────────────────────────────────────────────────────────────────
-
-var _buf: u8[128]
-
 // Emit ESC[ + seq (e.g. "32m" → green, "33m" → orange, "31m" → red, "0m" → reset)
 @inline
 fun _esc(seq: u8[])
     write_byte(27)
     write_byte('[')
-    print_str(seq)
+    write_string(seq)
 
 // ── simple log (no format args) ───────────────────────────────────────────────
 
-fun info(msg: u8[])
+fun info(message: u8[])
     _esc("32m")
-    print_str("[INFO] ")
-    print_str(msg)
+    write_string("[INFO] ")
+    write_string(message)
     _esc("0m")
-    println()
+    write_byte(10)
 
-fun warn(msg: u8[])
+fun warn(message: u8[])
     _esc("33m")
-    print_str("[WARN] ")
-    print_str(msg)
+    write_string("[WARN] ")
+    write_string(message)
     _esc("0m")
-    println()
+    write_byte(10)
 
-fun error(msg: u8[])
+fun error(message: u8[])
     _esc("31m")
-    print_str("[ERROR] ")
-    print_str(msg)
+    write_string("[ERROR] ")
+    write_string(message)
     _esc("0m")
-    println()
+    write_byte(10)
 
 // ── formatted log (build_string args) ────────────────────────────────────────
 //
@@ -728,14 +722,17 @@ fun error(msg: u8[])
 //   var args: i32[2] = {count, i32(alive)}
 //   info_args("count={0i} alive={1b}", args)
 
-fun info_args(fmt: u8[], args: i32[])
-    info(format(fmt, _buf, args))
+fun info_args(message: u8[], args: i32[])
+    val buf: u8[128]
+    info(format(message, buf, args))
 
-fun warn_args(fmt: u8[], args: i32[])
-    warn(format(fmt, _buf, args))
+fun warn_args(message: u8[], args: i32[])
+    val buf: u8[128]
+    warn(format(message, buf, args))
 
-fun error_args(fmt: u8[], args: i32[])
-    error(format(fmt, _buf, args))
+fun error_args(message: u8[], args: i32[])
+    val buf: u8[128]
+    error(format(message, buf, args))
 """,
   'math': """#if HOSTED || MCU32
 @raw("#include <math.h>")
@@ -762,79 +759,78 @@ fun max<T>(a: T, b: T): T
     return b
 
 @inline
-fun clamp<T>(v: T, lo: T, hi: T): T
-    if v < lo
-        return lo
-    if v > hi
-        return hi
-    return v
+fun clamp<T>(value: T, low: T, high: T): T
+    if value < low
+        return low
+    if value > high
+        return high
+    return value
 
 @inline
-fun abs<T>(v: T): T
-    if v < 0
-        return -v
-    return v
+fun abs<T>(value: T): T
+    if value < 0
+        return -value
+    return value
 
 // ── Fixed-point rounding ──────────────────────────────────────────────────────
 
 @inline
-fun floor_fixed(v: fixed): fixed
-    return v & -1.0
+fun floor_fixed(value: fixed): fixed
+    return value & -1.0
 
 @inline
-fun ceil_fixed(v: fixed): fixed
-    val f := v & -1.0
-    if v != f
-        return f + 1.0
-    return f
+fun ceil_fixed(value: fixed): fixed
+    val result := value & -1.0
+    if value != result
+        return result + 1.0
+    return result
 
 @inline
-fun round_fixed(v: fixed): fixed
-    return (v + 0.5) & -1.0
+fun round_fixed(value: fixed): fixed
+    return (value + 0.5) & -1.0
 
 #if HOSTED || MCU32
 // ── Float trig (radians) ──────────────────────────────────────────────────────
 
-@extern("sinf({x})")
-fun sin(x: float): float
+@extern("sinf")
+fun sin(value: float): float
 
-@extern("cosf({x})")
-fun cos(x: float): float
+@extern("cosf")
+fun cos(value: float): float
 
-@extern("tanf({x})")
-fun tan(x: float): float
+@extern("tanf")
+fun tan(value: float): float
 
-@extern("asinf({x})")
-fun asin(x: float): float
+@extern("asinf")
+fun asin(value: float): float
 
-@extern("acosf({x})")
-fun acos(x: float): float
+@extern("acosf")
+fun acos(value: float): float
 
-@extern("atanf({x})")
-fun atan(x: float): float
+@extern("atanf")
+fun atan(value: float): float
 
-@extern("atan2f({y}, {x})")
+@extern("atan2f")
 fun atan2(y: float, x: float): float
 
 // ── Float power / root ────────────────────────────────────────────────────────
 
-@extern("sqrtf({x})")
-fun sqrt(x: float): float
+@extern("sqrtf")
+fun sqrt(value: float): float
 
-@extern("powf({base}, {exp})")
+@extern("powf")
 fun pow(base: float, exp: float): float
 
 // ── Float rounding ────────────────────────────────────────────────────────────
 
-@extern("floorf({x})")
-fun floor(x: float): float
+@extern("floorf")
+fun floor(value: float): float
 
-@extern("ceilf({x})")
-fun ceil(x: float): float
+@extern("ceilf")
+fun ceil(value: float): float
 
-@extern("roundf({x})")
-fun round(x: float): float
-
+@extern("roundf")
+fun round(value: float): float
 #end
 """,
   'mcu32.allocator': """#if HOSTED || MCU32
@@ -1022,145 +1018,127 @@ fun memory_zero(dst: u8[], size: i32)
 fun equals(a: u8[], b: u8[]): bool
     if a.size() != b.size()
         return false
-    var i: i32 = 0
-    while i < a.size()
+    for i in 0..a.size()
         if a[i] != b[i]
             return false
-        i += 1
     return true
 
-fun starts_with(s: u8[], prefix: u8[]): bool
-    if prefix.size() > s.size()
+fun starts_with(string: u8[], prefix: u8[]): bool
+    if prefix.size() > string.size()
         return false
-    var i: i32 = 0
-    while i < prefix.size()
-        if s[i] != prefix[i]
+    for i in 0..prefix.size()
+        if string[i] != prefix[i]
             return false
-        i += 1
     return true
 
-fun ends_with(s: u8[], suffix: u8[]): bool
-    if suffix.size() > s.size()
+fun ends_with(string: u8[], suffix: u8[]): bool
+    if suffix.size() > string.size()
         return false
-    val offset := s.size() - suffix.size()
-    var i: i32 = 0
-    while i < suffix.size()
-        if s[offset + i] != suffix[i]
+    val offset := string.size() - suffix.size()
+    for i in 0..suffix.size()
+        if string[offset + i] != suffix[i]
             return false
-        i += 1
     return true
 
-fun index_of(s: u8[], c: u8): i32
-    var i: i32 = 0
-    while i < s.size()
-        if s[i] == c
+fun index_of(string: u8[], char: u8): i32
+   for i in 0..string.size()
+        if string[i] == char
             return i
-        i += 1
     return -1
 
 // ── Slicing ───────────────────────────────────────────────────────────────────
 
-fun sub(s: u8[], start: i32, len: i32): u8[]
-    return {s.ptr + start, len}
+fun sub(string: u8[], start: i32, len: i32): u8[]
+    return {string.ptr + start, len}
 
-fun trim_start(s: u8[]): u8[]
-    var i: i32 = 0
-    while i < s.size()
-        val c := s[i]
+fun trim_start(string: u8[]): u8[]
+    for i in 0..string.size()
+        val c := string[i]
         if c != 32 && c != 9 && c != 10 && c != 13
-            return {s.ptr + i, s.size() - i}
-        i += 1
-    return {s.ptr, 0}
+            return {string.ptr + i, string.size() - i}
+    return {string.ptr, 0}
 
-fun trim_end(s: u8[]): u8[]
-    if s.size() == 0
-        return s
-    var i := s.size() - 1
+fun trim_end(string: u8[]): u8[]
+    if string.size() == 0
+        return string
+    var i := string.size() - 1
     while i > 0
-        val c := s[i]
+        val c := string[i]
         if c != 32 && c != 9 && c != 10 && c != 13
-            return {s.ptr, i + 1}
+            return {string.ptr, i + 1}
         i -= 1
-    val c := s[0]
+    val c := string[0]
     if c != 32 && c != 9 && c != 10 && c != 13
-        return {s.ptr, 1}
-    return {s.ptr, 0}
+        return {string.ptr, 1}
+    return {string.ptr, 0}
 
-fun trim(s: u8[]): u8[]
-    return trim_end(trim_start(s))
+fun trim(string: u8[]): u8[]
+    return trim_end(trim_start(string))
 
 // ── Tokenization ──────────────────────────────────────────────────────────────
 
 // Returns the token starting at `start` up to (not including) the next `delim`
 // or end of string.
-fun token(s: u8[], start: i32, delim: u8): u8[]
-    var i := start
-    while i < s.size()
-        if s[i] == delim
-            return {s.ptr + start, i - start}
-        i += 1
-    return {s.ptr + start, s.size() - start}
+fun token(string: u8[], start: i32, delim: u8): u8[]
+    for i in start..string.size()
+        if string[i] == delim
+            return {string.ptr + start, i - start}
+    return {string.ptr + start, string.size() - start}
 
 // Advances past any `delim` bytes starting at `start`. Use after token() to
 // move to the next field.
-fun skip(s: u8[], start: i32, delim: u8): i32
-    var i := start
-    while i < s.size()
-        if s[i] != delim
+fun skip(string: u8[], start: i32, delim: u8): i32
+    for i in start..string.size()
+        if string[i] != delim
             return i
-        i += 1
-    return s.size()
+    return string.size()
 
 // ── Number parsing ────────────────────────────────────────────────────────────
 
-fun parse_u32(s: u8[]): u32
+fun parse_u32(string: u8[]): u32
     var result: u32 = 0
-    var i: i32 = 0
-    while i < s.size()
-        val c := s[i]
+    for i in 0..string.size()
+        val c := string[i]
         if c < 48 || c > 57
             return result
         result = result * 10 + u32(c - 48)
-        i += 1
     return result
 
-fun parse_i32(s: u8[]): i32
-    if s.size() == 0
+fun parse_i32(string: u8[]): i32
+    if string.size() == 0
         return 0
-    if s[0] == 45
-        val abs := parse_u32({s.ptr + 1, s.size() - 1})
+    if string[0] == 45
+        val abs := parse_u32({string.ptr + 1, string.size() - 1})
         return i32(-abs)
-    return i32(parse_u32(s))
+    return i32(parse_u32(string))
 
 // ── Number formatting ─────────────────────────────────────────────────────────
 
 // Writes decimal representation of `v` into `buf`. Returns number of bytes
 // written. buf must be at least 10 bytes.
-fun format_u32(buf: u8[], v: u32): i32
-    if v == 0
+fun format_u32(buf: u8[], value: u32): i32
+    if value == 0
         buf[0] = 48
         return 1
     var tmp: u8[10]
     var len: i32 = 0
-    var n := v
+    var n := value
     while n > 0
         tmp[len] = u8(48 + n % 10)
         n = n / 10
         len += 1
-    var i: i32 = 0
-    while i < len
+    for i in 0..len
         buf[i] = tmp[len - 1 - i]
-        i += 1
     return len
 
 // Writes decimal representation of `v` into `buf`. Returns bytes written.
 // buf must be at least 11 bytes.
-fun format_i32(buf: u8[], v: i32): i32
-    if v < 0
+fun format_i32(buf: u8[], value: i32): i32
+    if value < 0
         buf[0] = 45
-        val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-v))
+        val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-value))
         return written + 1
-    return format_u32(buf, u32(v))
+    return format_u32(buf, u32(value))
 
 // ── String building ───────────────────────────────────────────────────────────
 //
@@ -1184,63 +1162,59 @@ fun format_i32(buf: u8[], v: i32): i32
 @raw("static inline float __mp_bits_to_float(int32_t v) { float f; __builtin_memcpy(&f, &v, 4); return f; }")
 
 @extern("__mp_float_to_bits")
-fun float_bits(f: float) i32
+fun float_bits(value: float) i32
 
 @extern("__mp_bits_to_float")
-fun _bits_to_float(v: i32) float
+fun _bits_to_float(value: i32) float
 
 // fixed and i32 share the same 32-bit representation — this is the explicit,
 // intention-clear way to pass a fixed value into an i32[] args array.
 // Do NOT use i32(my_fixed): semantically that means "extract integer part".
-@extern("((int32_t){f})")
-fun fixed_bits(f: fixed) i32
+@extern("((int32_t){value})")
+fun fixed_bits(value: fixed) i32
 
-fun _format_float(buf: u8[], v: float) i32
+fun _format_float(buf: u8[], value: float) i32
     var bi: i32 = 0
-    var abs: float = v
-    if v < 0.0
+    var abs: float = value
+    if value < 0.0
         buf[bi] = 45  // '-'
         bi += 1
-        abs = 0.0 - v
+        abs = 0.0 - value
     val int_part := i32(abs)
     bi += format_i32({buf.ptr + bi, buf.size() - bi}, int_part)
     buf[bi] = 46  // '.'
     bi += 1
     var frac: float = abs - float(int_part)
-    var d: i32 = 0
-    while d < 4
+    for d in 0..4
         frac = frac * 10.0
         val digit := i32(frac)
         buf[bi] = u8(digit + 48)
         bi += 1
         frac = frac - float(digit)
-        d += 1
     return bi
 
-fun _format_fixed(buf: u8[], v: i32) i32
+fun _format_fixed(buf: u8[], value: i32) i32
     var bi: i32 = 0
     var abs: u32 = 0
-    if v < 0
+    if value < 0
         buf[bi] = 45  // '-'
         bi += 1
-        abs = u32(0 - v)
+        abs = u32(0 - value)
     else
-        abs = u32(v)
+        abs = u32(value)
     bi += format_u32({buf.ptr + bi, buf.size() - bi}, abs >> 16)
     buf[bi] = 46  // '.'
     bi += 1
     var frac: u32 = abs & 0xFFFF
-    var d: i32 = 0
-    while d < 4
+    for d in 0..4
         frac *= 10
         buf[bi] = u8((frac >> 16) + 48)
         bi += 1
         frac = frac & 0xFFFF
-        d += 1
     return bi
 
-fun _format_bool(buf: u8[], v: i32) i32
-    if v != 0
+fun _format_bool(buf: u8[], value: i32) i32
+    if value != 0
         buf[0] = 't'
         buf[1] = 'r'
         buf[2] = 'u'
@@ -1329,34 +1303,34 @@ fun _test_begin(name: u8[])
 
 fun _test_end()
     if _current_failed == 0
-        print_str("\\x1b[32mP:")
-        print_str(_current_name)
-        print_str("\\x1b[0m")
-        println()
+        write_string("\\x1b[32mP:")
+        write_string(_current_name)
+        write_string("\\x1b[0m")
+        write_byte(10)
         _succeeded += 1
     else
-        print_str("\\x1b[31mF:")
-        print_str(_current_name)
-        print_str("\\x1b[0m")
-        println()
+        write_string("\\x1b[31mF:")
+        write_string(_current_name)
+        write_string("\\x1b[0m")
+        write_byte(10)
         var i: u32 = 0
         while i < _buf_count
-            print_str("  ")
-            print_str(_buf_files[i])
-            print_str(":")
-            print_u32(_buf_lines[i])
-            print_str(": ")
-            print_str(_buf_exprs[i])
-            println()
+            write_string("  ")
+            write_string(_buf_files[i])
+            write_string(":")
+            write_u32(_buf_lines[i])
+            write_string(": ")
+            write_string(_buf_exprs[i])
+            write_byte(10)
             i += 1
         _failed += 1
 
 fun _report() i32
-    print_str("DONE ")
-    print_u32(_succeeded)
-    print_str("/")
-    print_u32(_succeeded + _failed)
-    println()
+    write_string("DONE ")
+    write_u32(_succeeded)
+    write_string("/")
+    write_u32(_succeeded + _failed)
+    write_byte(10)
     if _failed > 0
         return 1
     return 0

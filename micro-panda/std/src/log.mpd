@@ -1,39 +1,35 @@
 import console::*
 import string::*
 
-// ── internal ──────────────────────────────────────────────────────────────────
-
-var _buf: u8[128]
-
 // Emit ESC[ + seq (e.g. "32m" → green, "33m" → orange, "31m" → red, "0m" → reset)
 @inline
 fun _esc(seq: u8[])
     write_byte(27)
     write_byte('[')
-    print_str(seq)
+    write_string(seq)
 
 // ── simple log (no format args) ───────────────────────────────────────────────
 
-fun info(msg: u8[])
+fun info(message: u8[])
     _esc("32m")
-    print_str("[INFO] ")
-    print_str(msg)
+    write_string("[INFO] ")
+    write_string(message)
     _esc("0m")
-    println()
+    write_byte(10)
 
-fun warn(msg: u8[])
+fun warn(message: u8[])
     _esc("33m")
-    print_str("[WARN] ")
-    print_str(msg)
+    write_string("[WARN] ")
+    write_string(message)
     _esc("0m")
-    println()
+    write_byte(10)
 
-fun error(msg: u8[])
+fun error(message: u8[])
     _esc("31m")
-    print_str("[ERROR] ")
-    print_str(msg)
+    write_string("[ERROR] ")
+    write_string(message)
     _esc("0m")
-    println()
+    write_byte(10)
 
 // ── formatted log (build_string args) ────────────────────────────────────────
 //
@@ -43,11 +39,14 @@ fun error(msg: u8[])
 //   var args: i32[2] = {count, i32(alive)}
 //   info_args("count={0i} alive={1b}", args)
 
-fun info_args(fmt: u8[], args: i32[])
-    info(format(fmt, _buf, args))
+fun info_args(message: u8[], args: i32[])
+    val buf: u8[128]
+    info(format(message, buf, args))
 
-fun warn_args(fmt: u8[], args: i32[])
-    warn(format(fmt, _buf, args))
+fun warn_args(message: u8[], args: i32[])
+    val buf: u8[128]
+    warn(format(message, buf, args))
 
-fun error_args(fmt: u8[], args: i32[])
-    error(format(fmt, _buf, args))
+fun error_args(message: u8[], args: i32[])
+    val buf: u8[128]
+    error(format(message, buf, args))

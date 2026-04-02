@@ -3,6 +3,7 @@
 // write_byte dispatches through a function pointer.
 // Default: HOSTED/MCU32 → putchar wrapper.  Other MCU → NULL (call console::init(fn) before use).
 // Override at runtime: console::init(fn) for custom transports (UART, USB, mock tests).
+import string::format
 
 #if HOSTED || MCU32
 @raw("#include <stdio.h>")
@@ -27,17 +28,20 @@ fun write_byte(b: u8)
 
 // ── primitives ───────────────────────────────────────────────────────────────
 
-fun println()
+fun print(string: u8[])
+    write_string(string)
     write_byte(10)
 
-fun print_str(s: u8[])
-    var i: i32 = 0
-    while i < s.size()
-        write_byte(s[i])
-        i += 1
+fun print_args(string: u8[], args: i32[])
+    var buf: u8[128]
+    print(format(string, buf, args))
 
-fun print_bool(v: bool)
-    if v
+fun write_string(string: u8[])
+    for i in 0..string.size()
+        write_byte(string[i])
+
+fun write_bool(value: bool)
+    if value
         write_byte('t')
         write_byte('r')
         write_byte('u')
@@ -51,95 +55,89 @@ fun print_bool(v: bool)
 
 // ── unsigned integers ─────────────────────────────────────────────────────────
 
-fun print_u64(v: u64)
+fun write_u64(value: u64)
     var buf: u8[20]
     var i: i32 = 19
-    if v == 0
+    if value == 0
         write_byte('0')
         return
-    while v > 0
-        buf[i] = u8(v % 10 + 48)
-        v = v / 10
+    while value > 0
+        buf[i] = u8(value % 10 + 48)
+        value = value / 10
         i -= 1
-    var j: i32 = i + 1
-    while j < 20
+    for  j in (i + 1)..20
         write_byte(buf[j])
-        j += 1
 
-fun print_u32(v: u32)
-    print_u64(u64(v))
+fun write_u32(value: u32)
+    write_u64(u64(value))
 
-fun print_u16(v: u16)
-    print_u64(u64(v))
+fun write_u16(value: u16)
+    write_u64(u64(value))
 
-fun print_u8(v: u8)
-    print_u64(u64(v))
+fun write_u8(value: u8)
+    write_u64(u64(value))
 
 // ── signed integers ───────────────────────────────────────────────────────────
 
-fun print_i64(v: i64)
-    if v < 0
+fun write_i64(value: i64)
+    if value < 0
         write_byte('-')
-        print_u64(u64(i64(0) - v))
+        write_u64(u64(i64(0) - value))
     else
-        print_u64(u64(v))
+        write_u64(u64(value))
 
-fun print_i32(v: i32)
-    print_i64(i64(v))
+fun write_i32(value: i32)
+    write_i64(i64(value))
 
-fun print_i16(v: i16)
-    print_i64(i64(v))
+fun write_i16(value: i16)
+    write_i64(i64(value))
 
-fun print_i8(v: i8)
-    print_i64(i64(v))
+fun write_i8(value: i8)
+    write_i64(i64(value))
 
 // ── float ─────────────────────────────────────────────────────────────────────
 //
-// Naive float print: separates integer and fractional parts, extracts decimal
+// Naive float write: separates integer and fractional parts, extracts decimal
 // digits by successive * 10. Accurate to ~6 significant digits (float precision).
 // Does not handle NaN or Inf.
 
-fun print_float(v: float)
-    var abs: float = v
-    if v < 0.0
+fun write_float(value: float)
+    var abs: float = value
+    if value < 0.0
         write_byte('-')
-        abs = 0.0 - v
+        abs = 0.0 - value
     val int_part := i32(abs)
-    print_i32(int_part)
+    write_i32(int_part)
     write_byte('.')
     var frac: float = abs - float(int_part)
-    var i: u32 = 0
-    while i < 4
+    for i in 0..4
         frac = frac * 10.0
         val digit := i32(frac)
         write_byte(u8(digit + 48))
         frac = frac - float(digit)
-        i += 1
 
 // ── fixed-point ───────────────────────────────────────────────────────────────
 //
 // 16.16 fixed-point: high 16 bits = integer part, low 16 bits = fractional part.
-// e.g. print_fixed(0x00018000) → "1.5000"   (1 + 32768/65536)
-//      print_fixed(0xFFFE8000) → "-1.5000"
+// e.g. write_fixed(0x00018000) → "1.5000"   (1 + 32768/65536)
+//      write_fixed(0xFFFE8000) → "-1.5000"
 
-fun print_fixed(v: fixed)
+fun write_fixed(value: fixed)
     var abs: u32 = 0
-    if v < 0
+    if value < 0
         write_byte('-')
-        abs = u32(0 - v)
+        abs = u32(0 - value)
     else
-        abs = u32(v)
+        abs = u32(value)
 
     // integer part: high 16 bits
-    print_u32(abs >> 16)
+    write_u32(abs >> 16)
 
     write_byte('.')
     // fractional part: low 16 bits
     // extract each decimal digit: multiply frac by 10, digit = high 16 bits
     var frac: u32 = abs & 0xFFFF
-    var i: u32 = 0
-    while i < 4
+    for i in 0..4
         frac *= 10
         write_byte(u8((frac >> 16) + 48))
         frac = frac & 0xFFFF
-        i += 1

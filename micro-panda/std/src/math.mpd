@@ -23,77 +23,76 @@ fun max<T>(a: T, b: T): T
     return b
 
 @inline
-fun clamp<T>(v: T, lo: T, hi: T): T
-    if v < lo
-        return lo
-    if v > hi
-        return hi
-    return v
+fun clamp<T>(value: T, low: T, high: T): T
+    if value < low
+        return low
+    if value > high
+        return high
+    return value
 
 @inline
-fun abs<T>(v: T): T
-    if v < 0
-        return -v
-    return v
+fun abs<T>(value: T): T
+    if value < 0
+        return -value
+    return value
 
 // ── Fixed-point rounding ──────────────────────────────────────────────────────
 
 @inline
-fun floor_fixed(v: fixed): fixed
-    return v & -1.0
+fun floor_fixed(value: fixed): fixed
+    return value & -1.0
 
 @inline
-fun ceil_fixed(v: fixed): fixed
-    val f := v & -1.0
-    if v != f
-        return f + 1.0
-    return f
+fun ceil_fixed(value: fixed): fixed
+    val result := value & -1.0
+    if value != result
+        return result + 1.0
+    return result
 
 @inline
-fun round_fixed(v: fixed): fixed
-    return (v + 0.5) & -1.0
+fun round_fixed(value: fixed): fixed
+    return (value + 0.5) & -1.0
 
 #if HOSTED || MCU32
 // ── Float trig (radians) ──────────────────────────────────────────────────────
 
-@extern("sinf({x})")
-fun sin(x: float): float
+@extern("sinf")
+fun sin(value: float): float
 
-@extern("cosf({x})")
-fun cos(x: float): float
+@extern("cosf")
+fun cos(value: float): float
 
-@extern("tanf({x})")
-fun tan(x: float): float
+@extern("tanf")
+fun tan(value: float): float
 
-@extern("asinf({x})")
-fun asin(x: float): float
+@extern("asinf")
+fun asin(value: float): float
 
-@extern("acosf({x})")
-fun acos(x: float): float
+@extern("acosf")
+fun acos(value: float): float
 
-@extern("atanf({x})")
-fun atan(x: float): float
+@extern("atanf")
+fun atan(value: float): float
 
-@extern("atan2f({y}, {x})")
+@extern("atan2f")
 fun atan2(y: float, x: float): float
 
 // ── Float power / root ────────────────────────────────────────────────────────
 
-@extern("sqrtf({x})")
-fun sqrt(x: float): float
+@extern("sqrtf")
+fun sqrt(value: float): float
 
-@extern("powf({base}, {exp})")
+@extern("powf")
 fun pow(base: float, exp: float): float
 
 // ── Float rounding ────────────────────────────────────────────────────────────
 
-@extern("floorf({x})")
-fun floor(x: float): float
+@extern("floorf")
+fun floor(value: float): float
 
-@extern("ceilf({x})")
-fun ceil(x: float): float
+@extern("ceilf")
+fun ceil(value: float): float
 
-@extern("roundf({x})")
-fun round(x: float): float
-
+@extern("roundf")
+fun round(value: float): float
 #end

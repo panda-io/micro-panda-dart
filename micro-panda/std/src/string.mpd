@@ -3,145 +3,127 @@
 fun equals(a: u8[], b: u8[]): bool
     if a.size() != b.size()
         return false
-    var i: i32 = 0
-    while i < a.size()
+    for i in 0..a.size()
         if a[i] != b[i]
             return false
-        i += 1
     return true
 
-fun starts_with(s: u8[], prefix: u8[]): bool
-    if prefix.size() > s.size()
+fun starts_with(string: u8[], prefix: u8[]): bool
+    if prefix.size() > string.size()
         return false
-    var i: i32 = 0
-    while i < prefix.size()
-        if s[i] != prefix[i]
+    for i in 0..prefix.size()
+        if string[i] != prefix[i]
             return false
-        i += 1
     return true
 
-fun ends_with(s: u8[], suffix: u8[]): bool
-    if suffix.size() > s.size()
+fun ends_with(string: u8[], suffix: u8[]): bool
+    if suffix.size() > string.size()
         return false
-    val offset := s.size() - suffix.size()
-    var i: i32 = 0
-    while i < suffix.size()
-        if s[offset + i] != suffix[i]
+    val offset := string.size() - suffix.size()
+    for i in 0..suffix.size()
+        if string[offset + i] != suffix[i]
             return false
-        i += 1
     return true
 
-fun index_of(s: u8[], c: u8): i32
-    var i: i32 = 0
-    while i < s.size()
-        if s[i] == c
+fun index_of(string: u8[], char: u8): i32
+    for i in 0..string.size()
+        if string[i] == char
             return i
-        i += 1
     return -1
 
 // ── Slicing ───────────────────────────────────────────────────────────────────
 
-fun sub(s: u8[], start: i32, len: i32): u8[]
-    return {s.ptr + start, len}
+fun sub(string: u8[], start: i32, len: i32): u8[]
+    return {string.ptr + start, len}
 
-fun trim_start(s: u8[]): u8[]
-    var i: i32 = 0
-    while i < s.size()
-        val c := s[i]
+fun trim_start(string: u8[]): u8[]
+    for i in 0..string.size()
+        val c := string[i]
         if c != 32 && c != 9 && c != 10 && c != 13
-            return {s.ptr + i, s.size() - i}
-        i += 1
-    return {s.ptr, 0}
+            return {string.ptr + i, string.size() - i}
+    return {string.ptr, 0}
 
-fun trim_end(s: u8[]): u8[]
-    if s.size() == 0
-        return s
-    var i := s.size() - 1
+fun trim_end(string: u8[]): u8[]
+    if string.size() == 0
+        return string
+    var i := string.size() - 1
     while i > 0
-        val c := s[i]
+        val c := string[i]
         if c != 32 && c != 9 && c != 10 && c != 13
-            return {s.ptr, i + 1}
+            return {string.ptr, i + 1}
         i -= 1
-    val c := s[0]
+    val c := string[0]
     if c != 32 && c != 9 && c != 10 && c != 13
-        return {s.ptr, 1}
-    return {s.ptr, 0}
+        return {string.ptr, 1}
+    return {string.ptr, 0}
 
-fun trim(s: u8[]): u8[]
-    return trim_end(trim_start(s))
+fun trim(string: u8[]): u8[]
+    return trim_end(trim_start(string))
 
 // ── Tokenization ──────────────────────────────────────────────────────────────
 
 // Returns the token starting at `start` up to (not including) the next `delim`
 // or end of string.
-fun token(s: u8[], start: i32, delim: u8): u8[]
-    var i := start
-    while i < s.size()
-        if s[i] == delim
-            return {s.ptr + start, i - start}
-        i += 1
-    return {s.ptr + start, s.size() - start}
+fun token(string: u8[], start: i32, delim: u8): u8[]
+    for i in start..string.size()
+        if string[i] == delim
+            return {string.ptr + start, i - start}
+    return {string.ptr + start, string.size() - start}
 
 // Advances past any `delim` bytes starting at `start`. Use after token() to
 // move to the next field.
-fun skip(s: u8[], start: i32, delim: u8): i32
-    var i := start
-    while i < s.size()
-        if s[i] != delim
+fun skip(string: u8[], start: i32, delim: u8): i32
+    for i in start..string.size()
+        if string[i] != delim
             return i
-        i += 1
-    return s.size()
+    return string.size()
 
 // ── Number parsing ────────────────────────────────────────────────────────────
 
-fun parse_u32(s: u8[]): u32
+fun parse_u32(string: u8[]): u32
     var result: u32 = 0
-    var i: i32 = 0
-    while i < s.size()
-        val c := s[i]
+    for i in 0..string.size()
+        val c := string[i]
         if c < 48 || c > 57
             return result
         result = result * 10 + u32(c - 48)
-        i += 1
     return result
 
-fun parse_i32(s: u8[]): i32
-    if s.size() == 0
+fun parse_i32(string: u8[]): i32
+    if string.size() == 0
         return 0
-    if s[0] == 45
-        val abs := parse_u32({s.ptr + 1, s.size() - 1})
+    if string[0] == 45
+        val abs := parse_u32({string.ptr + 1, string.size() - 1})
         return i32(-abs)
-    return i32(parse_u32(s))
+    return i32(parse_u32(string))
 
 // ── Number formatting ─────────────────────────────────────────────────────────
 
 // Writes decimal representation of `v` into `buf`. Returns number of bytes
 // written. buf must be at least 10 bytes.
-fun format_u32(buf: u8[], v: u32): i32
-    if v == 0
+fun format_u32(buf: u8[], value: u32): i32
+    if value == 0
         buf[0] = 48
         return 1
     var tmp: u8[10]
     var len: i32 = 0
-    var n := v
+    var n := value
     while n > 0
         tmp[len] = u8(48 + n % 10)
         n = n / 10
         len += 1
-    var i: i32 = 0
-    while i < len
+    for i in 0..len
         buf[i] = tmp[len - 1 - i]
-        i += 1
     return len
 
 // Writes decimal representation of `v` into `buf`. Returns bytes written.
 // buf must be at least 11 bytes.
-fun format_i32(buf: u8[], v: i32): i32
-    if v < 0
+fun format_i32(buf: u8[], value: i32): i32
+    if value < 0
         buf[0] = 45
-        val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-v))
+        val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-value))
         return written + 1
-    return format_u32(buf, u32(v))
+    return format_u32(buf, u32(value))
 
 // ── String building ───────────────────────────────────────────────────────────
 //
@@ -165,63 +147,59 @@ fun format_i32(buf: u8[], v: i32): i32
 @raw("static inline float __mp_bits_to_float(int32_t v) { float f; __builtin_memcpy(&f, &v, 4); return f; }")
 
 @extern("__mp_float_to_bits")
-fun float_bits(f: float) i32
+fun float_bits(value: float) i32
 
 @extern("__mp_bits_to_float")
-fun _bits_to_float(v: i32) float
+fun _bits_to_float(value: i32) float
 
 // fixed and i32 share the same 32-bit representation — this is the explicit,
 // intention-clear way to pass a fixed value into an i32[] args array.
 // Do NOT use i32(my_fixed): semantically that means "extract integer part".
-@extern("((int32_t){f})")
-fun fixed_bits(f: fixed) i32
+@extern("((int32_t){value})")
+fun fixed_bits(value: fixed) i32
 
-fun _format_float(buf: u8[], v: float) i32
+fun _format_float(buf: u8[], value: float) i32
     var bi: i32 = 0
-    var abs: float = v
-    if v < 0.0
+    var abs: float = value
+    if value < 0.0
         buf[bi] = 45  // '-'
         bi += 1
-        abs = 0.0 - v
+        abs = 0.0 - value
     val int_part := i32(abs)
     bi += format_i32({buf.ptr + bi, buf.size() - bi}, int_part)
     buf[bi] = 46  // '.'
     bi += 1
     var frac: float = abs - float(int_part)
-    var d: i32 = 0
-    while d < 4
+    for d in 0..4
         frac = frac * 10.0
         val digit := i32(frac)
         buf[bi] = u8(digit + 48)
         bi += 1
         frac = frac - float(digit)
-        d += 1
     return bi
 
-fun _format_fixed(buf: u8[], v: i32) i32
+fun _format_fixed(buf: u8[], value: i32) i32
     var bi: i32 = 0
     var abs: u32 = 0
-    if v < 0
+    if value < 0
         buf[bi] = 45  // '-'
         bi += 1
-        abs = u32(0 - v)
+        abs = u32(0 - value)
     else
-        abs = u32(v)
+        abs = u32(value)
     bi += format_u32({buf.ptr + bi, buf.size() - bi}, abs >> 16)
     buf[bi] = 46  // '.'
     bi += 1
     var frac: u32 = abs & 0xFFFF
-    var d: i32 = 0
-    while d < 4
+    for d in 0..4
         frac *= 10
         buf[bi] = u8((frac >> 16) + 48)
         bi += 1
         frac = frac & 0xFFFF
-        d += 1
     return bi
 
-fun _format_bool(buf: u8[], v: i32) i32
-    if v != 0
+fun _format_bool(buf: u8[], value: i32) i32
+    if value != 0
         buf[0] = 't'
         buf[1] = 'r'
         buf[2] = 'u'

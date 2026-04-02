@@ -55,7 +55,7 @@ Layout: universal modules at `src/`, platform-specific under `src/hosted/` and `
 
 | Module | Contents |
 |---|---|
-| src/console.mpd | write_byte, print_str, print_bool, print_u*/i*/float/fixed, println |
+| src/console.mpd | write_byte, write_string, write_bool, write_u*/i*/float/fixed |
 | src/test.mpd | _test_begin/end/pass/fail, _report() — used by @test runner |
 | src/math.mpd | PI/TAU/E; min/max/clamp/abs; trig/sqrt/pow; floor/ceil/round; fixed variants |
 | src/string.mpd | equals, starts/ends_with, index_of, sub, trim, token, skip, parse/format_u32/i32 |
@@ -84,7 +84,7 @@ Layout: universal modules at `src/`, platform-specific under `src/hosted/` and `
 - **.size()**: on slices/fixed arrays returns u32 (known to validator).
 
 ## Namespace / C name mangling
-- Module `console`, function `print_str` → `console__print_str`
+- Module `console`, function `write_string` → `console__write_string`
 - Private names (`_foo`) → `static` linkage
 - Generic specialization: `Allocator_allocate_array` + `_uint8_t` → `Allocator_allocate_array_uint8_t`
 - `_setupModuleContext(mod)` builds per-module lookup tables before emitting each module.

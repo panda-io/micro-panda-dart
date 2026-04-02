@@ -171,7 +171,7 @@ class CGenerator {
           }
         }
       } else if (imp.symbol != null) {
-        // `import io::print_str` or `import io::MY_CONST` — single symbol.
+        // `import console::print` or `import io::MY_CONST` — single symbol.
         final targetName = imp.alias ?? imp.symbol!;
         final srcMod = _moduleByPath[imp.path];
         final isVar = srcMod?.variables.any((v) => v.name == imp.symbol) ?? false;

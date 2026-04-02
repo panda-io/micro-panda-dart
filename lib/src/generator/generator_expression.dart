@@ -137,7 +137,7 @@ extension GeneratorExpression on CGenerator {
     if (inv.function is MemberAccess) {
       final ma = inv.function as MemberAccess;
 
-      // Check if receiver is a module qualifier (e.g. `io.print_str()`).
+      // Check if receiver is a module qualifier (e.g. `console.print()`).
       if (ma.parent is Identifier) {
         final receiverName = (ma.parent as Identifier).name;
         if (_qualifierToModPath.containsKey(receiverName)) {

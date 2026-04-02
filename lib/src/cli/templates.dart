@@ -65,4 +65,4 @@ const kTemplates = <String, TargetTemplate>{
 
 const kInitTemplate = 'hosted-debug';
 const kInitEntryModule = 'main';
-const kInitMainMpd = 'import console::*\n\nfun main()\n    print_str("Hello, world!")\n    println()\n';
+const kInitMainMpd = 'import console::*\n\nfun main()\n    print("Hello, world!")\n';
