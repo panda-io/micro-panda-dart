@@ -161,7 +161,11 @@ class Builder {
         final sf         = SourceFile(absPath, 0, source.length);
         final modulePath = _modulePathFor(absPath);
         final flags      = Set<String>.from(target.flags);
-        final module     = Parser(sf, source, flags).parseModule(modulePath);
+        final (module, parseError) = Parser(sf, source, flags).parseModulePartial(modulePath);
+        if (parseError != null) {
+          stderr.writeln(parseError.toString());
+          return null;
+        }
         modules.add(module);
 
         // Enqueue imported modules.

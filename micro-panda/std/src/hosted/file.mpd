@@ -63,10 +63,10 @@ class File()
     fun write_str(s: u8[])
         _fwrite(s, _handle)
 
-    fun read_line(buf: u8[]): u32
+    fun read_line(buf: u8[]): i32
         if _fgets(buf, _handle) == false
             return 0
-        var i: u32 = 0
+        var i: i32 = 0
         while i < buf.size()
             if buf[i] == 0
                 return i

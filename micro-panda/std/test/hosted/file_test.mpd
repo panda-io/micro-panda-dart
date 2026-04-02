@@ -3,7 +3,7 @@ import test::assert
 import hosted.file::File
 import hosted.file::READ
 import hosted.file::WRITE
-import mcu32.memory::Allocator
+import mcu32.allocator::Allocator
 
 @test
 fun file_open()

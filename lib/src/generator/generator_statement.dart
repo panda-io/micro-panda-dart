@@ -183,7 +183,7 @@ extension GeneratorStatement on CGenerator {
     }
 
     final idxVar = stmt.index ?? '_i';
-    _line('for (size_t $idxVar = 0; $idxVar < $sizeExpr; $idxVar++) {');
+    _line('for (int32_t $idxVar = 0; $idxVar < $sizeExpr; $idxVar++) {');
     _indent++;
     final elemAccess = isSlice ? '$iterable.ptr[$idxVar]' : '$iterable[$idxVar]';
     if (stmt.isRef) {

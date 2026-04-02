@@ -27,9 +27,9 @@ fun heaplist_grow()
     var list: HeapList<i32>
     list.init(&heap)
     val initial := list.capacity()
-    var i: u32 = 0
+    var i: i32 = 0
     while i <= initial
-        assert(list.push(i32(i)))
+        assert(list.push(i))
         i += 1
     assert(list.size() == initial + 1)
     assert(list.capacity() > initial)

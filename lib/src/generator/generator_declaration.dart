@@ -3,14 +3,65 @@ part of 'generator.dart';
 extension GeneratorDeclaration on CGenerator {
   // ── enum definitions ──────────────────────────────────────────────────────────
 
-  void _emitEnumDefs(List<Module> modules) {
+  /// Emit plain (non-tagged) enum typedefs.  Must run before fn-ptr typedefs so
+  /// enum types like `Rotation` are defined when they appear in fn-ptr parameters.
+  void _emitPlainEnumDefs(List<Module> modules) {
     for (final mod in modules) {
       for (final enm in mod.enums) {
-        if (enm.members.any((m) => m.isTagged)) {
-          _emitTaggedEnumDef(enm);
-        } else {
+        if (!enm.members.any((m) => m.isTagged)) {
           _emitPlainEnumDef(enm);
         }
+      }
+    }
+  }
+
+  /// Emit just the `typedef enum { … } Foo_Tag;` for each tagged enum.
+  /// These are used by the matching `struct Foo` definition which comes later.
+  void _emitTaggedEnumTagDefs(List<Module> modules) {
+    for (final mod in modules) {
+      for (final enm in mod.enums) {
+        if (!enm.members.any((m) => m.isTagged)) continue;
+        _writeln('typedef enum {');
+        for (final m in enm.members) {
+          _writeln('  ${enm.name}_${m.name},');
+        }
+        _writeln('} ${enm.name}_Tag;');
+        _writeln();
+      }
+    }
+  }
+
+  /// Emit tagged-enum data structs and the main struct body.
+  /// Must run AFTER class struct defs so embedded-by-value class fields are defined.
+  void _emitTaggedEnumBodies(List<Module> modules) {
+    for (final mod in modules) {
+      for (final enm in mod.enums) {
+        if (!enm.members.any((m) => m.isTagged)) continue;
+        // Per-variant data structs.
+        for (final m in enm.members) {
+          final fields = m.fields;
+          if (m.isTagged && fields != null && fields.isNotEmpty) {
+            _writeln('typedef struct {');
+            for (final f in fields) {
+              _writeln('  ${_varDecl(f.name, f.type)};');
+            }
+            _writeln('} ${enm.name}_${m.name}_Data;');
+            _writeln();
+          }
+        }
+        // Main struct.
+        _writeln('struct ${enm.name} {');
+        _writeln('  ${enm.name}_Tag tag;');
+        _writeln('  union {');
+        for (final m in enm.members) {
+          final fields = m.fields;
+          if (m.isTagged && fields != null && fields.isNotEmpty) {
+            _writeln('    ${enm.name}_${m.name}_Data ${m.name};');
+          }
+        }
+        _writeln('  } data;');
+        _writeln('};');
+        _writeln();
       }
     }
   }
@@ -31,51 +82,6 @@ extension GeneratorDeclaration on CGenerator {
       }
     }
     _writeln('} ${enm.name};');
-    _writeln();
-  }
-
-  /// Tagged enum (discriminated union) → tag enum + data structs + main struct.
-  ///
-  ///   enum Expr { Binary(left: &Expr, right: &Expr), Num(value: i32) }
-  ///
-  ///   typedef enum { Expr_Binary, Expr_Num } Expr_Tag;
-  ///   typedef struct { Expr* left; Expr* right; } Expr_Binary_Data;
-  ///   typedef struct { int32_t value; }          Expr_Num_Data;
-  ///   struct Expr { Expr_Tag tag; union { Expr_Binary_Data Binary; ... } data; };
-  void _emitTaggedEnumDef(EnumDecl enm) {
-    // 1. Tag enum
-    _writeln('typedef enum {');
-    for (final m in enm.members) {
-      _writeln('  ${enm.name}_${m.name},');
-    }
-    _writeln('} ${enm.name}_Tag;');
-    _writeln();
-
-    // 2. Per-variant data structs (only for variants that carry fields)
-    for (final m in enm.members) {
-      final fields = m.fields;
-      if (m.isTagged && fields != null && fields.isNotEmpty) {
-        _writeln('typedef struct {');
-        for (final f in fields) {
-          _writeln('  ${_varDecl(f.name, f.type)};');
-        }
-        _writeln('} ${enm.name}_${m.name}_Data;');
-        _writeln();
-      }
-    }
-
-    // 3. Main struct with tag + union
-    _writeln('struct ${enm.name} {');
-    _writeln('  ${enm.name}_Tag tag;');
-    _writeln('  union {');
-    for (final m in enm.members) {
-      final fields = m.fields;
-      if (m.isTagged && fields != null && fields.isNotEmpty) {
-        _writeln('    ${enm.name}_${m.name}_Data ${m.name};');
-      }
-    }
-    _writeln('  } data;');
-    _writeln('};');
     _writeln();
   }
 

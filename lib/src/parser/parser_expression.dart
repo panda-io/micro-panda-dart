@@ -253,6 +253,7 @@ extension ParserExpression on Parser {
     elements.add(_parseExpression());
     while (_current.type == TokenType.comma) {
       _advance();
+      if (_current.type == TokenType.rightBracket) break; // allow trailing comma
       elements.add(_parseExpression());
     }
     _expect(TokenType.rightBracket);

@@ -221,11 +221,13 @@ class CGenerator {
     _collectFnPointerTypes(modules);
     _emitIncludes();
     _emitForwardDeclarations(modules);
-    _emitFnPointerTypedefs();
+    _emitPlainEnumDefs(modules);      // plain enums first — needed by fn-ptr typedefs
+    _emitTaggedEnumTagDefs(modules);  // just the Foo_Tag enums
+    _emitFnPointerTypedefs();         // can now reference plain enum types
     _emitSliceTypedefs();
     _emitRawBlocks();
-    _emitEnumDefs(modules);
-    _emitStructDefs(modules);
+    _emitStructDefs(modules);         // class structs in dependency order
+    _emitTaggedEnumBodies(modules);   // data structs + struct bodies (after class defs)
     _emitFunctionPrototypes(modules);
     _emitGlobalVars(modules);
     _emitArgcArgvStatics(entryModPath, entryFn: entryFn);
@@ -639,7 +641,7 @@ class CGenerator {
     // uint8_t slice is always needed for string literals.
     _sliceElementTypes.add('uint8_t');
     for (final elemCType in _sliceElementTypes) {
-      _writeln('typedef struct { $elemCType* ptr; size_t size; } __Slice_$elemCType;');
+      _writeln('typedef struct { $elemCType* ptr; int32_t size; } __Slice_$elemCType;');
     }
     _writeln();
   }

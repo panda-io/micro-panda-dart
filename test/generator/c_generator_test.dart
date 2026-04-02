@@ -361,7 +361,7 @@ fun main()
     test('slice type emits __Slice_T typedef', () {
       final src = 'class Buf(val data: u8[])\n';
       final c = gen(src);
-      expect(c, contains('typedef struct { uint8_t* ptr; size_t size; } __Slice_uint8_t;'));
+      expect(c, contains('typedef struct { uint8_t* ptr; int32_t size; } __Slice_uint8_t;'));
     });
 
     test('slice field in struct uses __Slice_T', () {
