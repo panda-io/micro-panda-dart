@@ -20,6 +20,10 @@ class Scanner {
 
   bool _isAtLineStart = true;
 
+  /// Depth of open `(` and `[` brackets. When > 0, newlines are skipped so
+  /// expressions can span multiple lines inside brackets.
+  int _bracketDepth = 0;
+
   Scanner(this._file, String source, this._flags)
       : _reader = RuneReader(_file, source);
 

@@ -97,6 +97,11 @@ extension ScannerTokens on Scanner {
     switch (firstRune) {
       case 10: // '\n'
         _reader.consume();
+        if (_bracketDepth > 0) {
+          // Inside open brackets: treat newline as whitespace so expressions
+          // can span multiple lines (implicit line continuation).
+          return _scan();
+        }
         _isAtLineStart = true;
         return Token(offset, TokenType.newline, "\n");
       case 39: // '\''
@@ -144,6 +149,22 @@ extension ScannerTokens on Scanner {
         return Token(offset, TokenType.dot, ".");
       case 35: // '#'
         return _scanPreprocessor();
+      case 40: // '('
+        _bracketDepth++;
+        _reader.consume();
+        return Token(offset, TokenType.leftParen, "(");
+      case 41: // ')'
+        _bracketDepth--;
+        _reader.consume();
+        return Token(offset, TokenType.rightParen, ")");
+      case 91: // '['
+        _bracketDepth++;
+        _reader.consume();
+        return Token(offset, TokenType.leftBracket, "[");
+      case 93: // ']'
+        _bracketDepth--;
+        _reader.consume();
+        return Token(offset, TokenType.rightBracket, "]");
     }
 
     // operators and delimiters

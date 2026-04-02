@@ -71,3 +71,21 @@
 | `.` | Member access |
 | `[]` | Index access |
 | `()` | Call / grouping |
+
+## Line continuation
+
+Newlines inside `(` `)` and `[` `]` are ignored, so expressions can span multiple lines:
+
+```
+var palette: u8[] = [
+  0x00, 0x11, 0x22,
+  0x33, 0x44, 0x55,
+]
+
+var result: i32 = foo(
+  very_long_arg_a,
+  very_long_arg_b,
+)
+```
+
+Any indentation on continuation lines is allowed and has no effect on the block structure.
