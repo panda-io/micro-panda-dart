@@ -81,7 +81,7 @@ fun file_write_read()
     var buf := alloc.allocate_array<u8>(16)
     var f: File
     f.open(".micro-panda/test/file_write_output.txt", WRITE)
-    f.write_str("hello")
+    f.write_string("hello")
     f.close()
     f.open(".micro-panda/test/file_write_output.txt", READ)
     val n := f.read_bytes(buf)

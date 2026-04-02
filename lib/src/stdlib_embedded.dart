@@ -157,28 +157,28 @@ fun write_fixed(value: fixed)
 fun _malloc(size: i32): &u8
 
 @extern("realloc")
-fun _realloc(ptr: &u8, new_size: i32): &u8
+fun _realloc(pointer: &u8, new_size: i32): &u8
 
 @extern("free")
-fun _free(ptr: &u8)
+fun _free(pointer: &u8)
 
 // Heap allocator for growable containers (HOSTED only).
 // Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
 class HeapAllocator()
     var _pad: u8 = 0    // keeps struct non-empty
 
-    fun allocate_array<T>(length: i32): T[]
-        val size := sizeof<T>() * length
-        val ptr := &T(_malloc(size))
-        return {ptr, length}
+    fun allocate_array<T>(len: i32): T[]
+        val size := sizeof<T>() * len
+        val pointer := &T(_malloc(size))
+        return {pointer, len}
 
-    fun realloc_array<T>(arr: T[], new_length: i32): T[]
+    fun realloc_array<T>(array: T[], new_length: i32): T[]
         val size := sizeof<T>() * new_length
-        val ptr := &T(_realloc(&u8(arr.ptr), size))
-        return {ptr, new_length}
+        val pointer := &T(_realloc(&u8(array.ptr), size))
+        return {pointer, new_length}
 
-    fun free_array<T>(arr: T[])
-        _free(&u8(arr.ptr))
+    fun free_array<T>(array: T[])
+        _free(&u8(array.ptr))
 
 #end
 """,
@@ -194,13 +194,13 @@ class HeapAllocator()
 fun arg_count(): i32
 
 @extern("((uint8_t*)__mp_argv[{i}])")
-fun _arg_ptr(i: i32): &u8
+fun _arg_pointer(i: i32): &u8
 
 @extern("(uint32_t)strlen(__mp_argv[{i}])")
 fun _arg_len(i: i32): u32
 
 fun arg_value(i: i32) u8[]
-    return {_arg_ptr(i), _arg_len(i)}
+    return {_arg_pointer(i), _arg_len(i)}
 
 #end
 """,
@@ -294,7 +294,7 @@ class HeapMap<T>()
     var _values: T[]
     var _state: u8[]        // 0=empty 1=used 2=deleted
     var _size: i32 = 0
-    var _capacity: u32 = 0
+    var _capacity: i32 = 0
     var _heap: &HeapAllocator
 
     fun init(heap: &HeapAllocator)
@@ -305,29 +305,23 @@ class HeapMap<T>()
         _pool = heap.allocate_array<u8>(128)
         _values = heap.allocate_array<T>(i32(_capacity))
         _state = heap.allocate_array<u8>(i32(_capacity))
-        var i: u32 = 0
-        while i < _capacity
+        for i in 0.._capacity
             _state[i] = 0
-            i += 1
 
     fun _hash(key: u8[]): u32
         var h: u32 = 2166136261
-        var i: i32 = 0
-        while i < key.size()
+        for i in 0..key.size()
             h = h ^ u32(key[i])
             h = h * 16777619
-            i += 1
         return h % _capacity
 
     fun _key_eq(slot: u32, key: u8[]): bool
         if _key_len[slot] != key.size()
             return false
         val start := _key_start[slot]
-        var i: i32 = 0
-        while i < key.size()
+        for i in 0..key.size()
             if _pool[start + i] != key[i]
                 return false
-            i += 1
         return true
 
     // Returns slot for key (existing) or first available slot (empty/tombstone).
@@ -335,8 +329,7 @@ class HeapMap<T>()
     fun _find_slot(key: u8[]): u32
         var slot := _hash(key)
         var first_del: u32 = _capacity
-        var i: u32 = 0
-        while i < _capacity
+        for i in 0.._capacity
             if _state[slot] == 0
                 if first_del != _capacity
                     return first_del
@@ -425,18 +418,14 @@ class HeapMap<T>()
         _values = _heap.allocate_array<T>(i32(_capacity))
         _state = _heap.allocate_array<u8>(i32(_capacity))
         _size = 0
-        var i: u32 = 0
-        while i < _capacity
+        for i in 0.._capacity
             _state[i] = 0
-            i += 1
-        i = 0
-        while i < old_cap
+        for i in 0..old_cap
             if old_state[i] == 1
                 val s := old_key_start[i]
                 val l := old_key_len[i]
                 val key := {&old_pool[s], l}
                 set(key, old_values[i])
-            i += 1
         _heap.free_array<i32>(old_key_start)
         _heap.free_array<i32>(old_key_len)
         _heap.free_array<u8>(old_pool)
@@ -468,11 +457,11 @@ fun _fopen(path: u8[], mode: u8[]): &void
 @extern("fclose((FILE*){handle})")
 fun _fclose(handle: &void)
 
-@extern("(uint32_t)fread({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fread(buf: u8[], handle: &void): u32
+@extern("(int32_t)fread({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
+fun _fread(buf: u8[], handle: &void): i32
 
-@extern("(uint32_t)fwrite({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fwrite(buf: u8[], handle: &void): u32
+@extern("(int32_t)fwrite({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
+fun _fwrite(buf: u8[], handle: &void): i32
 
 @extern("(fgets((char*){buf}.ptr, (int){buf}.size, (FILE*){handle}) != NULL)")
 fun _fgets(buf: u8[], handle: &void): bool
@@ -481,10 +470,10 @@ fun _fgets(buf: u8[], handle: &void): bool
 fun _fflush(handle: &void)
 
 @extern("fseek((FILE*){handle}, (long){pos}, 0)")
-fun _fseek(handle: &void, pos: u32)
+fun _fseek(handle: &void, pos: i32)
 
-@extern("(uint32_t)ftell((FILE*){handle})")
-fun _ftell(handle: &void): u32
+@extern("(int32_t)ftell((FILE*){handle})")
+fun _ftell(handle: &void): i32
 
 @extern("(({handle}) != NULL)")
 fun _ptr_valid(handle: &void): bool
@@ -514,33 +503,31 @@ class File()
     fun is_open(): bool
         return _open
 
-    fun read_bytes(buf: u8[]): u32
+    fun read_bytes(buf: u8[]): i32
         return _fread(buf, _handle)
 
-    fun write_bytes(buf: u8[]): u32
+    fun write_bytes(buf: u8[]): i32
         return _fwrite(buf, _handle)
 
     @inline
-    fun write_str(s: u8[])
-        _fwrite(s, _handle)
+    fun write_string(string: u8[])
+        _fwrite(string, _handle)
 
     fun read_line(buf: u8[]): i32
         if _fgets(buf, _handle) == false
             return 0
-        var i: i32 = 0
-        while i < buf.size()
+        for i in 0..buf.size()
             if buf[i] == 0
                 return i
-            i += 1
         return buf.size()
 
     fun flush()
         _fflush(_handle)
 
-    fun seek(pos: u32)
+    fun seek(pos: i32)
         _fseek(_handle, pos)
 
-    fun tell(): u32
+    fun tell(): i32
         return _ftell(_handle)
 
 #end
@@ -596,12 +583,11 @@ class Folder
 
     // Copy the next entry name into buf. Returns bytes written, 0 when done.
     // Call in a loop until 0 is returned.
-    fun next(buf: u8[]): u32
+    fun next(buf: u8[]): i32
         val name: &u8 = _readdir(_handle)
         if !_dir_valid(name)
-            return u32(0)
-        var i: u32 = 0
-        while i < buf.size()
+            return 0
+        for i in 0..buf.size()
             val c: u8 = name[i]
             if c == u8(0)
                 break
@@ -1040,9 +1026,9 @@ fun ends_with(string: u8[], suffix: u8[]): bool
             return false
     return true
 
-fun index_of(string: u8[], char: u8): i32
-   for i in 0..string.size()
-        if string[i] == char
+fun index_of(string: u8[], byte: u8): i32
+    for i in 0..string.size()
+        if string[i] == byte
             return i
     return -1
 

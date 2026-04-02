@@ -25,9 +25,9 @@ fun ends_with(string: u8[], suffix: u8[]): bool
             return false
     return true
 
-fun index_of(string: u8[], char: u8): i32
+fun index_of(string: u8[], byte: u8): i32
     for i in 0..string.size()
-        if string[i] == char
+        if string[i] == byte
             return i
     return -1
 
