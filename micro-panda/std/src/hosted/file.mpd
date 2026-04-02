@@ -7,11 +7,11 @@ fun _fopen(path: u8[], mode: u8[]): &void
 @extern("fclose((FILE*){handle})")
 fun _fclose(handle: &void)
 
-@extern("(uint32_t)fread({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fread(buf: u8[], handle: &void): u32
+@extern("(int32_t)fread({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
+fun _fread(buf: u8[], handle: &void): i32
 
-@extern("(uint32_t)fwrite({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fwrite(buf: u8[], handle: &void): u32
+@extern("(int32_t)fwrite({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
+fun _fwrite(buf: u8[], handle: &void): i32
 
 @extern("(fgets((char*){buf}.ptr, (int){buf}.size, (FILE*){handle}) != NULL)")
 fun _fgets(buf: u8[], handle: &void): bool
@@ -20,10 +20,10 @@ fun _fgets(buf: u8[], handle: &void): bool
 fun _fflush(handle: &void)
 
 @extern("fseek((FILE*){handle}, (long){pos}, 0)")
-fun _fseek(handle: &void, pos: u32)
+fun _fseek(handle: &void, pos: i32)
 
-@extern("(uint32_t)ftell((FILE*){handle})")
-fun _ftell(handle: &void): u32
+@extern("(int32_t)ftell((FILE*){handle})")
+fun _ftell(handle: &void): i32
 
 @extern("(({handle}) != NULL)")
 fun _ptr_valid(handle: &void): bool
@@ -53,33 +53,31 @@ class File()
     fun is_open(): bool
         return _open
 
-    fun read_bytes(buf: u8[]): u32
+    fun read_bytes(buf: u8[]): i32
         return _fread(buf, _handle)
 
-    fun write_bytes(buf: u8[]): u32
+    fun write_bytes(buf: u8[]): i32
         return _fwrite(buf, _handle)
 
     @inline
-    fun write_str(s: u8[])
-        _fwrite(s, _handle)
+    fun write_string(string: u8[])
+        _fwrite(string, _handle)
 
     fun read_line(buf: u8[]): i32
         if _fgets(buf, _handle) == false
             return 0
-        var i: i32 = 0
-        while i < buf.size()
+        for i in 0..buf.size()
             if buf[i] == 0
                 return i
-            i += 1
         return buf.size()
 
     fun flush()
         _fflush(_handle)
 
-    fun seek(pos: u32)
+    fun seek(pos: i32)
         _fseek(_handle, pos)
 
-    fun tell(): u32
+    fun tell(): i32
         return _ftell(_handle)
 
 #end

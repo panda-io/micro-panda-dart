@@ -88,7 +88,7 @@ class HeapMap<T>()
     var _values: T[]
     var _state: u8[]        // 0=empty 1=used 2=deleted
     var _size: i32 = 0
-    var _capacity: u32 = 0
+    var _capacity: i32 = 0
     var _heap: &HeapAllocator
 
     fun init(heap: &HeapAllocator)
@@ -99,29 +99,23 @@ class HeapMap<T>()
         _pool = heap.allocate_array<u8>(128)
         _values = heap.allocate_array<T>(i32(_capacity))
         _state = heap.allocate_array<u8>(i32(_capacity))
-        var i: u32 = 0
-        while i < _capacity
+        for i in 0.._capacity
             _state[i] = 0
-            i += 1
 
     fun _hash(key: u8[]): u32
         var h: u32 = 2166136261
-        var i: i32 = 0
-        while i < key.size()
+        for i in 0..key.size()
             h = h ^ u32(key[i])
             h = h * 16777619
-            i += 1
         return h % _capacity
 
     fun _key_eq(slot: u32, key: u8[]): bool
         if _key_len[slot] != key.size()
             return false
         val start := _key_start[slot]
-        var i: i32 = 0
-        while i < key.size()
+        for i in 0..key.size()
             if _pool[start + i] != key[i]
                 return false
-            i += 1
         return true
 
     // Returns slot for key (existing) or first available slot (empty/tombstone).
@@ -129,8 +123,7 @@ class HeapMap<T>()
     fun _find_slot(key: u8[]): u32
         var slot := _hash(key)
         var first_del: u32 = _capacity
-        var i: u32 = 0
-        while i < _capacity
+        for i in 0.._capacity
             if _state[slot] == 0
                 if first_del != _capacity
                     return first_del
@@ -219,18 +212,14 @@ class HeapMap<T>()
         _values = _heap.allocate_array<T>(i32(_capacity))
         _state = _heap.allocate_array<u8>(i32(_capacity))
         _size = 0
-        var i: u32 = 0
-        while i < _capacity
+        for i in 0.._capacity
             _state[i] = 0
-            i += 1
-        i = 0
-        while i < old_cap
+        for i in 0..old_cap
             if old_state[i] == 1
                 val s := old_key_start[i]
                 val l := old_key_len[i]
                 val key := {&old_pool[s], l}
                 set(key, old_values[i])
-            i += 1
         _heap.free_array<i32>(old_key_start)
         _heap.free_array<i32>(old_key_len)
         _heap.free_array<u8>(old_pool)
