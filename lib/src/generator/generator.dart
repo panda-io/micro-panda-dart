@@ -6,6 +6,7 @@ import '../ast/declaration/parameter.dart';
 import '../ast/declaration/variable_decl.dart';
 import '../ast/expression/expression.dart';
 import '../ast/expression/expression_array_init.dart';
+import '../ast/expression/expression_struct_init.dart';
 import '../ast/expression/expression_binary.dart';
 import '../ast/expression/expression_conversion.dart';
 import '../ast/expression/expression_decrement.dart';
@@ -528,6 +529,15 @@ class CGenerator {
         return slice;
       }
     }
+    if (value is StructInitializer && value.elements.isNotEmpty) {
+      final ptrExpr = value.elements[0];
+      Type? elemType = _inferSliceElemType(ptrExpr);
+      if (elemType != null) {
+        final slice = TypeArray(elemType);
+        slice.dimension = [0];
+        return slice;
+      }
+    }
     return null;
   }
 
@@ -827,6 +837,10 @@ class CGenerator {
     } else if (expr is Decrement) {
       _walkExprForInst(expr.expression, classSubst);
     } else if (expr is ArrayInitializer) {
+      for (final e in expr.elements) {
+        _walkExprForInst(e, classSubst);
+      }
+    } else if (expr is StructInitializer) {
       for (final e in expr.elements) {
         _walkExprForInst(e, classSubst);
       }

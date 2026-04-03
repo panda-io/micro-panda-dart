@@ -53,7 +53,8 @@ class Folder
         val name: &u8 = _readdir(_handle)
         if !_dir_valid(name)
             return 0
-        for i in 0..buf.size()
+        var i: i32 = 0
+        while i < buf.size()
             val c: u8 = name[i]
             if c == u8(0)
                 break

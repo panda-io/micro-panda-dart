@@ -202,9 +202,9 @@ extension ParserExpression on Parser {
       return _parseArrayInitializer();
     }
 
-    // Slice literal: {ptr, len}
+    // Brace initializer: {expr, ...} — slice literal or struct init, resolved by validator
     if (_current.type == TokenType.leftBrace) {
-      return _parseSliceLiteral();
+      return _parseBraceInitializer();
     }
 
     // Grouped expression: (expr)
@@ -260,7 +260,7 @@ extension ParserExpression on Parser {
     return ArrayInitializer(elements, pos);
   }
 
-  ArrayInitializer _parseSliceLiteral() {
+  StructInitializer _parseBraceInitializer() {
     final pos = _current.offset;
     _expect(TokenType.leftBrace);
     final elements = <Expression>[];
@@ -272,6 +272,6 @@ extension ParserExpression on Parser {
       }
     }
     _expect(TokenType.rightBrace);
-    return ArrayInitializer(elements, pos, isSliceLiteral: true);
+    return StructInitializer(elements, pos);
   }
 }

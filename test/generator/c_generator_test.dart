@@ -137,6 +137,46 @@ void main() {
       final c = gen(src);
       expect(c, contains('_vm = {0}'));
     });
+
+    test('struct brace init — flat', () {
+      final src = '''
+class Foo
+    var value: i32
+
+var foo: Foo = {123}
+''';
+      final c = gen(src);
+      expect(c, contains('(Foo){123}'));
+    });
+
+    test('struct brace init — nested', () {
+      final src = '''
+class Foo
+    var value: i32
+
+class Bar
+    var value: i32
+    var foo: Foo
+
+var bar: Bar = {123, {456}}
+''';
+      final c = gen(src);
+      expect(c, contains('(Bar){123, (Foo){456}}'));
+    });
+
+    test('struct brace init — local var', () {
+      final src = '''
+class Point
+    var x: i32
+    var y: i32
+
+fun make() Point
+    var p: Point = {10, 20}
+    return p
+''';
+      final c = gen(src);
+      expect(c, contains('(Point){10, 20}'));
+    });
   });
 
   group('Generator – functions', () {

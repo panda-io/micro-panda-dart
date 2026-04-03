@@ -9,6 +9,7 @@ import '../ast/declaration/parameter.dart';
 import '../ast/declaration/variable_decl.dart';
 import '../ast/expression/expression.dart';
 import '../ast/expression/expression_array_init.dart';
+import '../ast/expression/expression_struct_init.dart';
 import '../ast/expression/expression_binary.dart';
 import '../ast/expression/expression_conversion.dart';
 import '../ast/expression/expression_decrement.dart';

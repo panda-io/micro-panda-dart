@@ -18,6 +18,7 @@ extension GeneratorExpression on CGenerator {
     if (expr is Conversion)       return _conversion(expr);
     if (expr is Sizeof)           return _sizeof(expr);
     if (expr is ArrayInitializer) return _arrayInit(expr);
+    if (expr is StructInitializer) return _structInit(expr);
     return '/* unknown expr */';
   }
 
@@ -82,6 +83,14 @@ extension GeneratorExpression on CGenerator {
     final elems = expr.elements.map(_expr).join(', ');
     // Slice literal {ptr, len} — always emit compound literal for correct C
     if (expr.isSliceLiteral && expr.type is TypeArray) {
+      return '(${_cType(expr.type!)}){$elems}';
+    }
+    return '{$elems}';
+  }
+
+  String _structInit(StructInitializer expr) {
+    final elems = expr.elements.map(_expr).join(', ');
+    if (expr.type != null) {
       return '(${_cType(expr.type!)}){$elems}';
     }
     return '{$elems}';
@@ -287,6 +296,11 @@ extension GeneratorExpression on CGenerator {
       }
       // Untyped slice literal {ptr, len} used as argument — add compound-literal cast.
       if (arg is ArrayInitializer && arg.isSliceLiteral && arg.type == null) {
+        final elemC = _cType(expectedType.elementType);
+        final elems = arg.elements.map(_expr).join(', ');
+        return '(__Slice_$elemC){$elems}';
+      }
+      if (arg is StructInitializer && arg.type == null) {
         final elemC = _cType(expectedType.elementType);
         final elems = arg.elements.map(_expr).join(', ');
         return '(__Slice_$elemC){$elems}';
