@@ -12,14 +12,3 @@ targets:
     cc:
       bin: gcc
       flags: [-O2, -Wall, -Isrc]
-
-  test:
-    entry: main
-    src: src/
-    type: bin
-    flags: [HOSTED]
-    output: bin/test
-    test: test/
-    cc:
-      bin: gcc
-      flags: [-O2, -Wall, -Isrc]

@@ -81,7 +81,7 @@ fun write_u32(value: u32)
 fun write_u16(value: u16)
     write_u64(u64(value))
 
-fun write_byte(value: byte)
+fun write_u8(value: byte)
     write_u64(u64(value))
 
 // ── signed integers ───────────────────────────────────────────────────────────
@@ -1027,9 +1027,9 @@ fun ends_with(string: byte[], suffix: byte[]): bool
             return false
     return true
 
-fun index_of(string: byte[], byte: byte): int
+fun index_of(string: byte[], character: byte): int
     for i in 0..string.size()
-        if string[i] == byte
+        if string[i] == character
             return i
     return -1
 
