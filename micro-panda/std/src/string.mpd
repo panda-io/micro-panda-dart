@@ -89,13 +89,16 @@ fun parse_u32(string: byte[]): u32
         result = result * 10 + u32(c - 48)
     return result
 
-fun parse_int(string: byte[]): int
+fun parse_i32(string: byte[]): i32
     if string.size() == 0
         return 0
     if string[0] == 45
         val abs := parse_u32({string.ptr + 1, string.size() - 1})
-        return int(-abs)
-    return int(parse_u32(string))
+        return i32(-abs)
+    return i32(parse_u32(string))
+
+fun parse_int(string: byte[]): int
+    return int(parse_i32(string))
 
 // ── Number formatting ─────────────────────────────────────────────────────────
 
@@ -118,12 +121,15 @@ fun format_u32(buf: byte[], value: u32): int
 
 // Writes decimal representation of `v` into `buf`. Returns bytes written.
 // buf must be at least 11 bytes.
-fun format_int(buf: byte[], value: int): int
+fun format_i32(buf: byte[], value: i32): i32
     if value < 0
         buf[0] = 45
         val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-value))
         return written + 1
     return format_u32(buf, u32(value))
+
+fun format_int(buf: byte[], value: int): int
+    return format_i32(buf, i32(value))
 
 // ── String building ───────────────────────────────────────────────────────────
 //
@@ -158,6 +164,9 @@ fun _bits_to_float(value: int) float
 @extern("((int32_t){value})")
 fun q16_bits(value: q16) int
 
+@extern("((int32_t){value})")
+fun fixed_bits(value: fixed) int
+
 fun _format_float(buf: byte[], value: float) int
     var bi: int = 0
     var abs: float = value
@@ -178,7 +187,7 @@ fun _format_float(buf: byte[], value: float) int
         frac = frac - float(digit)
     return bi
 
-fun _format_q16(buf: byte[], value: int) int
+fun _format_fixed(buf: byte[], value: int) int
     var bi: int = 0
     var abs: u32 = 0
     if value < 0
@@ -236,11 +245,11 @@ fun format(text: byte[], buf: byte[], args: int[]): byte[]
                 else if spec == 'f'
                     written = _format_float(sub, _bits_to_float(args[idx]))
                 else if spec == 'd'
-                    written = _format_q16(sub, args[idx])
+                    written = _format_fixed(sub, args[idx])
                 else if spec == 'b'
                     written = _format_bool(sub, args[idx])
                 else
-                    written = format_int(sub, args[idx])
+                    written = format_i32(sub, i32(args[idx]))
                 bi += written
         else
             buf[bi] = c

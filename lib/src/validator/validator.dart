@@ -18,6 +18,7 @@ class Validator {
     final ctx = Context.root(modules, configVars: configVars);
     for (final mod in modules) {
       final modCtx = ctx.forModule(mod.sourceFile, mod.path);
+      _checkModuleDuplicates(mod, modCtx);
       for (final v in mod.variables) {
         _validateGlobalVar(v, modCtx);
       }
@@ -29,6 +30,22 @@ class Validator {
       }
     }
     return ctx.errors;
+  }
+
+  /// Report duplicate top-level names within a single module.
+  void _checkModuleDuplicates(Module mod, Context ctx) {
+    final seen = <String, int>{};
+    void check(String name, int pos) {
+      if (seen.containsKey(name)) {
+        ctx.error(pos, "duplicate declaration '$name'");
+      } else {
+        seen[name] = pos;
+      }
+    }
+    for (final v in mod.variables) check(v.name, v.position);
+    for (final fn in mod.functions) check(fn.name, fn.position);
+    for (final cls in mod.classes) check(cls.name, cls.position);
+    for (final enm in mod.enums) check(enm.name, enm.position);
   }
 
   void _validateGlobalVar(VariableDecl v, Context ctx) {
@@ -50,6 +67,18 @@ class Validator {
   }
 
   void _validateClass(ClassDecl cls, Context ctx) {
+    final seen = <String, int>{};
+    void check(String name, int pos) {
+      if (seen.containsKey(name)) {
+        ctx.error(pos, "duplicate member '$name' in class '${cls.name}'");
+      } else {
+        seen[name] = pos;
+      }
+    }
+    for (final f in cls.constructorFields) check(f.name, f.position);
+    for (final f in cls.bodyFields) check(f.name, f.position);
+    for (final m in cls.methods) check(m.name, m.position);
+
     for (final fn in cls.methods) {
       _validateFunction(fn, cls.name, ctx);
     }
