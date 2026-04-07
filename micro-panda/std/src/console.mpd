@@ -74,7 +74,7 @@ fun write_u32(value: u32)
 fun write_u16(value: u16)
     write_u64(u64(value))
 
-fun write_u8(value: byte)
+fun write_u8(value: u8)
     write_u64(u64(value))
 
 // ── signed integers ───────────────────────────────────────────────────────────
@@ -86,13 +86,16 @@ fun write_i64(value: i64)
     else
         write_u64(u64(value))
 
-fun write_int(value: int)
+fun write_i32(value: i32)
     write_i64(i64(value))
 
 fun write_i16(value: i16)
     write_i64(i64(value))
 
 fun write_i8(value: i8)
+    write_i64(i64(value))
+
+fun write_int(value: int)
     write_i64(i64(value))
 
 // ── float ─────────────────────────────────────────────────────────────────────
@@ -141,3 +144,6 @@ fun write_q16(value: q16)
         frac *= 10
         write_byte(byte((frac >> 16) + 48))
         frac = frac & 0xFFFF
+
+fun write_fixed(value: fixed)
+    write_q16(q16(value))
