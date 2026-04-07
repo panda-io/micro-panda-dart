@@ -347,7 +347,6 @@ class HeapMap<T>()
                 if _key_eq(slot, key)
                     return slot
             slot = (slot + 1) % _capacity
-            i += 1
         if first_del != _capacity
             return first_del
         return _capacity
