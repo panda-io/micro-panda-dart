@@ -7,21 +7,21 @@ var _failed: u32 = 0
 
 // ── per-test state ────────────────────────────────────────────────────────────
 
-var _current_name: u8[] = ""
+var _current_name: byte[] = ""
 var _current_failed: u32 = 0
 
 // failure buffer: up to 8 failures per test
 var _buf_count: u32 = 0
 var _buf_lines: u32[8]
-var _buf_files: u8[][8]
-var _buf_exprs: u8[][8]
+var _buf_files: byte[][8]
+var _buf_exprs: byte[][8]
 
 // ── called by generated assert code ──────────────────────────────────────────
 
 fun _test_pass()
     // counted at test level in _test_end, nothing to do per assert
 
-fun _test_fail(file: u8[], line: u32, expr: u8[])
+fun _test_fail(file: byte[], line: u32, expr: byte[])
     if _buf_count < 8
         _buf_files[_buf_count] = file
         _buf_lines[_buf_count] = line
@@ -31,7 +31,7 @@ fun _test_fail(file: u8[], line: u32, expr: u8[])
 
 // ── called by generated test main() ──────────────────────────────────────────
 
-fun _test_begin(name: u8[])
+fun _test_begin(name: byte[])
     _current_name = name
     _current_failed = 0
     _buf_count = 0
@@ -60,7 +60,7 @@ fun _test_end()
             i += 1
         _failed += 1
 
-fun _report() i32
+fun _report() int
     write_string("DONE ")
     write_u32(_succeeded)
     write_string("/")

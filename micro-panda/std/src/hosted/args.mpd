@@ -2,20 +2,20 @@
 
 // Access to C main() argc / argv.
 // argc() returns argument count (includes program name at index 0).
-// argv(i) returns argument i as a u8[] slice.
+// argv(i) returns argument i as a byte[] slice.
 
 @raw("#include <string.h>")
 
 @extern("__mp_argc")
-fun arg_count(): i32
+fun arg_count(): int
 
 @extern("((uint8_t*)__mp_argv[{i}])")
-fun _arg_pointer(i: i32): &u8
+fun _arg_pointer(i: int): &byte
 
 @extern("(uint32_t)strlen(__mp_argv[{i}])")
-fun _arg_len(i: i32): u32
+fun _arg_len(i: int): u32
 
-fun arg_value(i: i32) u8[]
+fun arg_value(i: int) byte[]
     return {_arg_pointer(i), _arg_len(i)}
 
 #end

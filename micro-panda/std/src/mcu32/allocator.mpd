@@ -1,10 +1,10 @@
 #if HOSTED || MCU32
 
 class Allocator()
-    var _memory: u8[] = {null, 0}
-    var _cursor: i32 = 0
+    var _memory: byte[] = {null, 0}
+    var _cursor: int = 0
 
-    fun init(mem: u8[])
+    fun init(mem: byte[])
         _memory = mem
         _cursor = 0
 
@@ -14,16 +14,16 @@ class Allocator()
         if _cursor + size > _memory.size()
             return null
         val ptr := &T(&_memory[_cursor])
-        _cursor = (_cursor + size + 3) & ~i32(3)
+        _cursor = (_cursor + size + 3) & ~int(3)
         return ptr
 
     @inline
-    fun allocate_array<T>(length: i32): T[]
+    fun allocate_array<T>(length: int): T[]
         val size := sizeof<T>() * length
         if _cursor + size > _memory.size()
             return {null, 0}
         val ptr := &T(&_memory[_cursor])
-        _cursor = (_cursor + size + 3) & ~i32(3)
+        _cursor = (_cursor + size + 3) & ~int(3)
         return {ptr, length}
 
     @inline

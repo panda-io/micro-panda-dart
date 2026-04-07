@@ -16,34 +16,34 @@ import string::format
 @raw("#include <stdio.h>")
 
 @extern("putchar({b})")
-fun _putchar(b: u8)
+fun _putchar(b: byte)
 
-fun _write_byte_default(b: u8)
+fun _write_byte_default(b: byte)
     _putchar(b)
 
-var _write_byte: fun(u8) = _write_byte_default
+var _write_byte: fun(byte) = _write_byte_default
 #else
-var _write_byte: fun(u8)
+var _write_byte: fun(byte)
 #end
 
-fun init(write_byte: fun(u8))
+fun init(write_byte: fun(byte))
     _write_byte = write_byte
 
 @inline
-fun write_byte(b: u8)
+fun write_byte(b: byte)
     _write_byte(b)
 
 // ── primitives ───────────────────────────────────────────────────────────────
 
-fun print(string: u8[])
+fun print(string: byte[])
     write_string(string)
     write_byte(10)
 
-fun print_args(string: u8[], args: i32[])
-    var buf: u8[128]
+fun print_args(string: byte[], args: int[])
+    var buf: byte[128]
     print(format(string, buf, args))
 
-fun write_string(string: u8[])
+fun write_string(string: byte[])
     for i in 0..string.size()
         write_byte(string[i])
 
@@ -63,13 +63,13 @@ fun write_bool(value: bool)
 // ── unsigned integers ─────────────────────────────────────────────────────────
 
 fun write_u64(value: u64)
-    var buf: u8[20]
-    var i: i32 = 19
+    var buf: byte[20]
+    var i: int = 19
     if value == 0
         write_byte('0')
         return
     while value > 0
-        buf[i] = u8(value % 10 + 48)
+        buf[i] = byte(value % 10 + 48)
         value = value / 10
         i -= 1
     for  j in (i + 1)..20
@@ -81,7 +81,7 @@ fun write_u32(value: u32)
 fun write_u16(value: u16)
     write_u64(u64(value))
 
-fun write_u8(value: u8)
+fun write_byte(value: byte)
     write_u64(u64(value))
 
 // ── signed integers ───────────────────────────────────────────────────────────
@@ -93,7 +93,7 @@ fun write_i64(value: i64)
     else
         write_u64(u64(value))
 
-fun write_i32(value: i32)
+fun write_int(value: int)
     write_i64(i64(value))
 
 fun write_i16(value: i16)
@@ -113,14 +113,14 @@ fun write_float(value: float)
     if value < 0.0
         write_byte('-')
         abs = 0.0 - value
-    val int_part := i32(abs)
-    write_i32(int_part)
+    val int_part := int(abs)
+    write_int(int_part)
     write_byte('.')
     var frac: float = abs - float(int_part)
     for i in 0..4
         frac = frac * 10.0
-        val digit := i32(frac)
-        write_byte(u8(digit + 48))
+        val digit := int(frac)
+        write_byte(byte(digit + 48))
         frac = frac - float(digit)
 
 // ── Q16 (16.16 fixed-point) ───────────────────────────────────────────────────
@@ -146,7 +146,7 @@ fun write_q16(value: q16)
     var frac: u32 = abs & 0xFFFF
     for i in 0..4
         frac *= 10
-        write_byte(u8((frac >> 16) + 48))
+        write_byte(byte((frac >> 16) + 48))
         frac = frac & 0xFFFF
 """,
   'hosted.allocator': """#if HOSTED
@@ -154,31 +154,31 @@ fun write_q16(value: q16)
 @raw("#include <stdlib.h>")
 
 @extern("malloc")
-fun _malloc(size: i32): &u8
+fun _malloc(size: int): &byte
 
 @extern("realloc")
-fun _realloc(pointer: &u8, new_size: i32): &u8
+fun _realloc(pointer: &byte, new_size: int): &byte
 
 @extern("free")
-fun _free(pointer: &u8)
+fun _free(pointer: &byte)
 
 // Heap allocator for growable containers (HOSTED only).
 // Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
 class HeapAllocator()
-    var _pad: u8 = 0    // keeps struct non-empty
+    var _pad: byte = 0    // keeps struct non-empty
 
-    fun allocate_array<T>(len: i32): T[]
+    fun allocate_array<T>(len: int): T[]
         val size := sizeof<T>() * len
         val pointer := &T(_malloc(size))
         return {pointer, len}
 
-    fun realloc_array<T>(array: T[], new_length: i32): T[]
+    fun realloc_array<T>(array: T[], new_length: int): T[]
         val size := sizeof<T>() * new_length
-        val pointer := &T(_realloc(&u8(array.ptr), size))
+        val pointer := &T(_realloc(&byte(array.ptr), size))
         return {pointer, new_length}
 
     fun free_array<T>(array: T[])
-        _free(&u8(array.ptr))
+        _free(&byte(array.ptr))
 
 #end
 """,
@@ -186,20 +186,20 @@ class HeapAllocator()
 
 // Access to C main() argc / argv.
 // argc() returns argument count (includes program name at index 0).
-// argv(i) returns argument i as a u8[] slice.
+// argv(i) returns argument i as a byte[] slice.
 
 @raw("#include <string.h>")
 
 @extern("__mp_argc")
-fun arg_count(): i32
+fun arg_count(): int
 
 @extern("((uint8_t*)__mp_argv[{i}])")
-fun _arg_pointer(i: i32): &u8
+fun _arg_pointer(i: int): &byte
 
 @extern("(uint32_t)strlen(__mp_argv[{i}])")
-fun _arg_len(i: i32): u32
+fun _arg_len(i: int): u32
 
-fun arg_value(i: i32) u8[]
+fun arg_value(i: int) byte[]
     return {_arg_pointer(i), _arg_len(i)}
 
 #end
@@ -209,7 +209,7 @@ import hosted.allocator::HeapAllocator
 
 class HeapList<T>()
     var _buffer: T[]
-    var _size: i32 = 0
+    var _size: int = 0
     var _heap: &HeapAllocator
 
     fun init(heap: &HeapAllocator)
@@ -233,14 +233,14 @@ class HeapList<T>()
         _size -= 1
         return true
 
-    fun insert(i: i32, value: T) bool
+    fun insert(i: int, value: T) bool
         if i > _size
             return false
         if _size >= _buffer.size()
             _buffer = _heap.realloc_array<T>(_buffer, _buffer.size() * 2)
             if _buffer.size() == 0
                 return false
-        var j: i32 = _size
+        var j: int = _size
         while j > i
             _buffer[j] = _buffer[j - 1]
             j -= 1
@@ -249,11 +249,11 @@ class HeapList<T>()
         return true
 
     @inline
-    fun get(i: i32) T
+    fun get(i: int) T
         return _buffer[i]
 
     @inline
-    fun set(i: i32, value: T)
+    fun set(i: int, value: T)
         _buffer[i] = value
 
     @inline
@@ -261,11 +261,11 @@ class HeapList<T>()
         return _buffer[_size - 1]
 
     @inline
-    fun size() i32
+    fun size() int
         return _size
 
     @inline
-    fun capacity() i32
+    fun capacity() int
         return _buffer.size()
 
     @inline
@@ -282,40 +282,40 @@ class HeapList<T>()
         _size = 0
 
 // ── HeapMap ───────────────────────────────────────────────────────────────────
-// Hash map with string (u8[]) keys and generic values. HOSTED only.
+// Hash map with string (byte[]) keys and generic values. HOSTED only.
 // Uses FNV-1a hashing, linear probing, 75% load-factor resize.
 // Keys are copied into an owned flat byte pool — keys need not outlive the map.
 
 class HeapMap<T>()
-    var _key_start: i32[]   // offset into _pool per slot
-    var _key_len: i32[]     // key length per slot
-    var _pool: u8[]         // flat owned key byte storage
-    var _pool_used: i32 = 0
+    var _key_start: int[]   // offset into _pool per slot
+    var _key_len: int[]     // key length per slot
+    var _pool: byte[]         // flat owned key byte storage
+    var _pool_used: int = 0
     var _values: T[]
-    var _state: u8[]        // 0=empty 1=used 2=deleted
-    var _size: i32 = 0
-    var _capacity: i32 = 0
+    var _state: byte[]        // 0=empty 1=used 2=deleted
+    var _size: int = 0
+    var _capacity: int = 0
     var _heap: &HeapAllocator
 
     fun init(heap: &HeapAllocator)
         _heap = heap
         _capacity = 8
-        _key_start = heap.allocate_array<i32>(i32(_capacity))
-        _key_len = heap.allocate_array<i32>(i32(_capacity))
-        _pool = heap.allocate_array<u8>(128)
-        _values = heap.allocate_array<T>(i32(_capacity))
-        _state = heap.allocate_array<u8>(i32(_capacity))
+        _key_start = heap.allocate_array<int>(int(_capacity))
+        _key_len = heap.allocate_array<int>(int(_capacity))
+        _pool = heap.allocate_array<byte>(128)
+        _values = heap.allocate_array<T>(int(_capacity))
+        _state = heap.allocate_array<byte>(int(_capacity))
         for i in 0.._capacity
             _state[i] = 0
 
-    fun _hash(key: u8[]): u32
+    fun _hash(key: byte[]): u32
         var h: u32 = 2166136261
         for i in 0..key.size()
             h = h ^ u32(key[i])
             h = h * 16777619
         return h % _capacity
 
-    fun _key_eq(slot: u32, key: u8[]): bool
+    fun _key_eq(slot: u32, key: byte[]): bool
         if _key_len[slot] != key.size()
             return false
         val start := _key_start[slot]
@@ -326,7 +326,7 @@ class HeapMap<T>()
 
     // Returns slot for key (existing) or first available slot (empty/tombstone).
     // Returns _capacity if the table is completely full with no match.
-    fun _find_slot(key: u8[]): u32
+    fun _find_slot(key: byte[]): u32
         var slot := _hash(key)
         var first_del: u32 = _capacity
         for i in 0.._capacity
@@ -346,7 +346,7 @@ class HeapMap<T>()
             return first_del
         return _capacity
 
-    fun contains(key: u8[]): bool
+    fun contains(key: byte[]): bool
         if _capacity == 0
             return false
         val slot := _find_slot(key)
@@ -356,12 +356,12 @@ class HeapMap<T>()
 
     // Returns value. Caller must check contains() first; behaviour is
     // undefined when the key is absent.
-    fun get(key: u8[]): T
+    fun get(key: byte[]): T
         val slot := _find_slot(key)
         return _values[slot]
 
-    fun set(key: u8[], value: T)
-        if _size * 4 >= i32(_capacity) * 3
+    fun set(key: byte[], value: T)
+        if _size * 4 >= int(_capacity) * 3
             _grow()
         val slot := _find_slot(key)
         if slot >= _capacity
@@ -369,7 +369,7 @@ class HeapMap<T>()
         if _state[slot] != 1
             _pool_ensure(key.size())
             val start := _pool_used
-            var i: i32 = 0
+            var i: int = 0
             while i < key.size()
                 _pool[start + i] = key[i]
                 i += 1
@@ -380,7 +380,7 @@ class HeapMap<T>()
             _size += 1
         _values[slot] = value
 
-    fun remove(key: u8[]): bool
+    fun remove(key: byte[]): bool
         if _capacity == 0
             return false
         val slot := _find_slot(key)
@@ -392,16 +392,16 @@ class HeapMap<T>()
         _size -= 1
         return true
 
-    fun size(): i32
+    fun size(): int
         return _size
 
-    fun _pool_ensure(needed: i32)
+    fun _pool_ensure(needed: int)
         if _pool_used + needed <= _pool.size()
             return
         var new_size := _pool.size() * 2
         if new_size < _pool_used + needed
             new_size = _pool_used + needed
-        _pool = _heap.realloc_array<u8>(_pool, new_size)
+        _pool = _heap.realloc_array<byte>(_pool, new_size)
 
     fun _grow()
         val old_key_start := _key_start
@@ -411,12 +411,12 @@ class HeapMap<T>()
         val old_state := _state
         val old_cap := _capacity
         _capacity = old_cap * 2
-        _key_start = _heap.allocate_array<i32>(i32(_capacity))
-        _key_len = _heap.allocate_array<i32>(i32(_capacity))
-        _pool = _heap.allocate_array<u8>(_pool_used + 64)
+        _key_start = _heap.allocate_array<int>(int(_capacity))
+        _key_len = _heap.allocate_array<int>(int(_capacity))
+        _pool = _heap.allocate_array<byte>(_pool_used + 64)
         _pool_used = 0
-        _values = _heap.allocate_array<T>(i32(_capacity))
-        _state = _heap.allocate_array<u8>(i32(_capacity))
+        _values = _heap.allocate_array<T>(int(_capacity))
+        _state = _heap.allocate_array<byte>(int(_capacity))
         _size = 0
         for i in 0.._capacity
             _state[i] = 0
@@ -426,18 +426,18 @@ class HeapMap<T>()
                 val l := old_key_len[i]
                 val key := {&old_pool[s], l}
                 set(key, old_values[i])
-        _heap.free_array<i32>(old_key_start)
-        _heap.free_array<i32>(old_key_len)
-        _heap.free_array<u8>(old_pool)
+        _heap.free_array<int>(old_key_start)
+        _heap.free_array<int>(old_key_len)
+        _heap.free_array<byte>(old_pool)
         _heap.free_array<T>(old_values)
-        _heap.free_array<u8>(old_state)
+        _heap.free_array<byte>(old_state)
 
     fun free()
-        _heap.free_array<i32>(_key_start)
-        _heap.free_array<i32>(_key_len)
-        _heap.free_array<u8>(_pool)
+        _heap.free_array<int>(_key_start)
+        _heap.free_array<int>(_key_len)
+        _heap.free_array<byte>(_pool)
         _heap.free_array<T>(_values)
-        _heap.free_array<u8>(_state)
+        _heap.free_array<byte>(_state)
         _key_start = {null, 0}
         _key_len = {null, 0}
         _pool = {null, 0}
@@ -452,28 +452,28 @@ class HeapMap<T>()
 @raw("#include <stdio.h>")
 
 @extern("fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
-fun _fopen(path: u8[], mode: u8[]): &void
+fun _fopen(path: byte[], mode: byte[]): &void
 
 @extern("fclose((FILE*){handle})")
 fun _fclose(handle: &void)
 
 @extern("(int32_t)fread({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fread(buf: u8[], handle: &void): i32
+fun _fread(buf: byte[], handle: &void): int
 
 @extern("(int32_t)fwrite({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fwrite(buf: u8[], handle: &void): i32
+fun _fwrite(buf: byte[], handle: &void): int
 
 @extern("(fgets((char*){buf}.ptr, (int){buf}.size, (FILE*){handle}) != NULL)")
-fun _fgets(buf: u8[], handle: &void): bool
+fun _fgets(buf: byte[], handle: &void): bool
 
 @extern("fflush((FILE*){handle})")
 fun _fflush(handle: &void)
 
 @extern("fseek((FILE*){handle}, (long){pos}, 0)")
-fun _fseek(handle: &void, pos: i32)
+fun _fseek(handle: &void, pos: int)
 
 @extern("(int32_t)ftell((FILE*){handle})")
-fun _ftell(handle: &void): i32
+fun _ftell(handle: &void): int
 
 @extern("(({handle}) != NULL)")
 fun _ptr_valid(handle: &void): bool
@@ -489,7 +489,7 @@ class File()
     var _handle: &void
     var _open: bool
 
-    fun open(path: u8[], mode: u8[]): bool
+    fun open(path: byte[], mode: byte[]): bool
         _handle = _fopen(path, mode)
         _open = _ptr_valid(_handle)
         return _open
@@ -503,17 +503,17 @@ class File()
     fun is_open(): bool
         return _open
 
-    fun read_bytes(buf: u8[]): i32
+    fun read_bytes(buf: byte[]): int
         return _fread(buf, _handle)
 
-    fun write_bytes(buf: u8[]): i32
+    fun write_bytes(buf: byte[]): int
         return _fwrite(buf, _handle)
 
     @inline
-    fun write_string(string: u8[])
+    fun write_string(string: byte[])
         _fwrite(string, _handle)
 
-    fun read_line(buf: u8[]): i32
+    fun read_line(buf: byte[]): int
         if _fgets(buf, _handle) == false
             return 0
         for i in 0..buf.size()
@@ -524,10 +524,10 @@ class File()
     fun flush()
         _fflush(_handle)
 
-    fun seek(pos: i32)
+    fun seek(pos: int)
         _fseek(_handle, pos)
 
-    fun tell(): i32
+    fun tell(): int
         return _ftell(_handle)
 
 #end
@@ -548,19 +548,19 @@ class File()
     __p[__l] = '\\0';
     (uint8_t*)opendir(__p);
 })''')
-fun _opendir(path: u8[]): &u8
+fun _opendir(path: byte[]): &byte
 
 @extern('''({
     struct dirent* __e = readdir((DIR*){handle});
     __e ? (uint8_t*)__e->d_name : (uint8_t*)NULL;
 })''')
-fun _readdir(handle: &u8): &u8
+fun _readdir(handle: &byte): &byte
 
 @extern("closedir((DIR*){handle})")
-fun _closedir(handle: &u8)
+fun _closedir(handle: &byte)
 
 @extern("(({handle}) != NULL)")
-fun _dir_valid(handle: &u8): bool
+fun _dir_valid(handle: &byte): bool
 
 // Create a directory. Returns true on success or if it already exists.
 @extern('''({
@@ -571,26 +571,26 @@ fun _dir_valid(handle: &u8): bool
     int __r = mkdir(__p, 0755);
     __r == 0 || errno == EEXIST;
 })''')
-fun folder_create(path: u8[]): bool
+fun folder_create(path: byte[]): bool
 
 class Folder
-    var _handle: &u8
+    var _handle: &byte
 
     // Open a directory. Returns true on success.
-    fun open(path: u8[]): bool
+    fun open(path: byte[]): bool
         _handle = _opendir(path)
         return _dir_valid(_handle)
 
     // Copy the next entry name into buf. Returns bytes written, 0 when done.
     // Call in a loop until 0 is returned.
-    fun next(buf: u8[]): i32
-        val name: &u8 = _readdir(_handle)
+    fun next(buf: byte[]): int
+        val name: &byte = _readdir(_handle)
         if !_dir_valid(name)
             return 0
-        var i: i32 = 0
+        var i: int = 0
         while i < buf.size()
-            val c: u8 = name[i]
-            if c == u8(0)
+            val c: byte = name[i]
+            if c == byte(0)
                 break
             buf[i] = c
             i++
@@ -607,7 +607,7 @@ class Folder
 
 var _exit_requested: bool = false
 
-fun _on_exit_requested(sig: i32)
+fun _on_exit_requested(sig: int)
     _exit_requested = true
 
 @extern('''
@@ -617,7 +617,7 @@ fun _on_exit_requested(sig: i32)
     signal(SIGHUP, (void(*)(int)){handler});
     #endif
 ''')
-fun _watch_signals(handler: fun(i32))
+fun _watch_signals(handler: fun(int))
 
 fun catch_signals()
     _watch_signals(_on_exit_requested)
@@ -673,28 +673,28 @@ import string::*
 
 // Emit ESC[ + seq (e.g. "32m" → green, "33m" → orange, "31m" → red, "0m" → reset)
 @inline
-fun _esc(seq: u8[])
+fun _esc(seq: byte[])
     write_byte(27)
     write_byte('[')
     write_string(seq)
 
 // ── simple log (no format args) ───────────────────────────────────────────────
 
-fun info(message: u8[])
+fun info(message: byte[])
     _esc("32m")
     write_string("[INFO] ")
     write_string(message)
     _esc("0m")
     write_byte(10)
 
-fun warn(message: u8[])
+fun warn(message: byte[])
     _esc("33m")
     write_string("[WARN] ")
     write_string(message)
     _esc("0m")
     write_byte(10)
 
-fun error(message: u8[])
+fun error(message: byte[])
     _esc("31m")
     write_string("[ERROR] ")
     write_string(message)
@@ -706,19 +706,19 @@ fun error(message: u8[])
 // Uses an internal 128-byte buffer — no buffer needed at the call site.
 //
 // Example:
-//   var args: i32[2] = {count, i32(alive)}
+//   var args: int[2] = [count, int(alive)]
 //   info_args("count={0i} alive={1b}", args)
 
-fun info_args(message: u8[], args: i32[])
-    val buf: u8[128]
+fun info_args(message: byte[], args: int[])
+    val buf: byte[128]
     info(format(message, buf, args))
 
-fun warn_args(message: u8[], args: i32[])
-    val buf: u8[128]
+fun warn_args(message: byte[], args: int[])
+    val buf: byte[128]
     warn(format(message, buf, args))
 
-fun error_args(message: u8[], args: i32[])
-    val buf: u8[128]
+fun error_args(message: byte[], args: int[])
+    val buf: byte[128]
     error(format(message, buf, args))
 """,
   'math': """#if HOSTED || MCU32
@@ -823,10 +823,10 @@ fun round(value: float): float
   'mcu32.allocator': """#if HOSTED || MCU32
 
 class Allocator()
-    var _memory: u8[] = {null, 0}
-    var _cursor: i32 = 0
+    var _memory: byte[] = {null, 0}
+    var _cursor: int = 0
 
-    fun init(mem: u8[])
+    fun init(mem: byte[])
         _memory = mem
         _cursor = 0
 
@@ -836,16 +836,16 @@ class Allocator()
         if _cursor + size > _memory.size()
             return null
         val ptr := &T(&_memory[_cursor])
-        _cursor = (_cursor + size + 3) & ~i32(3)
+        _cursor = (_cursor + size + 3) & ~int(3)
         return ptr
 
     @inline
-    fun allocate_array<T>(length: i32): T[]
+    fun allocate_array<T>(length: int): T[]
         val size := sizeof<T>() * length
         if _cursor + size > _memory.size()
             return {null, 0}
         val ptr := &T(&_memory[_cursor])
-        _cursor = (_cursor + size + 3) & ~i32(3)
+        _cursor = (_cursor + size + 3) & ~int(3)
         return {ptr, length}
 
     @inline
@@ -863,9 +863,9 @@ import mcu32.allocator::Allocator
 
 class ArrayList<T>()
     var _buffer: T[]
-    var _size: i32 = 0
+    var _size: int = 0
 
-    fun init(alloc: &Allocator, capacity: i32) bool
+    fun init(alloc: &Allocator, capacity: int) bool
         _buffer = alloc.allocate_array<T>(capacity)
         if _buffer.size() == 0
             return false
@@ -886,12 +886,12 @@ class ArrayList<T>()
         _size -= 1
         return true
 
-    fun insert(i: i32, value: T) bool
+    fun insert(i: int, value: T) bool
         if _size >= _buffer.size()
             return false
         if i > _size
             return false
-        var j: i32 = _size
+        var j: int = _size
         while j > i
             _buffer[j] = _buffer[j - 1]
             j -= 1
@@ -900,11 +900,11 @@ class ArrayList<T>()
         return true
 
     @inline
-    fun get(i: i32) T
+    fun get(i: int) T
         return _buffer[i]
 
     @inline
-    fun set(i: i32, value: T)
+    fun set(i: int, value: T)
         _buffer[i] = value
 
     @inline
@@ -912,11 +912,11 @@ class ArrayList<T>()
         return _buffer[_size - 1]
 
     @inline
-    fun size() i32
+    fun size() int
         return _size
 
     @inline
-    fun capacity() i32
+    fun capacity() int
         return _buffer.size()
 
     @inline
@@ -936,11 +936,11 @@ class ArrayList<T>()
 
 class RingBuffer<T>()
     var _buffer: T[]
-    var _head: i32 = 0
-    var _tail: i32 = 0
-    var _size: i32 = 0
+    var _head: int = 0
+    var _tail: int = 0
+    var _size: int = 0
 
-    fun init(allocator: &Allocator, capacity: i32) bool
+    fun init(allocator: &Allocator, capacity: int) bool
         _buffer = allocator.allocate_array<T>(capacity)
         if _buffer.size() == 0
             return false
@@ -968,11 +968,11 @@ class RingBuffer<T>()
         return _buffer[_head]
 
     @inline
-    fun size() i32
+    fun size() int
         return _size
 
     @inline
-    fun capacity() i32
+    fun capacity() int
         return _buffer.size()
 
     @inline
@@ -988,21 +988,21 @@ class RingBuffer<T>()
   'memory': """@raw("#include <string.h>")
 
 @extern("memset({dst}, {value}, {size})")
-fun memory_set(dst: u8[], value: u8, size: i32)
+fun memory_set(dst: byte[], value: byte, size: int)
 
 @extern("memcpy({dst}, {src}, {size})")
-fun memory_copy(dst: u8[], src: u8[], size: i32)
+fun memory_copy(dst: byte[], src: byte[], size: int)
 
 @extern("memmove({dst}, {src}, {size})")
-fun memory_move(dst: u8[], src: u8[], size: i32)
+fun memory_move(dst: byte[], src: byte[], size: int)
 
 @inline
-fun memory_zero(dst: u8[], size: i32)
-    memory_set(dst, u8(0), size)
+fun memory_zero(dst: byte[], size: int)
+    memory_set(dst, byte(0), size)
 """,
   'string': """// ── Comparison / search ───────────────────────────────────────────────────────
 
-fun equals(a: u8[], b: u8[]): bool
+fun equals(a: byte[], b: byte[]): bool
     if a.size() != b.size()
         return false
     for i in 0..a.size()
@@ -1010,7 +1010,7 @@ fun equals(a: u8[], b: u8[]): bool
             return false
     return true
 
-fun starts_with(string: u8[], prefix: u8[]): bool
+fun starts_with(string: byte[], prefix: byte[]): bool
     if prefix.size() > string.size()
         return false
     for i in 0..prefix.size()
@@ -1018,7 +1018,7 @@ fun starts_with(string: u8[], prefix: u8[]): bool
             return false
     return true
 
-fun ends_with(string: u8[], suffix: u8[]): bool
+fun ends_with(string: byte[], suffix: byte[]): bool
     if suffix.size() > string.size()
         return false
     val offset := string.size() - suffix.size()
@@ -1027,7 +1027,7 @@ fun ends_with(string: u8[], suffix: u8[]): bool
             return false
     return true
 
-fun index_of(string: u8[], byte: u8): i32
+fun index_of(string: byte[], byte: byte): int
     for i in 0..string.size()
         if string[i] == byte
             return i
@@ -1035,17 +1035,17 @@ fun index_of(string: u8[], byte: u8): i32
 
 // ── Slicing ───────────────────────────────────────────────────────────────────
 
-fun sub(string: u8[], start: i32, len: i32): u8[]
+fun sub(string: byte[], start: int, len: int): byte[]
     return {string.ptr + start, len}
 
-fun trim_start(string: u8[]): u8[]
+fun trim_start(string: byte[]): byte[]
     for i in 0..string.size()
         val c := string[i]
         if c != 32 && c != 9 && c != 10 && c != 13
             return {string.ptr + i, string.size() - i}
     return {string.ptr, 0}
 
-fun trim_end(string: u8[]): u8[]
+fun trim_end(string: byte[]): byte[]
     if string.size() == 0
         return string
     var i := string.size() - 1
@@ -1059,14 +1059,14 @@ fun trim_end(string: u8[]): u8[]
         return {string.ptr, 1}
     return {string.ptr, 0}
 
-fun trim(string: u8[]): u8[]
+fun trim(string: byte[]): byte[]
     return trim_end(trim_start(string))
 
 // ── Tokenization ──────────────────────────────────────────────────────────────
 
 // Returns the token starting at `start` up to (not including) the next `delim`
 // or end of string.
-fun token(string: u8[], start: i32, delim: u8): u8[]
+fun token(string: byte[], start: int, delim: byte): byte[]
     for i in start..string.size()
         if string[i] == delim
             return {string.ptr + start, i - start}
@@ -1074,7 +1074,7 @@ fun token(string: u8[], start: i32, delim: u8): u8[]
 
 // Advances past any `delim` bytes starting at `start`. Use after token() to
 // move to the next field.
-fun skip(string: u8[], start: i32, delim: u8): i32
+fun skip(string: byte[], start: int, delim: byte): int
     for i in start..string.size()
         if string[i] != delim
             return i
@@ -1082,7 +1082,7 @@ fun skip(string: u8[], start: i32, delim: u8): i32
 
 // ── Number parsing ────────────────────────────────────────────────────────────
 
-fun parse_u32(string: u8[]): u32
+fun parse_u32(string: byte[]): u32
     var result: u32 = 0
     for i in 0..string.size()
         val c := string[i]
@@ -1091,27 +1091,27 @@ fun parse_u32(string: u8[]): u32
         result = result * 10 + u32(c - 48)
     return result
 
-fun parse_i32(string: u8[]): i32
+fun parse_int(string: byte[]): int
     if string.size() == 0
         return 0
     if string[0] == 45
         val abs := parse_u32({string.ptr + 1, string.size() - 1})
-        return i32(-abs)
-    return i32(parse_u32(string))
+        return int(-abs)
+    return int(parse_u32(string))
 
 // ── Number formatting ─────────────────────────────────────────────────────────
 
 // Writes decimal representation of `v` into `buf`. Returns number of bytes
 // written. buf must be at least 10 bytes.
-fun format_u32(buf: u8[], value: u32): i32
+fun format_u32(buf: byte[], value: u32): int
     if value == 0
         buf[0] = 48
         return 1
-    var tmp: u8[10]
-    var len: i32 = 0
+    var tmp: byte[10]
+    var len: int = 0
     var n := value
     while n > 0
-        tmp[len] = u8(48 + n % 10)
+        tmp[len] = byte(48 + n % 10)
         n = n / 10
         len += 1
     for i in 0..len
@@ -1120,7 +1120,7 @@ fun format_u32(buf: u8[], value: u32): i32
 
 // Writes decimal representation of `v` into `buf`. Returns bytes written.
 // buf must be at least 11 bytes.
-fun format_i32(buf: u8[], value: i32): i32
+fun format_int(buf: byte[], value: int): int
     if value < 0
         buf[0] = 45
         val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-value))
@@ -1130,18 +1130,18 @@ fun format_i32(buf: u8[], value: i32): i32
 // ── String building ───────────────────────────────────────────────────────────
 //
 // Renders `text` into `buf`, replacing {Ni} {Nu} {Nf} {Nd} {Nb} placeholders.
-// All args are stored as i32 — the type specifier controls formatting:
+// All args are stored as int — the type specifier controls formatting:
 //   {0i}  signed int (default when no specifier)
 //   {0u}  unsigned int
 //   {0f}  float       — pass bits via float_bits(v)
-//   {0d}  q16 (16.16) — pass as i32(v) (q16 is i32 internally)
+//   {0d}  q16 (16.16) — pass as int(v) (q16 is int internally)
 //   {0b}  bool        — prints "true" / "false"
 //
-// Returns a u8[] slice into buf with the final length.
+// Returns a byte[] slice into buf with the final length.
 //
 // Example:
-//   var buf:  u8[64]
-//   var args: i32[3] = {hp, max_hp, i32(alive)}
+//   var buf:  byte[64]
+//   var args: int[3] = {hp, max_hp, int(alive)}
 //   val s := build_string("HP: {0i}/{1i} alive={2b}", buf, args)
 
 // Bit-cast helpers — raw 32-bit reinterpret, no value conversion.
@@ -1149,39 +1149,39 @@ fun format_i32(buf: u8[], value: i32): i32
 @raw("static inline float __mp_bits_to_float(int32_t v) { float f; __builtin_memcpy(&f, &v, 4); return f; }")
 
 @extern("__mp_float_to_bits")
-fun float_bits(value: float) i32
+fun float_bits(value: float) int
 
 @extern("__mp_bits_to_float")
-fun _bits_to_float(value: i32) float
+fun _bits_to_float(value: int) float
 
-// q16 and i32 share the same 32-bit representation — this is the explicit,
-// intention-clear way to pass a q16 value into an i32[] args array.
-// Do NOT use i32(my_q16): semantically that means "extract integer part".
+// q16 and int share the same 32-bit representation — this is the explicit,
+// intention-clear way to pass a q16 value into an int[] args array.
+// Do NOT use int(my_q16): semantically that means "extract integer part".
 @extern("((int32_t){value})")
-fun q16_bits(value: q16) i32
+fun q16_bits(value: q16) int
 
-fun _format_float(buf: u8[], value: float) i32
-    var bi: i32 = 0
+fun _format_float(buf: byte[], value: float) int
+    var bi: int = 0
     var abs: float = value
     if value < 0.0
         buf[bi] = 45  // '-'
         bi += 1
         abs = 0.0 - value
-    val int_part := i32(abs)
-    bi += format_i32({buf.ptr + bi, buf.size() - bi}, int_part)
+    val int_part := int(abs)
+    bi += format_int({buf.ptr + bi, buf.size() - bi}, int_part)
     buf[bi] = 46  // '.'
     bi += 1
     var frac: float = abs - float(int_part)
     for d in 0..4
         frac = frac * 10.0
-        val digit := i32(frac)
-        buf[bi] = u8(digit + 48)
+        val digit := int(frac)
+        buf[bi] = byte(digit + 48)
         bi += 1
         frac = frac - float(digit)
     return bi
 
-fun _format_q16(buf: u8[], value: i32) i32
-    var bi: i32 = 0
+fun _format_q16(buf: byte[], value: int) int
+    var bi: int = 0
     var abs: u32 = 0
     if value < 0
         buf[bi] = 45  // '-'
@@ -1195,12 +1195,12 @@ fun _format_q16(buf: u8[], value: i32) i32
     var frac: u32 = abs & 0xFFFF
     for d in 0..4
         frac *= 10
-        buf[bi] = u8((frac >> 16) + 48)
+        buf[bi] = byte((frac >> 16) + 48)
         bi += 1
         frac = frac & 0xFFFF
     return bi
 
-fun _format_bool(buf: u8[], value: i32) i32
+fun _format_bool(buf: byte[], value: int) int
     if value != 0
         buf[0] = 't'
         buf[1] = 'r'
@@ -1214,25 +1214,25 @@ fun _format_bool(buf: u8[], value: i32) i32
     buf[4] = 'e'
     return 5
 
-fun format(text: u8[], buf: u8[], args: i32[]): u8[]
-    var ti: i32 = 0
-    var bi: i32 = 0
+fun format(text: byte[], buf: byte[], args: int[]): byte[]
+    var ti: int = 0
+    var bi: int = 0
     while ti < text.size() && bi < buf.size()
         val c := text[ti]
         if c == '{'
             ti += 1
-            var idx: i32 = 0
+            var idx: int = 0
             while ti < text.size() && text[ti] != '}' && text[ti] != 'i' && text[ti] != 'u' && text[ti] != 'f' && text[ti] != 'd' && text[ti] != 'b'
-                idx = idx * 10 + i32(text[ti]) - 48
+                idx = idx * 10 + int(text[ti]) - 48
                 ti += 1
-            var spec: u8 = 'i'
+            var spec: byte = 'i'
             if ti < text.size() && text[ti] != '}'
                 spec = text[ti]
                 ti += 1
             ti += 1  // skip '}'
             if idx >= 0 && idx < args.size()
                 val sub := {buf.ptr + bi, buf.size() - bi}
-                var written: i32 = 0
+                var written: int = 0
                 if spec == 'u'
                     written = format_u32(sub, u32(args[idx]))
                 else if spec == 'f'
@@ -1242,7 +1242,7 @@ fun format(text: u8[], buf: u8[], args: i32[]): u8[]
                 else if spec == 'b'
                     written = _format_bool(sub, args[idx])
                 else
-                    written = format_i32(sub, args[idx])
+                    written = format_int(sub, args[idx])
                 bi += written
         else
             buf[bi] = c
@@ -1259,21 +1259,21 @@ var _failed: u32 = 0
 
 // ── per-test state ────────────────────────────────────────────────────────────
 
-var _current_name: u8[] = ""
+var _current_name: byte[] = ""
 var _current_failed: u32 = 0
 
 // failure buffer: up to 8 failures per test
 var _buf_count: u32 = 0
 var _buf_lines: u32[8]
-var _buf_files: u8[][8]
-var _buf_exprs: u8[][8]
+var _buf_files: byte[][8]
+var _buf_exprs: byte[][8]
 
 // ── called by generated assert code ──────────────────────────────────────────
 
 fun _test_pass()
     // counted at test level in _test_end, nothing to do per assert
 
-fun _test_fail(file: u8[], line: u32, expr: u8[])
+fun _test_fail(file: byte[], line: u32, expr: byte[])
     if _buf_count < 8
         _buf_files[_buf_count] = file
         _buf_lines[_buf_count] = line
@@ -1283,7 +1283,7 @@ fun _test_fail(file: u8[], line: u32, expr: u8[])
 
 // ── called by generated test main() ──────────────────────────────────────────
 
-fun _test_begin(name: u8[])
+fun _test_begin(name: byte[])
     _current_name = name
     _current_failed = 0
     _buf_count = 0
@@ -1312,7 +1312,7 @@ fun _test_end()
             i += 1
         _failed += 1
 
-fun _report() i32
+fun _report() int
     write_string("DONE ")
     write_u32(_succeeded)
     write_string("/")

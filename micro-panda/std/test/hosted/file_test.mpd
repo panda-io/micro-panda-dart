@@ -21,10 +21,10 @@ fun file_open_missing()
 
 @test
 fun file_read_bytes()
-    var _mem: u8[256]
+    var _mem: byte[256]
     var alloc: Allocator
     alloc.init({&_mem[0], u32(256)})
-    var buf := alloc.allocate_array<u8>(32)
+    var buf := alloc.allocate_array<byte>(32)
     var f: File
     f.open("test/resource/hello.txt", READ)
     val n := f.read_bytes(buf)
@@ -33,10 +33,10 @@ fun file_read_bytes()
 
 @test
 fun file_read_line()
-    var _mem: u8[256]
+    var _mem: byte[256]
     var alloc: Allocator
     alloc.init({&_mem[0], u32(256)})
-    var buf := alloc.allocate_array<u8>(64)
+    var buf := alloc.allocate_array<byte>(64)
     var f: File
     f.open("test/resource/lines.txt", READ)
     val n := f.read_line(buf)
@@ -46,10 +46,10 @@ fun file_read_line()
 
 @test
 fun file_read_all_lines()
-    var _mem: u8[256]
+    var _mem: byte[256]
     var alloc: Allocator
     alloc.init({&_mem[0], u32(256)})
-    var buf := alloc.allocate_array<u8>(64)
+    var buf := alloc.allocate_array<byte>(64)
     var f: File
     f.open("test/resource/lines.txt", READ)
     var count: u32 = 0
@@ -60,10 +60,10 @@ fun file_read_all_lines()
 
 @test
 fun file_tell_seek()
-    var _mem: u8[256]
+    var _mem: byte[256]
     var alloc: Allocator
     alloc.init({&_mem[0], u32(256)})
-    var buf := alloc.allocate_array<u8>(5)
+    var buf := alloc.allocate_array<byte>(5)
     var f: File
     f.open("test/resource/hello.txt", READ)
     assert(f.tell() == 0)
@@ -75,10 +75,10 @@ fun file_tell_seek()
 
 @test
 fun file_write_read()
-    var _mem: u8[256]
+    var _mem: byte[256]
     var alloc: Allocator
     alloc.init({&_mem[0], u32(256)})
-    var buf := alloc.allocate_array<u8>(16)
+    var buf := alloc.allocate_array<byte>(16)
     var f: File
     f.open(".micro-panda/test/file_write_output.txt", WRITE)
     f.write_string("hello")

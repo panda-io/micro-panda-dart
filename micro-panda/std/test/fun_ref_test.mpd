@@ -2,15 +2,15 @@ import test::assert
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-fun _add(a: i32, b: i32) i32
+fun _add(a: int, b: int) int
     return a + b
 
-fun _mul(a: i32, b: i32) i32
+fun _mul(a: int, b: int) int
     return a * b
 
-var _op: fun(i32, i32) i32
+var _op: fun(int, int) int
 
-fun _set_op(fn: fun(i32, i32) i32)
+fun _set_op(fn: fun(int, int) int)
     _op = fn
 
 // ── tests ─────────────────────────────────────────────────────────────────────

@@ -14,19 +14,19 @@
     __p[__l] = '\0';
     (uint8_t*)opendir(__p);
 })''')
-fun _opendir(path: u8[]): &u8
+fun _opendir(path: byte[]): &byte
 
 @extern('''({
     struct dirent* __e = readdir((DIR*){handle});
     __e ? (uint8_t*)__e->d_name : (uint8_t*)NULL;
 })''')
-fun _readdir(handle: &u8): &u8
+fun _readdir(handle: &byte): &byte
 
 @extern("closedir((DIR*){handle})")
-fun _closedir(handle: &u8)
+fun _closedir(handle: &byte)
 
 @extern("(({handle}) != NULL)")
-fun _dir_valid(handle: &u8): bool
+fun _dir_valid(handle: &byte): bool
 
 // Create a directory. Returns true on success or if it already exists.
 @extern('''({
@@ -37,26 +37,26 @@ fun _dir_valid(handle: &u8): bool
     int __r = mkdir(__p, 0755);
     __r == 0 || errno == EEXIST;
 })''')
-fun folder_create(path: u8[]): bool
+fun folder_create(path: byte[]): bool
 
 class Folder
-    var _handle: &u8
+    var _handle: &byte
 
     // Open a directory. Returns true on success.
-    fun open(path: u8[]): bool
+    fun open(path: byte[]): bool
         _handle = _opendir(path)
         return _dir_valid(_handle)
 
     // Copy the next entry name into buf. Returns bytes written, 0 when done.
     // Call in a loop until 0 is returned.
-    fun next(buf: u8[]): i32
-        val name: &u8 = _readdir(_handle)
+    fun next(buf: byte[]): int
+        val name: &byte = _readdir(_handle)
         if !_dir_valid(name)
             return 0
-        var i: i32 = 0
+        var i: int = 0
         while i < buf.size()
-            val c: u8 = name[i]
-            if c == u8(0)
+            val c: byte = name[i]
+            if c == byte(0)
                 break
             buf[i] = c
             i++

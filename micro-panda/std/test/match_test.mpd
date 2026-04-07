@@ -2,7 +2,7 @@ import test::assert
 
 // ── Scalar match ──────────────────────────────────────────────────────────────
 
-fun dispatch(op: i32) i32
+fun dispatch(op: int) int
     match op
         1:
             return 10
@@ -20,9 +20,9 @@ fun match_scalar()
     assert(dispatch(3) == 30)
     assert(dispatch(99) == 0)
 
-// ── u8 scalar (VM opcode style) ───────────────────────────────────────────────
+// ── byte scalar (VM opcode style) ───────────────────────────────────────────────
 
-fun exec(op: u8) i32
+fun exec(op: byte) int
     match op
         0x01:
             return 1
@@ -32,7 +32,7 @@ fun exec(op: u8) i32
             return 0xFF
 
 @test
-fun match_u8_scalar()
+fun match_byte_scalar()
     assert(exec(0x01) == 1)
     assert(exec(0x02) == 2)
     assert(exec(0x99) == 0xFF)
@@ -44,7 +44,7 @@ enum Color
     Green
     Blue
 
-fun color_id(c: Color) i32
+fun color_id(c: Color) int
     match c
         Color.Red:
             return 1
@@ -68,7 +68,7 @@ enum OpCode
     Sub = 2
     Mul = 3
 
-fun calc(op: OpCode, a: i32, b: i32) i32
+fun calc(op: OpCode, a: int, b: int) int
     match op
         OpCode.Add:
             return a + b
@@ -88,11 +88,11 @@ fun match_value_enum()
 // ── Tagged enum match (destructuring) ────────────────────────────────────────
 
 enum Expr
-    Num(value: i32)
+    Num(value: int)
     Add(left: &Expr, right: &Expr)
     Neg(inner: &Expr)
 
-fun eval(e: &Expr) i32
+fun eval(e: &Expr) int
     match e
         Num(value):
             return value

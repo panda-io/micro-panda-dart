@@ -3,7 +3,7 @@ import hosted.allocator::HeapAllocator
 
 class HeapList<T>()
     var _buffer: T[]
-    var _size: i32 = 0
+    var _size: int = 0
     var _heap: &HeapAllocator
 
     fun init(heap: &HeapAllocator)
@@ -27,14 +27,14 @@ class HeapList<T>()
         _size -= 1
         return true
 
-    fun insert(i: i32, value: T) bool
+    fun insert(i: int, value: T) bool
         if i > _size
             return false
         if _size >= _buffer.size()
             _buffer = _heap.realloc_array<T>(_buffer, _buffer.size() * 2)
             if _buffer.size() == 0
                 return false
-        var j: i32 = _size
+        var j: int = _size
         while j > i
             _buffer[j] = _buffer[j - 1]
             j -= 1
@@ -43,11 +43,11 @@ class HeapList<T>()
         return true
 
     @inline
-    fun get(i: i32) T
+    fun get(i: int) T
         return _buffer[i]
 
     @inline
-    fun set(i: i32, value: T)
+    fun set(i: int, value: T)
         _buffer[i] = value
 
     @inline
@@ -55,11 +55,11 @@ class HeapList<T>()
         return _buffer[_size - 1]
 
     @inline
-    fun size() i32
+    fun size() int
         return _size
 
     @inline
-    fun capacity() i32
+    fun capacity() int
         return _buffer.size()
 
     @inline
@@ -76,40 +76,40 @@ class HeapList<T>()
         _size = 0
 
 // ── HeapMap ───────────────────────────────────────────────────────────────────
-// Hash map with string (u8[]) keys and generic values. HOSTED only.
+// Hash map with string (byte[]) keys and generic values. HOSTED only.
 // Uses FNV-1a hashing, linear probing, 75% load-factor resize.
 // Keys are copied into an owned flat byte pool — keys need not outlive the map.
 
 class HeapMap<T>()
-    var _key_start: i32[]   // offset into _pool per slot
-    var _key_len: i32[]     // key length per slot
-    var _pool: u8[]         // flat owned key byte storage
-    var _pool_used: i32 = 0
+    var _key_start: int[]   // offset into _pool per slot
+    var _key_len: int[]     // key length per slot
+    var _pool: byte[]         // flat owned key byte storage
+    var _pool_used: int = 0
     var _values: T[]
-    var _state: u8[]        // 0=empty 1=used 2=deleted
-    var _size: i32 = 0
-    var _capacity: i32 = 0
+    var _state: byte[]        // 0=empty 1=used 2=deleted
+    var _size: int = 0
+    var _capacity: int = 0
     var _heap: &HeapAllocator
 
     fun init(heap: &HeapAllocator)
         _heap = heap
         _capacity = 8
-        _key_start = heap.allocate_array<i32>(i32(_capacity))
-        _key_len = heap.allocate_array<i32>(i32(_capacity))
-        _pool = heap.allocate_array<u8>(128)
-        _values = heap.allocate_array<T>(i32(_capacity))
-        _state = heap.allocate_array<u8>(i32(_capacity))
+        _key_start = heap.allocate_array<int>(int(_capacity))
+        _key_len = heap.allocate_array<int>(int(_capacity))
+        _pool = heap.allocate_array<byte>(128)
+        _values = heap.allocate_array<T>(int(_capacity))
+        _state = heap.allocate_array<byte>(int(_capacity))
         for i in 0.._capacity
             _state[i] = 0
 
-    fun _hash(key: u8[]): u32
+    fun _hash(key: byte[]): u32
         var h: u32 = 2166136261
         for i in 0..key.size()
             h = h ^ u32(key[i])
             h = h * 16777619
         return h % _capacity
 
-    fun _key_eq(slot: u32, key: u8[]): bool
+    fun _key_eq(slot: u32, key: byte[]): bool
         if _key_len[slot] != key.size()
             return false
         val start := _key_start[slot]
@@ -120,7 +120,7 @@ class HeapMap<T>()
 
     // Returns slot for key (existing) or first available slot (empty/tombstone).
     // Returns _capacity if the table is completely full with no match.
-    fun _find_slot(key: u8[]): u32
+    fun _find_slot(key: byte[]): u32
         var slot := _hash(key)
         var first_del: u32 = _capacity
         for i in 0.._capacity
@@ -140,7 +140,7 @@ class HeapMap<T>()
             return first_del
         return _capacity
 
-    fun contains(key: u8[]): bool
+    fun contains(key: byte[]): bool
         if _capacity == 0
             return false
         val slot := _find_slot(key)
@@ -150,12 +150,12 @@ class HeapMap<T>()
 
     // Returns value. Caller must check contains() first; behaviour is
     // undefined when the key is absent.
-    fun get(key: u8[]): T
+    fun get(key: byte[]): T
         val slot := _find_slot(key)
         return _values[slot]
 
-    fun set(key: u8[], value: T)
-        if _size * 4 >= i32(_capacity) * 3
+    fun set(key: byte[], value: T)
+        if _size * 4 >= int(_capacity) * 3
             _grow()
         val slot := _find_slot(key)
         if slot >= _capacity
@@ -163,7 +163,7 @@ class HeapMap<T>()
         if _state[slot] != 1
             _pool_ensure(key.size())
             val start := _pool_used
-            var i: i32 = 0
+            var i: int = 0
             while i < key.size()
                 _pool[start + i] = key[i]
                 i += 1
@@ -174,7 +174,7 @@ class HeapMap<T>()
             _size += 1
         _values[slot] = value
 
-    fun remove(key: u8[]): bool
+    fun remove(key: byte[]): bool
         if _capacity == 0
             return false
         val slot := _find_slot(key)
@@ -186,16 +186,16 @@ class HeapMap<T>()
         _size -= 1
         return true
 
-    fun size(): i32
+    fun size(): int
         return _size
 
-    fun _pool_ensure(needed: i32)
+    fun _pool_ensure(needed: int)
         if _pool_used + needed <= _pool.size()
             return
         var new_size := _pool.size() * 2
         if new_size < _pool_used + needed
             new_size = _pool_used + needed
-        _pool = _heap.realloc_array<u8>(_pool, new_size)
+        _pool = _heap.realloc_array<byte>(_pool, new_size)
 
     fun _grow()
         val old_key_start := _key_start
@@ -205,12 +205,12 @@ class HeapMap<T>()
         val old_state := _state
         val old_cap := _capacity
         _capacity = old_cap * 2
-        _key_start = _heap.allocate_array<i32>(i32(_capacity))
-        _key_len = _heap.allocate_array<i32>(i32(_capacity))
-        _pool = _heap.allocate_array<u8>(_pool_used + 64)
+        _key_start = _heap.allocate_array<int>(int(_capacity))
+        _key_len = _heap.allocate_array<int>(int(_capacity))
+        _pool = _heap.allocate_array<byte>(_pool_used + 64)
         _pool_used = 0
-        _values = _heap.allocate_array<T>(i32(_capacity))
-        _state = _heap.allocate_array<u8>(i32(_capacity))
+        _values = _heap.allocate_array<T>(int(_capacity))
+        _state = _heap.allocate_array<byte>(int(_capacity))
         _size = 0
         for i in 0.._capacity
             _state[i] = 0
@@ -220,18 +220,18 @@ class HeapMap<T>()
                 val l := old_key_len[i]
                 val key := {&old_pool[s], l}
                 set(key, old_values[i])
-        _heap.free_array<i32>(old_key_start)
-        _heap.free_array<i32>(old_key_len)
-        _heap.free_array<u8>(old_pool)
+        _heap.free_array<int>(old_key_start)
+        _heap.free_array<int>(old_key_len)
+        _heap.free_array<byte>(old_pool)
         _heap.free_array<T>(old_values)
-        _heap.free_array<u8>(old_state)
+        _heap.free_array<byte>(old_state)
 
     fun free()
-        _heap.free_array<i32>(_key_start)
-        _heap.free_array<i32>(_key_len)
-        _heap.free_array<u8>(_pool)
+        _heap.free_array<int>(_key_start)
+        _heap.free_array<int>(_key_len)
+        _heap.free_array<byte>(_pool)
         _heap.free_array<T>(_values)
-        _heap.free_array<u8>(_state)
+        _heap.free_array<byte>(_state)
         _key_start = {null, 0}
         _key_len = {null, 0}
         _pool = {null, 0}

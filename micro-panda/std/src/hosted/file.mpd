@@ -2,28 +2,28 @@
 @raw("#include <stdio.h>")
 
 @extern("fopen((const char*){path}.ptr, (const char*){mode}.ptr)")
-fun _fopen(path: u8[], mode: u8[]): &void
+fun _fopen(path: byte[], mode: byte[]): &void
 
 @extern("fclose((FILE*){handle})")
 fun _fclose(handle: &void)
 
 @extern("(int32_t)fread({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fread(buf: u8[], handle: &void): i32
+fun _fread(buf: byte[], handle: &void): int
 
 @extern("(int32_t)fwrite({buf}.ptr, 1, {buf}.size, (FILE*){handle})")
-fun _fwrite(buf: u8[], handle: &void): i32
+fun _fwrite(buf: byte[], handle: &void): int
 
 @extern("(fgets((char*){buf}.ptr, (int){buf}.size, (FILE*){handle}) != NULL)")
-fun _fgets(buf: u8[], handle: &void): bool
+fun _fgets(buf: byte[], handle: &void): bool
 
 @extern("fflush((FILE*){handle})")
 fun _fflush(handle: &void)
 
 @extern("fseek((FILE*){handle}, (long){pos}, 0)")
-fun _fseek(handle: &void, pos: i32)
+fun _fseek(handle: &void, pos: int)
 
 @extern("(int32_t)ftell((FILE*){handle})")
-fun _ftell(handle: &void): i32
+fun _ftell(handle: &void): int
 
 @extern("(({handle}) != NULL)")
 fun _ptr_valid(handle: &void): bool
@@ -39,7 +39,7 @@ class File()
     var _handle: &void
     var _open: bool
 
-    fun open(path: u8[], mode: u8[]): bool
+    fun open(path: byte[], mode: byte[]): bool
         _handle = _fopen(path, mode)
         _open = _ptr_valid(_handle)
         return _open
@@ -53,17 +53,17 @@ class File()
     fun is_open(): bool
         return _open
 
-    fun read_bytes(buf: u8[]): i32
+    fun read_bytes(buf: byte[]): int
         return _fread(buf, _handle)
 
-    fun write_bytes(buf: u8[]): i32
+    fun write_bytes(buf: byte[]): int
         return _fwrite(buf, _handle)
 
     @inline
-    fun write_string(string: u8[])
+    fun write_string(string: byte[])
         _fwrite(string, _handle)
 
-    fun read_line(buf: u8[]): i32
+    fun read_line(buf: byte[]): int
         if _fgets(buf, _handle) == false
             return 0
         for i in 0..buf.size()
@@ -74,10 +74,10 @@ class File()
     fun flush()
         _fflush(_handle)
 
-    fun seek(pos: i32)
+    fun seek(pos: int)
         _fseek(_handle, pos)
 
-    fun tell(): i32
+    fun tell(): int
         return _ftell(_handle)
 
 #end

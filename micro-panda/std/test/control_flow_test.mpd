@@ -4,21 +4,21 @@ import test::assert
 
 @test
 fun if_true()
-    var x: i32 = 0
+    var x: int = 0
     if 1 == 1
         x = 1
     assert(x == 1)
 
 @test
 fun if_false()
-    var x: i32 = 0
+    var x: int = 0
     if 1 == 2
         x = 1
     assert(x == 0)
 
 @test
 fun if_else()
-    var x: i32 = 0
+    var x: int = 0
     if 1 == 2
         x = 1
     else
@@ -27,8 +27,8 @@ fun if_else()
 
 @test
 fun if_else_if()
-    var x: i32 = 0
-    var v: i32 = 2
+    var x: int = 0
+    var v: int = 2
     if v == 1
         x = 10
     else if v == 2
@@ -39,7 +39,7 @@ fun if_else_if()
 
 @test
 fun nested_if()
-    var x: i32 = 0
+    var x: int = 0
     if 1 == 1
         if 2 == 2
             x = 42
@@ -49,8 +49,8 @@ fun nested_if()
 
 @test
 fun while_loop()
-    var i: i32 = 0
-    var sum: i32 = 0
+    var i: int = 0
+    var sum: int = 0
     while i < 5
         sum += i
         i++
@@ -58,7 +58,7 @@ fun while_loop()
 
 @test
 fun while_not_entered()
-    var x: i32 = 99
+    var x: int = 99
     while 1 == 2
         x = 0
     assert(x == 99)
@@ -67,21 +67,21 @@ fun while_not_entered()
 
 @test
 fun for_range_sum()
-    var sum: i32 = 0
+    var sum: int = 0
     for i in 0..5
         sum += i
     assert(sum == 10)   // 0+1+2+3+4
 
 @test
 fun for_range_empty()
-    var count: i32 = 0
+    var count: int = 0
     for i in 5..5
         count++
     assert(count == 0)
 
 @test
 fun for_range_variable()
-    var last: i32 = -1
+    var last: int = -1
     for i in 0..4
         last = i
     assert(last == 3)
@@ -90,59 +90,59 @@ fun for_range_variable()
 
 @test
 fun for_in_fixed_array()
-    var arr: i32[5]
+    var arr: int[5]
     arr[0] = 1
     arr[1] = 2
     arr[2] = 3
     arr[3] = 4
     arr[4] = 5
-    var sum: i32 = 0
+    var sum: int = 0
     for item in arr
         sum += item
     assert(sum == 15)
 
 @test
 fun for_in_fixed_array_index()
-    var arr: i32[3]
+    var arr: int[3]
     arr[0] = 10
     arr[1] = 20
     arr[2] = 30
-    var last_idx: i32 = -1
+    var last_idx: int = -1
     for idx, item in arr
-        last_idx = i32(idx)
+        last_idx = int(idx)
     assert(last_idx == 2)
 
 // ── for in (slice) ────────────────────────────────────────────────────────────
 
-fun sum_slice(s: i32[]) i32
-    var total: i32 = 0
+fun sum_slice(s: int[]) int
+    var total: int = 0
     for item in s
         total += item
     return total
 
 @test
 fun for_in_slice()
-    var arr: i32[4]
+    var arr: int[4]
     arr[0] = 1
     arr[1] = 2
     arr[2] = 3
     arr[3] = 4
-    val s: i32[] = {&arr[0], u32(4)}
+    val s: int[] = {&arr[0], u32(4)}
     assert(sum_slice(s) == 10)
 
-fun find_index(s: i32[], target: i32) i32
+fun find_index(s: int[], target: int) int
     for idx, item in s
         if item == target
-            return i32(idx)
+            return int(idx)
     return -1
 
 @test
 fun for_in_slice_index()
-    var arr: i32[3]
+    var arr: int[3]
     arr[0] = 10
     arr[1] = 20
     arr[2] = 30
-    val s: i32[] = {&arr[0], u32(3)}
+    val s: int[] = {&arr[0], u32(3)}
     assert(find_index(s, 20) == 1)
     assert(find_index(s, 99) == -1)
 
@@ -150,7 +150,7 @@ fun for_in_slice_index()
 
 @test
 fun break_while()
-    var i: i32 = 0
+    var i: int = 0
     while i < 100
         if i == 5
             break
@@ -159,7 +159,7 @@ fun break_while()
 
 @test
 fun break_for_range()
-    var found: i32 = -1
+    var found: int = -1
     for i in 0..10
         if i == 6
             found = i
@@ -170,8 +170,8 @@ fun break_for_range()
 
 @test
 fun continue_while()
-    var i: i32 = 0
-    var sum: i32 = 0
+    var i: int = 0
+    var sum: int = 0
     while i < 10
         i++
         if i % 2 == 0
@@ -181,7 +181,7 @@ fun continue_while()
 
 @test
 fun continue_for_range()
-    var sum: i32 = 0
+    var sum: int = 0
     for i in 0..10
         if i % 2 == 0
             continue

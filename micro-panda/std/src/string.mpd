@@ -1,6 +1,6 @@
 // ── Comparison / search ───────────────────────────────────────────────────────
 
-fun equals(a: u8[], b: u8[]): bool
+fun equals(a: byte[], b: byte[]): bool
     if a.size() != b.size()
         return false
     for i in 0..a.size()
@@ -8,7 +8,7 @@ fun equals(a: u8[], b: u8[]): bool
             return false
     return true
 
-fun starts_with(string: u8[], prefix: u8[]): bool
+fun starts_with(string: byte[], prefix: byte[]): bool
     if prefix.size() > string.size()
         return false
     for i in 0..prefix.size()
@@ -16,7 +16,7 @@ fun starts_with(string: u8[], prefix: u8[]): bool
             return false
     return true
 
-fun ends_with(string: u8[], suffix: u8[]): bool
+fun ends_with(string: byte[], suffix: byte[]): bool
     if suffix.size() > string.size()
         return false
     val offset := string.size() - suffix.size()
@@ -25,25 +25,25 @@ fun ends_with(string: u8[], suffix: u8[]): bool
             return false
     return true
 
-fun index_of(string: u8[], byte: u8): i32
+fun index_of(string: byte[], character: byte): int
     for i in 0..string.size()
-        if string[i] == byte
+        if string[i] == character
             return i
     return -1
 
 // ── Slicing ───────────────────────────────────────────────────────────────────
 
-fun sub(string: u8[], start: i32, len: i32): u8[]
+fun sub(string: byte[], start: int, len: int): byte[]
     return {string.ptr + start, len}
 
-fun trim_start(string: u8[]): u8[]
+fun trim_start(string: byte[]): byte[]
     for i in 0..string.size()
         val c := string[i]
         if c != 32 && c != 9 && c != 10 && c != 13
             return {string.ptr + i, string.size() - i}
     return {string.ptr, 0}
 
-fun trim_end(string: u8[]): u8[]
+fun trim_end(string: byte[]): byte[]
     if string.size() == 0
         return string
     var i := string.size() - 1
@@ -57,14 +57,14 @@ fun trim_end(string: u8[]): u8[]
         return {string.ptr, 1}
     return {string.ptr, 0}
 
-fun trim(string: u8[]): u8[]
+fun trim(string: byte[]): byte[]
     return trim_end(trim_start(string))
 
 // ── Tokenization ──────────────────────────────────────────────────────────────
 
 // Returns the token starting at `start` up to (not including) the next `delim`
 // or end of string.
-fun token(string: u8[], start: i32, delim: u8): u8[]
+fun token(string: byte[], start: int, delim: byte): byte[]
     for i in start..string.size()
         if string[i] == delim
             return {string.ptr + start, i - start}
@@ -72,7 +72,7 @@ fun token(string: u8[], start: i32, delim: u8): u8[]
 
 // Advances past any `delim` bytes starting at `start`. Use after token() to
 // move to the next field.
-fun skip(string: u8[], start: i32, delim: u8): i32
+fun skip(string: byte[], start: int, delim: byte): int
     for i in start..string.size()
         if string[i] != delim
             return i
@@ -80,7 +80,7 @@ fun skip(string: u8[], start: i32, delim: u8): i32
 
 // ── Number parsing ────────────────────────────────────────────────────────────
 
-fun parse_u32(string: u8[]): u32
+fun parse_u32(string: byte[]): u32
     var result: u32 = 0
     for i in 0..string.size()
         val c := string[i]
@@ -89,27 +89,27 @@ fun parse_u32(string: u8[]): u32
         result = result * 10 + u32(c - 48)
     return result
 
-fun parse_i32(string: u8[]): i32
+fun parse_int(string: byte[]): int
     if string.size() == 0
         return 0
     if string[0] == 45
         val abs := parse_u32({string.ptr + 1, string.size() - 1})
-        return i32(-abs)
-    return i32(parse_u32(string))
+        return int(-abs)
+    return int(parse_u32(string))
 
 // ── Number formatting ─────────────────────────────────────────────────────────
 
 // Writes decimal representation of `v` into `buf`. Returns number of bytes
 // written. buf must be at least 10 bytes.
-fun format_u32(buf: u8[], value: u32): i32
+fun format_u32(buf: byte[], value: u32): int
     if value == 0
         buf[0] = 48
         return 1
-    var tmp: u8[10]
-    var len: i32 = 0
+    var tmp: byte[10]
+    var len: int = 0
     var n := value
     while n > 0
-        tmp[len] = u8(48 + n % 10)
+        tmp[len] = byte(48 + n % 10)
         n = n / 10
         len += 1
     for i in 0..len
@@ -118,7 +118,7 @@ fun format_u32(buf: u8[], value: u32): i32
 
 // Writes decimal representation of `v` into `buf`. Returns bytes written.
 // buf must be at least 11 bytes.
-fun format_i32(buf: u8[], value: i32): i32
+fun format_int(buf: byte[], value: int): int
     if value < 0
         buf[0] = 45
         val written := format_u32({buf.ptr + 1, buf.size() - 1}, u32(-value))
@@ -128,18 +128,18 @@ fun format_i32(buf: u8[], value: i32): i32
 // ── String building ───────────────────────────────────────────────────────────
 //
 // Renders `text` into `buf`, replacing {Ni} {Nu} {Nf} {Nd} {Nb} placeholders.
-// All args are stored as i32 — the type specifier controls formatting:
+// All args are stored as int — the type specifier controls formatting:
 //   {0i}  signed int (default when no specifier)
 //   {0u}  unsigned int
 //   {0f}  float       — pass bits via float_bits(v)
-//   {0d}  q16 (16.16) — pass as i32(v) (q16 is i32 internally)
+//   {0d}  q16 (16.16) — pass as int(v) (q16 is int internally)
 //   {0b}  bool        — prints "true" / "false"
 //
-// Returns a u8[] slice into buf with the final length.
+// Returns a byte[] slice into buf with the final length.
 //
 // Example:
-//   var buf:  u8[64]
-//   var args: i32[3] = {hp, max_hp, i32(alive)}
+//   var buf:  byte[64]
+//   var args: int[3] = {hp, max_hp, int(alive)}
 //   val s := build_string("HP: {0i}/{1i} alive={2b}", buf, args)
 
 // Bit-cast helpers — raw 32-bit reinterpret, no value conversion.
@@ -147,39 +147,39 @@ fun format_i32(buf: u8[], value: i32): i32
 @raw("static inline float __mp_bits_to_float(int32_t v) { float f; __builtin_memcpy(&f, &v, 4); return f; }")
 
 @extern("__mp_float_to_bits")
-fun float_bits(value: float) i32
+fun float_bits(value: float) int
 
 @extern("__mp_bits_to_float")
-fun _bits_to_float(value: i32) float
+fun _bits_to_float(value: int) float
 
-// q16 and i32 share the same 32-bit representation — this is the explicit,
-// intention-clear way to pass a q16 value into an i32[] args array.
-// Do NOT use i32(my_q16): semantically that means "extract integer part".
+// q16 and int share the same 32-bit representation — this is the explicit,
+// intention-clear way to pass a q16 value into an int[] args array.
+// Do NOT use int(my_q16): semantically that means "extract integer part".
 @extern("((int32_t){value})")
-fun q16_bits(value: q16) i32
+fun q16_bits(value: q16) int
 
-fun _format_float(buf: u8[], value: float) i32
-    var bi: i32 = 0
+fun _format_float(buf: byte[], value: float) int
+    var bi: int = 0
     var abs: float = value
     if value < 0.0
         buf[bi] = 45  // '-'
         bi += 1
         abs = 0.0 - value
-    val int_part := i32(abs)
-    bi += format_i32({buf.ptr + bi, buf.size() - bi}, int_part)
+    val int_part := int(abs)
+    bi += format_int({buf.ptr + bi, buf.size() - bi}, int_part)
     buf[bi] = 46  // '.'
     bi += 1
     var frac: float = abs - float(int_part)
     for d in 0..4
         frac = frac * 10.0
-        val digit := i32(frac)
-        buf[bi] = u8(digit + 48)
+        val digit := int(frac)
+        buf[bi] = byte(digit + 48)
         bi += 1
         frac = frac - float(digit)
     return bi
 
-fun _format_q16(buf: u8[], value: i32) i32
-    var bi: i32 = 0
+fun _format_q16(buf: byte[], value: int) int
+    var bi: int = 0
     var abs: u32 = 0
     if value < 0
         buf[bi] = 45  // '-'
@@ -193,12 +193,12 @@ fun _format_q16(buf: u8[], value: i32) i32
     var frac: u32 = abs & 0xFFFF
     for d in 0..4
         frac *= 10
-        buf[bi] = u8((frac >> 16) + 48)
+        buf[bi] = byte((frac >> 16) + 48)
         bi += 1
         frac = frac & 0xFFFF
     return bi
 
-fun _format_bool(buf: u8[], value: i32) i32
+fun _format_bool(buf: byte[], value: int) int
     if value != 0
         buf[0] = 't'
         buf[1] = 'r'
@@ -212,25 +212,25 @@ fun _format_bool(buf: u8[], value: i32) i32
     buf[4] = 'e'
     return 5
 
-fun format(text: u8[], buf: u8[], args: i32[]): u8[]
-    var ti: i32 = 0
-    var bi: i32 = 0
+fun format(text: byte[], buf: byte[], args: int[]): byte[]
+    var ti: int = 0
+    var bi: int = 0
     while ti < text.size() && bi < buf.size()
         val c := text[ti]
         if c == '{'
             ti += 1
-            var idx: i32 = 0
+            var idx: int = 0
             while ti < text.size() && text[ti] != '}' && text[ti] != 'i' && text[ti] != 'u' && text[ti] != 'f' && text[ti] != 'd' && text[ti] != 'b'
-                idx = idx * 10 + i32(text[ti]) - 48
+                idx = idx * 10 + int(text[ti]) - 48
                 ti += 1
-            var spec: u8 = 'i'
+            var spec: byte = 'i'
             if ti < text.size() && text[ti] != '}'
                 spec = text[ti]
                 ti += 1
             ti += 1  // skip '}'
             if idx >= 0 && idx < args.size()
                 val sub := {buf.ptr + bi, buf.size() - bi}
-                var written: i32 = 0
+                var written: int = 0
                 if spec == 'u'
                     written = format_u32(sub, u32(args[idx]))
                 else if spec == 'f'
@@ -240,7 +240,7 @@ fun format(text: u8[], buf: u8[], args: i32[]): u8[]
                 else if spec == 'b'
                     written = _format_bool(sub, args[idx])
                 else
-                    written = format_i32(sub, args[idx])
+                    written = format_int(sub, args[idx])
                 bi += written
         else
             buf[bi] = c

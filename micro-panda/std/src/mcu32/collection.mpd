@@ -7,9 +7,9 @@ import mcu32.allocator::Allocator
 
 class ArrayList<T>()
     var _buffer: T[]
-    var _size: i32 = 0
+    var _size: int = 0
 
-    fun init(alloc: &Allocator, capacity: i32) bool
+    fun init(alloc: &Allocator, capacity: int) bool
         _buffer = alloc.allocate_array<T>(capacity)
         if _buffer.size() == 0
             return false
@@ -30,12 +30,12 @@ class ArrayList<T>()
         _size -= 1
         return true
 
-    fun insert(i: i32, value: T) bool
+    fun insert(i: int, value: T) bool
         if _size >= _buffer.size()
             return false
         if i > _size
             return false
-        var j: i32 = _size
+        var j: int = _size
         while j > i
             _buffer[j] = _buffer[j - 1]
             j -= 1
@@ -44,11 +44,11 @@ class ArrayList<T>()
         return true
 
     @inline
-    fun get(i: i32) T
+    fun get(i: int) T
         return _buffer[i]
 
     @inline
-    fun set(i: i32, value: T)
+    fun set(i: int, value: T)
         _buffer[i] = value
 
     @inline
@@ -56,11 +56,11 @@ class ArrayList<T>()
         return _buffer[_size - 1]
 
     @inline
-    fun size() i32
+    fun size() int
         return _size
 
     @inline
-    fun capacity() i32
+    fun capacity() int
         return _buffer.size()
 
     @inline
@@ -80,11 +80,11 @@ class ArrayList<T>()
 
 class RingBuffer<T>()
     var _buffer: T[]
-    var _head: i32 = 0
-    var _tail: i32 = 0
-    var _size: i32 = 0
+    var _head: int = 0
+    var _tail: int = 0
+    var _size: int = 0
 
-    fun init(allocator: &Allocator, capacity: i32) bool
+    fun init(allocator: &Allocator, capacity: int) bool
         _buffer = allocator.allocate_array<T>(capacity)
         if _buffer.size() == 0
             return false
@@ -112,11 +112,11 @@ class RingBuffer<T>()
         return _buffer[_head]
 
     @inline
-    fun size() i32
+    fun size() int
         return _size
 
     @inline
-    fun capacity() i32
+    fun capacity() int
         return _buffer.size()
 
     @inline

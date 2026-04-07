@@ -65,28 +65,28 @@ fun test_q16_cmp()
 // ── conversion ────────────────────────────────────────────────────────────────
 
 @test
-fun test_q16_from_i32()
-    val n: i32 = 3
+fun test_q16_from_int()
+    val n: int = 3
     // q16(n) is a raw bit-cast — to convert integer 3 to q16 3.0, shift left 16
     val q: q16 = q16(n << 16)
     assert(q == 3.0)
 
 @test
-fun test_q16_to_i32()
+fun test_q16_to_int()
     val q: q16 = 2.75
-    val n := i32(q)         // q16 → i32: truncate (C cast strips fractional bits)
+    val n := int(q)         // q16 → int: truncate (C cast strips fractional bits)
     assert(n == 180224)     // raw bits: 2.75 * 65536 = 180224
 
 @test
 fun test_q16_integer_part()
     val q: q16 = 2.75
-    val int_part := i32(q) >> 16
+    val int_part := int(q) >> 16
     assert(int_part == 2)
 
 @test
 fun test_q16_frac_part()
     val q: q16 = 2.5
-    val frac := i32(q) & 0xFFFF   // low 16 bits = fractional part * 65536
+    val frac := int(q) & 0xFFFF   // low 16 bits = fractional part * 65536
     assert(frac == 32768)          // 0.5 * 65536 = 32768
 
 // ── math functions ────────────────────────────────────────────────────────────

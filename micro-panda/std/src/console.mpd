@@ -9,34 +9,34 @@ import string::format
 @raw("#include <stdio.h>")
 
 @extern("putchar({b})")
-fun _putchar(b: u8)
+fun _putchar(b: byte)
 
-fun _write_byte_default(b: u8)
+fun _write_byte_default(b: byte)
     _putchar(b)
 
-var _write_byte: fun(u8) = _write_byte_default
+var _write_byte: fun(byte) = _write_byte_default
 #else
-var _write_byte: fun(u8)
+var _write_byte: fun(byte)
 #end
 
-fun init(write_byte: fun(u8))
+fun init(write_byte: fun(byte))
     _write_byte = write_byte
 
 @inline
-fun write_byte(b: u8)
+fun write_byte(b: byte)
     _write_byte(b)
 
 // ── primitives ───────────────────────────────────────────────────────────────
 
-fun print(string: u8[])
+fun print(string: byte[])
     write_string(string)
     write_byte(10)
 
-fun print_args(string: u8[], args: i32[])
-    var buf: u8[128]
+fun print_args(string: byte[], args: int[])
+    var buf: byte[128]
     print(format(string, buf, args))
 
-fun write_string(string: u8[])
+fun write_string(string: byte[])
     for i in 0..string.size()
         write_byte(string[i])
 
@@ -56,13 +56,13 @@ fun write_bool(value: bool)
 // ── unsigned integers ─────────────────────────────────────────────────────────
 
 fun write_u64(value: u64)
-    var buf: u8[20]
-    var i: i32 = 19
+    var buf: byte[20]
+    var i: int = 19
     if value == 0
         write_byte('0')
         return
     while value > 0
-        buf[i] = u8(value % 10 + 48)
+        buf[i] = byte(value % 10 + 48)
         value = value / 10
         i -= 1
     for  j in (i + 1)..20
@@ -74,7 +74,7 @@ fun write_u32(value: u32)
 fun write_u16(value: u16)
     write_u64(u64(value))
 
-fun write_u8(value: u8)
+fun write_byte(value: byte)
     write_u64(u64(value))
 
 // ── signed integers ───────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ fun write_i64(value: i64)
     else
         write_u64(u64(value))
 
-fun write_i32(value: i32)
+fun write_int(value: int)
     write_i64(i64(value))
 
 fun write_i16(value: i16)
@@ -106,14 +106,14 @@ fun write_float(value: float)
     if value < 0.0
         write_byte('-')
         abs = 0.0 - value
-    val int_part := i32(abs)
-    write_i32(int_part)
+    val int_part := int(abs)
+    write_int(int_part)
     write_byte('.')
     var frac: float = abs - float(int_part)
     for i in 0..4
         frac = frac * 10.0
-        val digit := i32(frac)
-        write_byte(u8(digit + 48))
+        val digit := int(frac)
+        write_byte(byte(digit + 48))
         frac = frac - float(digit)
 
 // ── Q16 (16.16 fixed-point) ───────────────────────────────────────────────────
@@ -139,5 +139,5 @@ fun write_q16(value: q16)
     var frac: u32 = abs & 0xFFFF
     for i in 0..4
         frac *= 10
-        write_byte(u8((frac >> 16) + 48))
+        write_byte(byte((frac >> 16) + 48))
         frac = frac & 0xFFFF

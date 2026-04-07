@@ -3,28 +3,28 @@ import string::*
 
 // Emit ESC[ + seq (e.g. "32m" → green, "33m" → orange, "31m" → red, "0m" → reset)
 @inline
-fun _esc(seq: u8[])
+fun _esc(seq: byte[])
     write_byte(27)
     write_byte('[')
     write_string(seq)
 
 // ── simple log (no format args) ───────────────────────────────────────────────
 
-fun info(message: u8[])
+fun info(message: byte[])
     _esc("32m")
     write_string("[INFO] ")
     write_string(message)
     _esc("0m")
     write_byte(10)
 
-fun warn(message: u8[])
+fun warn(message: byte[])
     _esc("33m")
     write_string("[WARN] ")
     write_string(message)
     _esc("0m")
     write_byte(10)
 
-fun error(message: u8[])
+fun error(message: byte[])
     _esc("31m")
     write_string("[ERROR] ")
     write_string(message)
@@ -36,17 +36,17 @@ fun error(message: u8[])
 // Uses an internal 128-byte buffer — no buffer needed at the call site.
 //
 // Example:
-//   var args: i32[2] = {count, i32(alive)}
+//   var args: int[2] = [count, int(alive)]
 //   info_args("count={0i} alive={1b}", args)
 
-fun info_args(message: u8[], args: i32[])
-    val buf: u8[128]
+fun info_args(message: byte[], args: int[])
+    val buf: byte[128]
     info(format(message, buf, args))
 
-fun warn_args(message: u8[], args: i32[])
-    val buf: u8[128]
+fun warn_args(message: byte[], args: int[])
+    val buf: byte[128]
     warn(format(message, buf, args))
 
-fun error_args(message: u8[], args: i32[])
-    val buf: u8[128]
+fun error_args(message: byte[], args: int[])
+    val buf: byte[128]
     error(format(message, buf, args))

@@ -3,30 +3,30 @@
 @raw("#include <stdlib.h>")
 
 @extern("malloc")
-fun _malloc(size: i32): &u8
+fun _malloc(size: int): &byte
 
 @extern("realloc")
-fun _realloc(pointer: &u8, new_size: i32): &u8
+fun _realloc(pointer: &byte, new_size: int): &byte
 
 @extern("free")
-fun _free(pointer: &u8)
+fun _free(pointer: &byte)
 
 // Heap allocator for growable containers (HOSTED only).
 // Wraps malloc/realloc/free. Has no state — store a pointer to share ownership.
 class HeapAllocator()
-    var _pad: u8 = 0    // keeps struct non-empty
+    var _pad: byte = 0    // keeps struct non-empty
 
-    fun allocate_array<T>(len: i32): T[]
+    fun allocate_array<T>(len: int): T[]
         val size := sizeof<T>() * len
         val pointer := &T(_malloc(size))
         return {pointer, len}
 
-    fun realloc_array<T>(array: T[], new_length: i32): T[]
+    fun realloc_array<T>(array: T[], new_length: int): T[]
         val size := sizeof<T>() * new_length
-        val pointer := &T(_realloc(&u8(array.ptr), size))
+        val pointer := &T(_realloc(&byte(array.ptr), size))
         return {pointer, new_length}
 
     fun free_array<T>(array: T[])
-        _free(&u8(array.ptr))
+        _free(&byte(array.ptr))
 
 #end

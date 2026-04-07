@@ -76,16 +76,16 @@ fun test_parse_u32()
     assert(parse_u32("1234") == 1234)
 
 @test
-fun test_parse_i32()
-    assert(parse_i32("42") == 42)
-    assert(parse_i32("-42") == -42)
-    assert(parse_i32("0") == 0)
-    assert(parse_i32("-2147483648") == -2147483648)  // INT_MIN
+fun test_parse_int()
+    assert(parse_int("42") == 42)
+    assert(parse_int("-42") == -42)
+    assert(parse_int("0") == 0)
+    assert(parse_int("-2147483648") == -2147483648)  // INT_MIN
 
 @test
 fun test_format_u32()
-    var _buf: u8[12]
-    var buf: u8[] = {&_buf[0], u32(12)}
+    var _buf: byte[12]
+    var buf: byte[] = {&_buf[0], u32(12)}
     val n := format_u32(buf, 42)
     assert(n == 2)
     assert(equals(sub(buf, 0, n), "42"))
@@ -94,12 +94,12 @@ fun test_format_u32()
     assert(equals(sub(buf, 0, n2), "0"))
 
 @test
-fun test_format_i32()
-    var _buf: u8[12]
-    var buf: u8[] = {&_buf[0], u32(12)}
-    val n := format_i32(buf, -42)
+fun test_format_int()
+    var _buf: byte[12]
+    var buf: byte[] = {&_buf[0], u32(12)}
+    val n := format_int(buf, -42)
     assert(n == 3)
     assert(equals(sub(buf, 0, n), "-42"))
-    val n2 := format_i32(buf, 100)
+    val n2 := format_int(buf, 100)
     assert(n2 == 3)
     assert(equals(sub(buf, 0, n2), "100"))

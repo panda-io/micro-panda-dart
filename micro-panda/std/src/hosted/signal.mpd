@@ -4,7 +4,7 @@
 
 var _exit_requested: bool = false
 
-fun _on_exit_requested(sig: i32)
+fun _on_exit_requested(sig: int)
     _exit_requested = true
 
 @extern('''
@@ -14,7 +14,7 @@ fun _on_exit_requested(sig: i32)
     signal(SIGHUP, (void(*)(int)){handler});
     #endif
 ''')
-fun _watch_signals(handler: fun(i32))
+fun _watch_signals(handler: fun(int))
 
 fun catch_signals()
     _watch_signals(_on_exit_requested)
