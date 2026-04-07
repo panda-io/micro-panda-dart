@@ -484,6 +484,7 @@ class Builder {
 
     final args = [
       ...?target.cc?.flags,
+      '-w',         // suppress warnings — mpd build shows errors only
       cFile.path,
       '-o', output,
     ];
@@ -518,7 +519,8 @@ class Builder {
     );
 
     if (result.stdout.toString().isNotEmpty) stdout.write(result.stdout);
-    if (result.stderr.toString().isNotEmpty) stderr.write(result.stderr);
+    final errOut = _errorsOnly(result.stderr.toString());
+    if (errOut.trim().isNotEmpty) stderr.write(errOut);
 
     if (result.exitCode != 0) {
       _error('Build command failed (exit ${result.exitCode})');
@@ -528,6 +530,20 @@ class Builder {
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
+
+  /// Filter compiler stderr to only error lines (drop warning/note lines).
+  String _errorsOnly(String raw) {
+    final lines = raw.split('\n');
+    final out = <String>[];
+    for (final line in lines) {
+      // Keep lines that contain ': error:' or ': fatal error:' (clang/gcc format).
+      // Also keep blank lines and non-diagnostic lines (e.g. linker output).
+      final isDiagnostic = RegExp(r':\d+:\d+: (warning|note):').hasMatch(line) ||
+          RegExp(r': (warning|note):').hasMatch(line);
+      if (!isDiagnostic) out.add(line);
+    }
+    return out.join('\n');
+  }
 
   String _resolveOutput() {
     if (target.output != null) return p.join(project.rootDir, target.output!);

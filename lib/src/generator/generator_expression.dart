@@ -26,7 +26,7 @@ extension GeneratorExpression on CGenerator {
 
   String _literal(Literal lit) {
     final isFixed = lit.type is TypeBuiltin &&
-        (lit.type as TypeBuiltin).token == TokenType.typeFixed;
+        (lit.type as TypeBuiltin).token == TokenType.typeQ16;
     return switch (lit.tokenType) {
       TokenType.typeNull      => 'NULL',
       TokenType.boolLiteral   => lit.value,
@@ -44,7 +44,7 @@ extension GeneratorExpression on CGenerator {
 
   bool _isFixedExpr(Expression e) =>
       e.type is TypeBuiltin &&
-      (e.type as TypeBuiltin).token == TokenType.typeFixed;
+      (e.type as TypeBuiltin).token == TokenType.typeQ16;
 
   String _binary(Binary expr) {
     final op = expr.operator_;
@@ -348,6 +348,8 @@ extension GeneratorExpression on CGenerator {
       // C rename (no placeholders): pass args in order.
       // If the template already contains () it is a full C expression — emit as-is.
       if (template.contains('(')) return template;
+      // No args: variable access (not a function call).
+      if (args.isEmpty) return template;
       return '$template(${args.join(', ')})';
     }
     // Named placeholder substitution: {paramName} → evaluated arg expression

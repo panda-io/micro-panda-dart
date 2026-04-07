@@ -1,0 +1,133 @@
+import test::assert
+import console::write_q16
+import console::write_byte
+import math::floor_q16
+import math::ceil_q16
+import math::round_q16
+import math::min
+import math::max
+import math::abs
+
+// ── literals and basic arithmetic ─────────────────────────────────────────────
+
+@test
+fun test_q16_literals()
+    val a: q16 = 1.0
+    val b: q16 = 0.5
+    val c: q16 = 2.0
+    assert(a + b == c - b)  // 1.0 + 0.5 == 2.0 - 0.5
+
+@test
+fun test_q16_add_sub()
+    val a: q16 = 1.5
+    val b: q16 = 0.5
+    assert(a + b == 2.0)
+    assert(a - b == 1.0)
+    assert(b - a == -1.0)
+
+@test
+fun test_q16_mul()
+    val a: q16 = 1.5
+    val b: q16 = 2.0
+    assert(a * b == 3.0)
+    val half: q16 = 0.5
+    assert(a * half == 0.75)
+
+@test
+fun test_q16_div()
+    val a: q16 = 3.0
+    val b: q16 = 2.0
+    assert(a / b == 1.5)
+    val c: q16 = 1.0
+    val d: q16 = 4.0
+    assert(c / d == 0.25)
+
+@test
+fun test_q16_neg()
+    val a: q16 = 1.5
+    val neg := 0.0 - a
+    assert(neg == -1.5)
+    assert(neg + a == 0.0)
+
+// ── comparison ────────────────────────────────────────────────────────────────
+
+@test
+fun test_q16_cmp()
+    val a: q16 = 1.0
+    val b: q16 = 2.0
+    assert(a < b)
+    assert(b > a)
+    assert(a <= a)
+    assert(b >= b)
+    assert(a != b)
+    assert(a == 1.0)
+
+// ── conversion ────────────────────────────────────────────────────────────────
+
+@test
+fun test_q16_from_i32()
+    val n: i32 = 3
+    // q16(n) is a raw bit-cast — to convert integer 3 to q16 3.0, shift left 16
+    val q: q16 = q16(n << 16)
+    assert(q == 3.0)
+
+@test
+fun test_q16_to_i32()
+    val q: q16 = 2.75
+    val n := i32(q)         // q16 → i32: truncate (C cast strips fractional bits)
+    assert(n == 180224)     // raw bits: 2.75 * 65536 = 180224
+
+@test
+fun test_q16_integer_part()
+    val q: q16 = 2.75
+    val int_part := i32(q) >> 16
+    assert(int_part == 2)
+
+@test
+fun test_q16_frac_part()
+    val q: q16 = 2.5
+    val frac := i32(q) & 0xFFFF   // low 16 bits = fractional part * 65536
+    assert(frac == 32768)          // 0.5 * 65536 = 32768
+
+// ── math functions ────────────────────────────────────────────────────────────
+
+@test
+fun test_q16_min_max()
+    assert(min<q16>(1.5, 2.5) == 1.5)
+    assert(max<q16>(1.5, 2.5) == 2.5)
+    assert(min<q16>(-1.0, 1.0) == -1.0)
+
+@test
+fun test_q16_abs()
+    assert(abs<q16>(-2.5) == 2.5)
+    assert(abs<q16>(2.5) == 2.5)
+    assert(abs<q16>(0.0) == 0.0)
+
+@test
+fun test_q16_floor()
+    assert(floor_q16(1.75) == 1.0)
+    assert(floor_q16(1.0) == 1.0)
+    assert(floor_q16(-1.25) == -2.0)
+
+@test
+fun test_q16_ceil()
+    assert(ceil_q16(1.25) == 2.0)
+    assert(ceil_q16(2.0) == 2.0)
+    assert(ceil_q16(-1.75) == -1.0)
+
+@test
+fun test_q16_round()
+    assert(round_q16(1.5) == 2.0)
+    assert(round_q16(1.4) == 1.0)
+    assert(round_q16(2.5) == 3.0)
+
+// ── write_q16 output ──────────────────────────────────────────────────────────
+
+@test
+fun test_write_q16()
+    write_q16(1.5)
+    write_byte('\n')
+    write_q16(-2.25)
+    write_byte('\n')
+    write_q16(0.0)
+    write_byte('\n')

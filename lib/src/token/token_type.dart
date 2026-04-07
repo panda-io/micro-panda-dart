@@ -55,7 +55,7 @@ enum TokenType {
   typeUint32('u32'),
   typeUint64('u64'),
   typeFloat('float'),
-  typeFixed('fixed'),
+  typeQ16('q16'),
   typeVoid('void'),
   typeNull('null'),
   scalarEnd,
@@ -123,6 +123,10 @@ enum TokenType {
       if (type.literal != null) type.literal!: type,
     'true': TokenType.boolLiteral,
     'false': TokenType.boolLiteral,
+    // Type aliases
+    'fixed': TokenType.typeQ16,
+    'int': TokenType.typeInt32,
+    'byte': TokenType.typeUint8,
   };
 
   static TokenType fromString(String text) {
@@ -160,13 +164,13 @@ enum TokenType {
 
   bool get isFloatType => this == typeFloat;
 
-  bool get isFixedType => this == typeFixed;
+  bool get isFixedType => this == typeQ16;
 
   int get bits => switch (this) {
     typeBool => 1,
     typeInt8 || typeUint8 => 8,
     typeInt16 || typeUint16 => 16,
-    typeInt32 || typeUint32 || typeFloat || typeFixed => 32,
+    typeInt32 || typeUint32 || typeFloat || typeQ16 => 32,
     typeInt64 || typeUint64 => 64,
     _ => 0,
   };
@@ -174,7 +178,7 @@ enum TokenType {
   int get size => switch (this) {
     typeBool || typeInt8 || typeUint8 => 1,
     typeInt16 || typeUint16 => 2,
-    typeInt32 || typeUint32 || typeFloat || typeFixed => 4,
+    typeInt32 || typeUint32 || typeFloat || typeQ16 => 4,
     typeInt64 || typeUint64 => 8,
     _ => 0,
   };

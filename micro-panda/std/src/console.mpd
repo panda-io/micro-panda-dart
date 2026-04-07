@@ -116,13 +116,13 @@ fun write_float(value: float)
         write_byte(u8(digit + 48))
         frac = frac - float(digit)
 
-// ── fixed-point ───────────────────────────────────────────────────────────────
+// ── Q16 (16.16 fixed-point) ───────────────────────────────────────────────────
 //
 // 16.16 fixed-point: high 16 bits = integer part, low 16 bits = fractional part.
-// e.g. write_fixed(0x00018000) → "1.5000"   (1 + 32768/65536)
-//      write_fixed(0xFFFE8000) → "-1.5000"
+// e.g. write_q16(0x00018000) → "1.5000"   (1 + 32768/65536)
+//      write_q16(0xFFFE8000) → "-1.5000"
 
-fun write_fixed(value: fixed)
+fun write_q16(value: q16)
     var abs: u32 = 0
     if value < 0
         write_byte('-')

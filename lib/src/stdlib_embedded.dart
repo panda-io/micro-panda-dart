@@ -123,13 +123,13 @@ fun write_float(value: float)
         write_byte(u8(digit + 48))
         frac = frac - float(digit)
 
-// ── fixed-point ───────────────────────────────────────────────────────────────
+// ── Q16 (16.16 fixed-point) ───────────────────────────────────────────────────
 //
 // 16.16 fixed-point: high 16 bits = integer part, low 16 bits = fractional part.
-// e.g. write_fixed(0x00018000) → "1.5000"   (1 + 32768/65536)
-//      write_fixed(0xFFFE8000) → "-1.5000"
+// e.g. write_q16(0x00018000) → "1.5000"   (1 + 32768/65536)
+//      write_q16(0xFFFE8000) → "-1.5000"
 
-fun write_fixed(value: fixed)
+fun write_q16(value: q16)
     var abs: u32 = 0
     if value < 0
         write_byte('-')
@@ -759,21 +759,21 @@ fun abs<T>(value: T): T
         return -value
     return value
 
-// ── Fixed-point rounding ──────────────────────────────────────────────────────
+// ── Q16 (16.16 fixed-point) rounding ─────────────────────────────────────────
 
 @inline
-fun floor_fixed(value: fixed): fixed
+fun floor_q16(value: q16): q16
     return value & -1.0
 
 @inline
-fun ceil_fixed(value: fixed): fixed
+fun ceil_q16(value: q16): q16
     val result := value & -1.0
     if value != result
         return result + 1.0
     return result
 
 @inline
-fun round_fixed(value: fixed): fixed
+fun round_q16(value: q16): q16
     return (value + 0.5) & -1.0
 
 #if HOSTED || MCU32
@@ -1134,7 +1134,7 @@ fun format_i32(buf: u8[], value: i32): i32
 //   {0i}  signed int (default when no specifier)
 //   {0u}  unsigned int
 //   {0f}  float       — pass bits via float_bits(v)
-//   {0d}  fixed 16.16 — pass as i32(v) (fixed is i32 internally)
+//   {0d}  q16 (16.16) — pass as i32(v) (q16 is i32 internally)
 //   {0b}  bool        — prints "true" / "false"
 //
 // Returns a u8[] slice into buf with the final length.
@@ -1154,11 +1154,11 @@ fun float_bits(value: float) i32
 @extern("__mp_bits_to_float")
 fun _bits_to_float(value: i32) float
 
-// fixed and i32 share the same 32-bit representation — this is the explicit,
-// intention-clear way to pass a fixed value into an i32[] args array.
-// Do NOT use i32(my_fixed): semantically that means "extract integer part".
+// q16 and i32 share the same 32-bit representation — this is the explicit,
+// intention-clear way to pass a q16 value into an i32[] args array.
+// Do NOT use i32(my_q16): semantically that means "extract integer part".
 @extern("((int32_t){value})")
-fun fixed_bits(value: fixed) i32
+fun q16_bits(value: q16) i32
 
 fun _format_float(buf: u8[], value: float) i32
     var bi: i32 = 0
@@ -1180,7 +1180,7 @@ fun _format_float(buf: u8[], value: float) i32
         frac = frac - float(digit)
     return bi
 
-fun _format_fixed(buf: u8[], value: i32) i32
+fun _format_q16(buf: u8[], value: i32) i32
     var bi: i32 = 0
     var abs: u32 = 0
     if value < 0
@@ -1238,7 +1238,7 @@ fun format(text: u8[], buf: u8[], args: i32[]): u8[]
                 else if spec == 'f'
                     written = _format_float(sub, _bits_to_float(args[idx]))
                 else if spec == 'd'
-                    written = _format_fixed(sub, args[idx])
+                    written = _format_q16(sub, args[idx])
                 else if spec == 'b'
                     written = _format_bool(sub, args[idx])
                 else

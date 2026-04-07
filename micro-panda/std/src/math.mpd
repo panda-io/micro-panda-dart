@@ -36,21 +36,21 @@ fun abs<T>(value: T): T
         return -value
     return value
 
-// ── Fixed-point rounding ──────────────────────────────────────────────────────
+// ── Q16 (16.16 fixed-point) rounding ─────────────────────────────────────────
 
 @inline
-fun floor_fixed(value: fixed): fixed
+fun floor_q16(value: q16): q16
     return value & -1.0
 
 @inline
-fun ceil_fixed(value: fixed): fixed
+fun ceil_q16(value: q16): q16
     val result := value & -1.0
     if value != result
         return result + 1.0
     return result
 
 @inline
-fun round_fixed(value: fixed): fixed
+fun round_q16(value: q16): q16
     return (value + 0.5) & -1.0
 
 #if HOSTED || MCU32

@@ -2,20 +2,20 @@
 
 ## Primitive Types
 
-| Type | Description |
-| ---------- | ------------- |
-| `bool` | Boolean (`true` / `false`) |
-| `i8` | 8-bit signed integer |
-| `u8` | 8-bit unsigned integer |
-| `i16` | 16-bit signed integer |
-| `u16` | 16-bit unsigned integer |
-| `i32` | 32-bit signed integer (default int) |
-| `u32` | 32-bit unsigned integer |
-| `i64` | 64-bit signed integer |
-| `u64` | 64-bit unsigned integer |
-| `float` | 32-bit float (default float) |
-| `fixed` | 16.16 fixed-point number |
-| `void` | No value / absent return type |
+| Type | Alias | Description |
+| ---------- | ----- | ------------- |
+| `bool` | | Boolean (`true` / `false`) |
+| `i8` | | 8-bit signed integer |
+| `u8` | `byte` | 8-bit unsigned integer |
+| `i16` | | 16-bit signed integer |
+| `u16` | | 16-bit unsigned integer |
+| `i32` | `int` | 32-bit signed integer (default int) |
+| `u32` | | 32-bit unsigned integer |
+| `i64` | | 64-bit signed integer |
+| `u64` | | 64-bit unsigned integer |
+| `float` | | 32-bit float (only float type; no f64) |
+| `q16` | `fixed` | 16.16 fixed-point number |
+| `void` | | No value / absent return type |
 
 > **Strings** — there is no dedicated string type. Strings are `u8[]` slices.
 

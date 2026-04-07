@@ -67,7 +67,8 @@ Layout: universal modules at `src/`, platform-specific under `src/hosted/` and `
 | src/hosted/args.mpd | arg_count(): i32, arg_value(i: i32): u8[] — access C main() argc/argv |
 
 ## Language features
-- **Primitives**: bool, i8–u64, float (32-bit), fixed (16.16 = int32_t). No f64. No implicit conversions.
+- **Primitives**: bool, i8–u64, float (32-bit, only float type — no f64), q16/fixed (16.16 = int32_t). No implicit conversions.
+- **Type aliases**: `int` = i32, `byte` = u8, `fixed` = q16. Resolved at scan time; identical to canonical names.
 - **fixed** literals: `1.5` = 98304 raw, `1.0` = 65536 raw. Mul/div uses int64_t intermediate.
 - **Strings**: `u8[]` slices → C compound literal `(__Slice_uint8_t){ptr, size}`
 - **Arrays**: `u8[]` = slice, `u8[N]` = fixed C array. NOT interchangeable.
