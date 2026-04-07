@@ -53,6 +53,21 @@ fun ceil_q16(value: q16): q16
 fun round_q16(value: q16): q16
     return (value + 0.5) & -1.0
 
+@inline
+fun floor_fixed(value: fixed): fixed
+    return value & -1.0
+
+@inline
+fun ceil_fixed(value: fixed): fixed
+    val result := value & -1.0
+    if value != result
+        return result + 1.0
+    return result
+
+@inline
+fun round_fixed(value: fixed): fixed
+    return (value + 0.5) & -1.0
+
 #if HOSTED || MCU32
 // ── Float trig (radians) ──────────────────────────────────────────────────────
 
