@@ -302,13 +302,13 @@ Future<void> _cmdClean({required bool verbose, String? projectDir}) async {
 
 Future<void> _cmdUpdate({String? projectDir}) async {
   final project = _loadProject(projectDir);
-  if (project.deps.isEmpty) {
-    stdout.writeln('No dependencies declared in mpd.yaml.');
-    return;
-  }
   try {
-    final infos = await DepManager(project).ensureDeps(forceUpdate: true);
-    stdout.writeln('Updated ${infos.length} ${infos.length == 1 ? 'dependency' : 'dependencies'}.');
+    if (project.deps.isNotEmpty) {
+      final infos = await DepManager(project).ensureDeps(forceUpdate: true);
+      stdout.writeln('Updated ${infos.length} ${infos.length == 1 ? 'dependency' : 'dependencies'}.');
+    }
+    Builder.updateStd(project.rootDir);
+    stdout.writeln('Updated std (${Builder.stdlibHash}).');
   } catch (e) {
     stderr.writeln('error: $e');
     exit(1);

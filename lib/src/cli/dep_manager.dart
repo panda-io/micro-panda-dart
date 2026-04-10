@@ -49,8 +49,10 @@ class DepManager {
       // or not cached yet.
       final needsFetch = forceUpdate || !dirExists;
 
-      if (needsFetch) {
-        result[cached!.name] = cached;
+      if (!needsFetch) {
+        // Already cached at the right version — use lock entry.
+        // cached is non-null here: dirExists = (cached != null && ...)
+        result[cached.name] = cached;
         continue;
       }
       // LSP mode: skip network fetch — dep not cached yet, just ignore it.

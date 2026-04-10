@@ -80,22 +80,45 @@ class Builder {
   String get _stdCacheDir =>
       p.join(project.rootDir, '.micro-panda', 'std', 'src');
 
-  /// Extract embedded std modules to the local cache if not already present.
+  /// Extract embedded std modules to the local cache if not already present or stale.
+  /// Uses [kStdlibHash] for a fast up-to-date check before touching any files.
   /// Target source overrides (files already in target's src dir) take priority and
   /// are never overwritten.
-  void _ensureStd() {
+  void _ensureStd({bool force = false}) {
+    final hashFile = File(p.join(_stdCacheDir, '.hash'));
+    if (!force &&
+        hashFile.existsSync() &&
+        hashFile.readAsStringSync().trim() == kStdlibHash) {
+      return; // stdlib cache is already at the current version
+    }
+    _extractStd(_stdCacheDir, project.srcFor(target));
+  }
+
+  /// Force re-extract embedded std to [stdCacheDir], skipping any file that
+  /// already exists in [projectSrcDir] (project override takes priority).
+  /// Writes [kStdlibHash] to `<stdCacheDir>/.hash` when done.
+  static void _extractStd(String stdCacheDir, String projectSrcDir) {
     for (final entry in kStdlib.entries) {
       final rel = '${entry.key.replaceAll('.', p.separator)}.mpd';
-      // Don't overwrite a project-level module.
-      if (File(p.join(project.srcFor(target), rel)).existsSync()) continue;
-      final dest = File(p.join(_stdCacheDir, rel));
-      // Write if missing or outdated (compiler was updated with a new stdlib).
-      if (!dest.existsSync() || dest.readAsStringSync() != entry.value) {
-        dest.parent.createSync(recursive: true);
-        dest.writeAsStringSync(entry.value);
-      }
+      if (File(p.join(projectSrcDir, rel)).existsSync()) continue;
+      final dest = File(p.join(stdCacheDir, rel));
+      dest.parent.createSync(recursive: true);
+      dest.writeAsStringSync(entry.value);
     }
+    final hashFile = File(p.join(stdCacheDir, '.hash'));
+    hashFile.parent.createSync(recursive: true);
+    hashFile.writeAsStringSync(kStdlibHash);
   }
+
+  /// Called by `mpd update` to force-refresh the embedded std in this project.
+  static void updateStd(String rootDir) {
+    final stdCacheDir = p.join(rootDir, '.micro-panda', 'std', 'src');
+    // No projectSrcDir exclusion on force-update — caller wants a full refresh.
+    _extractStd(stdCacheDir, '');
+  }
+
+  /// The hash of the currently embedded stdlib (from [kStdlibHash]).
+  static String get stdlibHash => kStdlibHash;
 
   List<Module>? _parseModules() {
     _ensureStd();
