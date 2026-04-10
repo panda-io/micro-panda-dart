@@ -58,6 +58,13 @@ extension GeneratorExpression on CGenerator {
         return '((int32_t)(((int64_t)($l) << 16) / ($r)))';
       }
     }
+    // Coerce RHS when assigning a fixed array into a slice-typed LHS.
+    if (op == TokenType.assign) {
+      final lhsType = _inferType(expr.left);
+      if (lhsType is TypeArray && lhsType.isSlice) {
+        return '(${_expr(expr.left)} = ${_exprCoerce(expr.right, lhsType)})';
+      }
+    }
     return '(${_expr(expr.left)} ${_opStr(expr.operator_)} ${_expr(expr.right)})';
   }
 

@@ -288,7 +288,7 @@ extension GeneratorStatement on CGenerator {
     final type = stmt.type ?? _inferVarType(stmt.value);
 
     if (stmt.value != null) {
-      _line('$prefix${_varDecl(stmt.name, type)} = ${_expr(stmt.value!)};');
+      _line('$prefix${_varDecl(stmt.name, type)} = ${_exprCoerce(stmt.value!, type)};');
     } else {
       // Zero-initialize class-typed locals (fields have declared defaults).
       final isClassType = type is TypeName &&

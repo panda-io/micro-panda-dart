@@ -45,7 +45,7 @@ fun slice_from_fixed()
     buf[1] = 20
     buf[2] = 30
     buf[3] = 40
-    val s: int[] = {&buf[0], u32(4)}
+    val s: int[] = buf
     assert(s.size() == 4)
     assert(s[0] == 10)
     assert(s[1] == 20)
@@ -56,7 +56,7 @@ fun slice_from_fixed()
 fun slice_write_through()
     var buf: int[4]
     buf[0] = 10
-    val s: int[] = {&buf[0], u32(4)}
+    val s: int[] = buf
     s[0] = 99
     assert(buf[0] == 99)
 
@@ -71,8 +71,8 @@ fun fixed_array_of_slices()
     r1[0] = 3
     r1[1] = 4
     var rows: int[][2]
-    rows[0] = {&r0[0], u32(4)}
-    rows[1] = {&r1[0], u32(4)}
+    rows[0] = r0
+    rows[1] = r1
     assert(rows[0].size() == 4)
     assert(rows[1].size() == 4)
     assert(rows[0][0] == 1)

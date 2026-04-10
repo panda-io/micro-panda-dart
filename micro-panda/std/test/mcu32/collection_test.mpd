@@ -10,7 +10,7 @@ import mcu32.memory::Allocator
 fun arraylist_init()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var list: ArrayList<int>
     assert(list.init(&alloc, 4))
     assert(list.is_empty())
@@ -21,7 +21,7 @@ fun arraylist_init()
 fun arraylist_push_pop()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var list: ArrayList<int>
     list.init(&alloc, 4)
     assert(list.push(10))
@@ -40,7 +40,7 @@ fun arraylist_push_pop()
 fun arraylist_full()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var list: ArrayList<int>
     list.init(&alloc, 2)
     assert(list.push(1))
@@ -52,7 +52,7 @@ fun arraylist_full()
 fun arraylist_set_clear()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var list: ArrayList<int>
     list.init(&alloc, 4)
     list.push(1)
@@ -67,7 +67,7 @@ fun arraylist_set_clear()
 fun arraylist_insert()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var list: ArrayList<int>
     list.init(&alloc, 4)
     list.push(10)
@@ -82,7 +82,7 @@ fun arraylist_insert()
 fun arraylist_insert_front()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var list: ArrayList<int>
     list.init(&alloc, 4)
     list.push(20)
@@ -96,7 +96,7 @@ fun arraylist_insert_front()
 fun arraylist_insert_end()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var list: ArrayList<int>
     list.init(&alloc, 4)
     list.push(10)
@@ -109,7 +109,7 @@ fun arraylist_insert_end()
 fun arraylist_insert_full()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var list: ArrayList<int>
     list.init(&alloc, 2)
     list.push(1)
@@ -122,7 +122,7 @@ fun arraylist_insert_full()
 fun ringbuffer_init()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var rb: RingBuffer<int>
     assert(rb.init(&alloc, 4))
     assert(rb.is_empty())
@@ -133,7 +133,7 @@ fun ringbuffer_init()
 fun ringbuffer_push_pop()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var rb: RingBuffer<int>
     rb.init(&alloc, 4)
     assert(rb.push(10))
@@ -149,7 +149,7 @@ fun ringbuffer_push_pop()
 fun ringbuffer_wrap_around()
     var _mem: byte[512]
     var alloc: Allocator
-    alloc.init({&_mem[0], u32(512)})
+    alloc.init(_mem)
     var rb: RingBuffer<int>
     rb.init(&alloc, 3)
     rb.push(1)

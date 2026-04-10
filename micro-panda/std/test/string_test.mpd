@@ -85,7 +85,7 @@ fun test_parse_int()
 @test
 fun test_format_u32()
     var _buf: byte[12]
-    var buf: byte[] = {&_buf[0], u32(12)}
+    var buf: byte[] = _buf
     val n := format_u32(buf, 42)
     assert(n == 2)
     assert(equals(sub(buf, 0, n), "42"))
@@ -96,7 +96,7 @@ fun test_format_u32()
 @test
 fun test_format_int()
     var _buf: byte[12]
-    var buf: byte[] = {&_buf[0], u32(12)}
+    var buf: byte[] = _buf
     val n := format_int(buf, -42)
     assert(n == 3)
     assert(equals(sub(buf, 0, n), "-42"))

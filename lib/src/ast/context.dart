@@ -272,9 +272,10 @@ class Context {
     if (b is TypeRef && _isVoidPtr(b)) return true;
     // generic type param: skip check
     if (typeParams.isNotEmpty) return true;
-    // fixed array → slice coercion: u8[N] is compatible with u8[]
-    if (a is TypeArray && b is TypeArray) {
-      if (a.isFixed && b.isSlice && a.elementType.equal(b.elementType)) return true;
+    // fixed array ↔ slice coercion: u8[N] is compatible with u8[] in both directions
+    if (a is TypeArray && b is TypeArray && a.elementType.equal(b.elementType)) {
+      if (a.isFixed && b.isSlice) return true;
+      if (a.isSlice && b.isFixed) return true;
     }
     return false;
   }

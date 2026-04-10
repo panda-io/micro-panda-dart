@@ -127,7 +127,7 @@ fun for_in_slice()
     arr[1] = 2
     arr[2] = 3
     arr[3] = 4
-    val s: int[] = {&arr[0], u32(4)}
+    val s: int[] = arr
     assert(sum_slice(s) == 10)
 
 fun find_index(s: int[], target: int) int
@@ -142,7 +142,7 @@ fun for_in_slice_index()
     arr[0] = 10
     arr[1] = 20
     arr[2] = 30
-    val s: int[] = {&arr[0], u32(3)}
+    val s: int[] = arr
     assert(find_index(s, 20) == 1)
     assert(find_index(s, 99) == -1)
 
