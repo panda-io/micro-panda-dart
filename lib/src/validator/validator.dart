@@ -42,10 +42,18 @@ class Validator {
         seen[name] = pos;
       }
     }
-    for (final v in mod.variables) check(v.name, v.position);
-    for (final fn in mod.functions) check(fn.name, fn.position);
-    for (final cls in mod.classes) check(cls.name, cls.position);
-    for (final enm in mod.enums) check(enm.name, enm.position);
+    for (final v in mod.variables) {
+      check(v.name, v.position);
+    }
+    for (final fn in mod.functions) {
+      check(fn.name, fn.position);
+    }
+    for (final cls in mod.classes) {
+      check(cls.name, cls.position);
+    }
+    for (final enm in mod.enums) {
+      check(enm.name, enm.position);
+    }
   }
 
   void _validateGlobalVar(VariableDecl v, Context ctx) {
@@ -60,7 +68,20 @@ class Validator {
     if (className != null) {
       fnCtx.declare('this', TypeRef(TypeName(className)), fn.position);
     }
+    // Collect all type params in scope (class + function level).
+    final classTypeParams = className != null
+        ? (ctx.classes[className]?.typeParams ?? const <String>[])
+        : const <String>[];
+    final allTypeParams = {...classTypeParams, ...fn.typeParams};
     for (final p in fn.parameters) {
+      if (p.type is TypeName) {
+        final tn = p.type as TypeName;
+        final name = tn.name;
+        if (name != null && !allTypeParams.contains(name) && ctx.classes.containsKey(name)) {
+          ctx.error(p.position,
+              "parameter '${p.name}' has class type '$name' — use a reference '&$name' instead");
+        }
+      }
       fnCtx.declare(p.name, p.type, p.position);
     }
     fn.body!.validate(fnCtx);
@@ -75,10 +96,15 @@ class Validator {
         seen[name] = pos;
       }
     }
-    for (final f in cls.constructorFields) check(f.name, f.position);
-    for (final f in cls.bodyFields) check(f.name, f.position);
-    for (final m in cls.methods) check(m.name, m.position);
-
+    for (final f in cls.constructorFields) {
+      check(f.name, f.position);
+    }
+    for (final f in cls.bodyFields) {
+      check(f.name, f.position);
+    }
+    for (final m in cls.methods) {
+      check(m.name, m.position);
+    }
     for (final fn in cls.methods) {
       _validateFunction(fn, cls.name, ctx);
     }

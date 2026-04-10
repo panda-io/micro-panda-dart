@@ -1,14 +1,26 @@
 @raw("#include <string.h>")
 
 @extern("memset({dst}, {value}, {size})")
-fun memory_set(dst: byte[], value: byte, size: int)
+fun _memory_set(dst: &void, value: byte, size: int)
 
 @extern("memcpy({dst}, {src}, {size})")
-fun memory_copy(dst: byte[], src: byte[], size: int)
+fun _memory_copy(dst: &void, src: &void, size: int)
 
 @extern("memmove({dst}, {src}, {size})")
-fun memory_move(dst: byte[], src: byte[], size: int)
+fun _memory_move(dst: &void, src: &void, size: int)
 
 @inline
-fun memory_zero(dst: byte[], size: int)
-    memory_set(dst, byte(0), size)
+fun memory_set(dst: byte[], value: byte)
+    _memory_set(dst.ptr, value, dst.size())
+
+@inline
+fun memory_copy(dst: byte[], src: byte[], size: int)
+    _memory_copy(dst.ptr, src.ptr, size)
+
+@inline
+fun memory_move(dst: byte[], src: byte[], size: int)
+    _memory_move(dst.ptr, src.ptr, size)
+
+@inline
+fun memory_zero(dst: byte[])
+    memory_set(dst, byte(0))

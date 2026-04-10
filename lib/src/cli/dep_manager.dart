@@ -49,7 +49,7 @@ class DepManager {
       // or not cached yet.
       final needsFetch = forceUpdate || !dirExists;
 
-      if (!needsFetch) {
+      if (needsFetch) {
         result[cached!.name] = cached;
         continue;
       }

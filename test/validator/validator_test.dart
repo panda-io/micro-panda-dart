@@ -307,7 +307,7 @@ class Counter(var _count: i32)
     fun increment()
         this._count += 1
 
-fun reset(c: Counter)
+fun reset(c: &Counter)
     c._count = 0
 ''');
     });
@@ -316,7 +316,7 @@ fun reset(c: Counter)
       expectErrorMulti({
         'counter': classModule,
         'user': '''
-fun reset(c: Counter)
+fun reset(c: &Counter)
     c._count = 0
 ''',
       }, "member '_count' of 'Counter' is private");
@@ -330,7 +330,7 @@ class Foo(val x: i32)
         return this.x
 ''',
         'user': '''
-fun call_helper(f: Foo): i32
+fun call_helper(f: &Foo): i32
     return f._helper()
 ''',
       }, "member '_helper' of 'Foo' is private");
@@ -340,7 +340,7 @@ fun call_helper(f: Foo): i32
       expectNoErrorsMulti({
         'counter': classModule,
         'user': '''
-fun get(c: Counter): i32
+fun get(c: &Counter): i32
     return c.get_count()
 ''',
       });
@@ -547,6 +547,71 @@ class Foo(val x: i32)
 fun setup()
     var obj := Foo(3)
     val r: i32 = obj.double()
+''');
+    });
+  });
+
+  group('Validator – class parameter must be reference', () {
+    test('class type parameter is rejected', () {
+      expectError('''
+class Rect(val w: i32, val h: i32)
+
+fun intersect(rect: Rect) bool
+    return rect.w > 0
+''', "parameter 'rect' has class type 'Rect' — use a reference '&Rect' instead");
+    });
+
+    test('multiple parameters: class type rejected, primitives OK', () {
+      expectError('''
+class Vec(val x: i32, val y: i32)
+
+fun scale(v: Vec, factor: i32) i32
+    return v.x * factor
+''', "parameter 'v' has class type 'Vec' — use a reference '&Vec' instead");
+    });
+
+    test('class parameter in method is rejected', () {
+      expectError('''
+class Point(val x: i32, val y: i32)
+    fun dist(other: Point) i32
+        return other.x - this.x
+''', "parameter 'other' has class type 'Point' — use a reference '&Point' instead");
+    });
+
+    test('reference parameter is accepted', () {
+      expectNoErrors('''
+class Rect(val w: i32, val h: i32)
+
+fun area(r: &Rect) i32
+    return r.w * r.h
+''');
+    });
+
+    test('enum parameter is accepted (not a class)', () {
+      expectNoErrors('''
+enum Dir
+    Up
+    Down
+
+fun flip(d: Dir) Dir
+    return d
+''');
+    });
+
+    test('generic type param T is accepted', () {
+      expectNoErrors('''
+class Box(val x: i32)
+
+fun wrap<T>(v: T) i32
+    return 0
+''');
+    });
+
+    test('generic class method with T param accepted', () {
+      expectNoErrors('''
+class Stack<T>()
+    fun push(value: T)
+        return
 ''');
     });
   });
