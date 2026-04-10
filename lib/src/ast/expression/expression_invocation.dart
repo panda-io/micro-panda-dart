@@ -108,13 +108,6 @@ class Invocation extends Expression {
     }
 
     _validateArgs(context, null);
-
-    // Generic call: return type is pointer to typeArg
-    if (typeArgs.isNotEmpty) {
-      type = TypeRef(typeArgs.first);
-      return;
-    }
-
     type = null; // unknown return type
   }
 

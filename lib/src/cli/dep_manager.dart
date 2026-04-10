@@ -43,19 +43,18 @@ class DepManager {
 
     for (final dep in project.deps) {
       final cached = lock[dep.url];
-      if (cached != null && Directory(depDir(cached.name)).existsSync()) {
-        result[cached.name] = cached;
+      final dirExists = cached != null && Directory(depDir(cached.name)).existsSync();
+
+      // Use the cached version unless: force-update requested (mpd update),
+      // or not cached yet.
+      final needsFetch = forceUpdate || !dirExists;
+
+      if (!needsFetch) {
+        result[cached!.name] = cached;
         continue;
       }
       // LSP mode: skip network fetch — dep not cached yet, just ignore it.
       if (lspMode) continue;
-      if (!forceUpdate &&
-          cached != null &&
-          cached.version == dep.version &&
-          Directory(depDir(cached.name)).existsSync()) {
-        result[cached.name] = cached;
-        continue;
-      }
       final info = await _fetchDep(dep);
       lock[dep.url] = info;
       result[info.name] = info;

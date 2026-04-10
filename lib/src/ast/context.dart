@@ -200,7 +200,14 @@ class Context {
     return null;
   }
 
-  /// True if [name] is declared in local scope chain (not considering fields/globals).
+  /// True if [name] is declared in local scope chain ONLY (not globals, not fields).
+  bool isDeclaredLocalVar(String name) {
+    if (_locals.containsKey(name)) return true;
+    if (_parent != null) return _parent.isDeclaredLocalVar(name);
+    return false;
+  }
+
+  /// True if [name] is declared in local scope chain or global variables.
   bool isDeclaredVar(String name) {
     if (_locals.containsKey(name)) return true;
     if (_parent != null) return _parent.isDeclaredVar(name);

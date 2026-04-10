@@ -514,8 +514,6 @@ class CGenerator {
       if (value.function is Identifier) {
         final name = (value.function as Identifier).name;
         if (_classes.containsKey(name)) return TypeName(name);
-        // Generic call with type args → return type is pointer to first type arg
-        if (value.typeArgs.isNotEmpty) return TypeRef(value.typeArgs.first);
       }
     }
     // Slice literal {ptr_expr, len_expr} — infer element type from the ptr expression.

@@ -11,15 +11,20 @@ class Identifier extends Expression {
 
   @override
   void validate(Context context, Type? expected) {
-    // Local variable scope
-    if (context.isDeclaredVar(name)) {
+    // Local variable scope (locals only — globals checked after fields)
+    if (context.isDeclaredLocalVar(name)) {
       type = context.lookupVar(name);
       return;
     }
-    // Class field (inside method)
+    // Class field — takes priority over global variables
     final fieldType = context.lookupField(name);
     if (fieldType != null) {
       type = fieldType;
+      return;
+    }
+    // Global variable
+    if (context.globalVariables.containsKey(name)) {
+      type = context.globalVariables[name];
       return;
     }
     // Class method reference (bare call inside a method body, e.g. _helper(x))

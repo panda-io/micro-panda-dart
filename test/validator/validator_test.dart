@@ -233,6 +233,37 @@ fun main()
     val n := alloc<Node>()
 ''');
     });
+
+    test('generic method returning T[] resolves to byte[] – no type mismatch', () {
+      expectNoErrors('''
+class Alloc()
+    fun allocate_array<T>(length: i32): T[]
+        return {null, 0}
+
+class Canvas()
+    var _buffer: byte[]
+
+fun setup()
+    var alloc: Alloc
+    var canvas: Canvas
+    canvas._buffer = alloc.allocate_array<byte>(32)
+''');
+    });
+
+    test('generic method returning T[] on pointer receiver resolves correctly', () {
+      expectNoErrors('''
+class Alloc()
+    fun allocate_array<T>(length: i32): T[]
+        return {null, 0}
+
+class Canvas()
+    var _buffer: byte[]
+
+fun setup(alloc: &Alloc)
+    var canvas: Canvas
+    canvas._buffer = alloc.allocate_array<byte>(32)
+''');
+    });
   });
 
   group('Validator – return type', () {
