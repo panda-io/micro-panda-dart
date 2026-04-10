@@ -3,7 +3,7 @@
 
 /// Hash of all embedded stdlib content. Used for fast staleness detection.
 /// Recomputed each time gen_stdlib.dart runs.
-const String kStdlibHash = '6c49f9f5';
+const String kStdlibHash = '5f57d91e';
 
 /// Embedded standard library sources, keyed by module path.
 /// Excludes '*_test.mpd' files.
@@ -871,6 +871,10 @@ class Allocator()
         val ptr := &T(&_memory[_cursor])
         _cursor = (_cursor + size + 3) & ~int(3)
         return {ptr, length}
+
+    @inline
+    fun available() int
+        return _memory.size() - _cursor
 
     @inline
     fun reset()

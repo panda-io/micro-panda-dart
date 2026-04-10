@@ -27,6 +27,10 @@ class Allocator()
         return {ptr, length}
 
     @inline
+    fun available() int
+        return _memory.size() - _cursor
+
+    @inline
     fun reset()
         _cursor = 0
 
