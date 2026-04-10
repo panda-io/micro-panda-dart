@@ -615,4 +615,52 @@ class Stack<T>()
 ''');
     });
   });
+
+  group('Validator – call site argument type check', () {
+    test('passing class value where reference expected is rejected', () {
+      expectError('''
+class Foo(val x: i32)
+
+fun foobar(foo: &Foo)
+    return
+
+fun main()
+    val foo: Foo = Foo(1)
+    foobar(foo)
+''', "argument type 'Foo' is not compatible with parameter type '&Foo'");
+    });
+
+    test('passing reference where reference expected is accepted', () {
+      expectNoErrors('''
+class Foo(val x: i32)
+
+fun foobar(foo: &Foo)
+    return
+
+fun take(r: &Foo)
+    foobar(r)
+''');
+    });
+
+    test('passing i32 where u8 expected is rejected', () {
+      expectError('''
+fun add(a: u8, b: u8) u8
+    return a
+
+fun main()
+    val x: i32 = 1
+    add(x, 2)
+''', "argument type 'i32' is not compatible with parameter type 'u8'");
+    });
+
+    test('passing correct primitive types is accepted', () {
+      expectNoErrors('''
+fun add(a: i32, b: i32) i32
+    return a + b
+
+fun main()
+    val r: i32 = add(1, 2)
+''');
+    });
+  });
 }

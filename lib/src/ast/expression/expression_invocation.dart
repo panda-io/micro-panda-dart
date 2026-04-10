@@ -119,6 +119,13 @@ class Invocation extends Expression {
           ? paramTypes[i]
           : null;
       arguments[i].validate(context, expectedType);
+      if (expectedType != null &&
+          !context.typesCompatible(arguments[i].type, expectedType)) {
+        context.error(
+            arguments[i].position,
+            "argument type '${Context.typeName(arguments[i].type)}' is not compatible"
+            " with parameter type '${Context.typeName(expectedType)}'");
+      }
     }
   }
 
