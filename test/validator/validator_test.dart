@@ -616,6 +616,87 @@ class Stack<T>()
     });
   });
 
+  group('Validator – missing return', () {
+    test('function with ref return type and no return statement is rejected', () {
+      expectError('''
+class Canvas(var width: i32)
+
+fun _init(c: &Canvas) &Canvas
+    c.width = 10
+''', "does not always return a value");
+    });
+
+    test('function with ref return type and bare return is rejected', () {
+      expectError('''
+class Canvas(var width: i32)
+
+fun _init(c: &Canvas) &Canvas
+    c.width = 10
+    return
+''', "missing return value");
+    });
+
+    test('function returning class value where ref expected is rejected', () {
+      expectError('''
+class Canvas(var width: i32)
+
+fun _init() &Canvas
+    var c := Canvas(10)
+    return c
+''', "return type mismatch");
+    });
+
+    test('function returning ref is accepted', () {
+      expectNoErrors('''
+class Canvas(var width: i32)
+
+fun _init(c: &Canvas) &Canvas
+    c.width = 10
+    return c
+''');
+    });
+
+    test('function with non-void return and if/else both returning is accepted', () {
+      expectNoErrors('''
+fun abs(x: i32) i32
+    if x < 0
+        return -x
+    else
+        return x
+''');
+    });
+
+    test('function with non-void return and if without else is rejected', () {
+      expectError('''
+fun maybe(x: i32) i32
+    if x > 0
+        return x
+''', "does not always return a value");
+    });
+
+    test('function with void return type and no return is accepted', () {
+      expectNoErrors('''
+class Canvas(var width: i32)
+
+fun _setup(c: &Canvas)
+    c.width = 10
+''');
+    });
+
+    test('match with all arms returning is accepted', () {
+      expectNoErrors('''
+enum Dir
+    Up
+    Down
+
+fun flip(d: Dir) Dir
+    match d
+        Dir.Up: return Dir.Down
+        Dir.Down: return Dir.Up
+''');
+    });
+  });
+
   group('Validator – call site argument type check', () {
     test('passing class value where reference expected is rejected', () {
       expectError('''

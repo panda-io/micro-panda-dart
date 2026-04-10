@@ -253,8 +253,9 @@ class CGenerator {
         }
       }
       // Collect integer constant values (supports expressions referencing earlier constants).
+      // Include `val` module-level bindings too — they're immutable and may be used as array dims.
       for (final v in mod.variables) {
-        if (v.isConst) {
+        if (v.isConst || v.keyword == TokenType.kVal) {
           final val = _evalConstExpr(v.value);
           if (val != null) _constInts[v.name] = val;
         }

@@ -3,6 +3,11 @@ import '../ast/module.dart';
 import '../ast/declaration/class_decl.dart';
 import '../ast/declaration/function_decl.dart';
 import '../ast/declaration/variable_decl.dart';
+import '../ast/statement/statement.dart';
+import '../ast/statement/statement_block.dart';
+import '../ast/statement/statement_if.dart';
+import '../ast/statement/statement_match.dart';
+import '../ast/statement/statement_return.dart';
 import '../ast/type/type.dart';
 import '../ast/type/type_ref.dart';
 import '../ast/type/type_name.dart';
@@ -85,6 +90,29 @@ class Validator {
       fnCtx.declare(p.name, p.type, p.position);
     }
     fn.body!.validate(fnCtx);
+    // For non-void functions, ensure every code path returns a value.
+    if (fn.returnType != null && !_alwaysReturns(fn.body!)) {
+      ctx.error(fn.position,
+          "function '${fn.name}' with return type '${Context.typeName(fn.returnType)}' does not always return a value");
+    }
+  }
+
+  /// Returns true if [stmt] guarantees a return on every code path.
+  bool _alwaysReturns(Statement stmt) {
+    if (stmt is ReturnStatement) return true;
+    if (stmt is Block) {
+      return stmt.statements.isNotEmpty && _alwaysReturns(stmt.statements.last);
+    }
+    if (stmt is IfStatement) {
+      return stmt.else_ != null &&
+          _alwaysReturns(stmt.body) &&
+          _alwaysReturns(stmt.else_!);
+    }
+    if (stmt is MatchStatement) {
+      return stmt.arms.isNotEmpty &&
+          stmt.arms.every((arm) => _alwaysReturns(arm.body));
+    }
+    return false;
   }
 
   void _validateClass(ClassDecl cls, Context ctx) {
