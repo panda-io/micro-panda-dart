@@ -181,7 +181,11 @@ class Parser {
 
   // ── entry point ──────────────────────────────────────────────────────────────
 
-  Module parseModule(String path) => _parseModule(path);
+  Module parseModule(String path) {
+    final mod = _parseModule(path);
+    if (_firstError != null) throw _firstError!;
+    return mod;
+  }
 
   /// Parse [path] tolerantly: on the first syntax error, stop parsing
   /// declarations and return the partial module alongside the error.
