@@ -426,9 +426,22 @@ extension GeneratorExpression on CGenerator {
       }
     }
 
+    // Coerce fixed-array args to slice params where needed.
+    FunctionDecl? methodDecl;
+    for (final FunctionDecl m in classDef?.methods ?? []) {
+      if (m.name == method) { methodDecl = m; break; }
+    }
+    final params = methodDecl?.parameters ?? <Parameter>[];
+    final coercedArgsStr = args.isEmpty
+        ? ''
+        : List.generate(args.length, (i) {
+            final expectedType = i < params.length ? params[i].type : null;
+            return _exprCoerce(args[i], expectedType);
+          }).join(', ');
+
     final allArgs = [
       receiverArg,
-      if (argsStr.isNotEmpty) argsStr,
+      if (coercedArgsStr.isNotEmpty) coercedArgsStr,
       if (sizeofArgs.isNotEmpty) sizeofArgs,
     ].join(', ');
     final call = '${className}_$method($allArgs)';
