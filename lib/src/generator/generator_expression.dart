@@ -464,8 +464,7 @@ extension GeneratorExpression on CGenerator {
   Type? _inferType(Expression expr) {
     if (expr is Identifier) {
       if (_scope.containsKey(expr.name)) return _scope[expr.name];
-      if (_globals.containsKey(expr.name)) return _globals[expr.name];
-      // Check class fields (constructor + body fields)
+      // Check class fields before globals: a same-named global must not shadow a field.
       if (_currentClass != null) {
         final cls = _classes[_currentClass];
         if (cls != null) {
@@ -477,6 +476,7 @@ extension GeneratorExpression on CGenerator {
           }
         }
       }
+      if (_globals.containsKey(expr.name)) return _globals[expr.name];
       return null;
     }
     if (expr is This && _currentClass != null) {
