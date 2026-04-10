@@ -443,10 +443,20 @@ class LspServer {
         };
       }
       for (final cls in mod.classes) {
-        if (cls.name != word || !cls.isPublic) continue;
-        return {
-          'contents': {'kind': 'markdown', 'value': '```mpd\nclass $word\n```'},
-        };
+        if (!cls.isPublic) continue;
+        if (cls.name == word) {
+          return {
+            'contents': {'kind': 'markdown', 'value': '```mpd\nclass $word\n```'},
+          };
+        }
+        for (final fn in cls.methods) {
+          if (fn.name != word) continue;
+          final ps  = fn.parameters.map((p) => '${p.name}: ${_typeStr(p.type)}').join(', ');
+          final ret = fn.returnType != null ? ' ${_typeStr(fn.returnType!)}' : '';
+          return {
+            'contents': {'kind': 'markdown', 'value': '```mpd\nfun ${cls.name}.$word($ps)$ret\n```'},
+          };
+        }
       }
       for (final enm in mod.enums) {
         if (enm.name != word || !enm.isPublic) continue;
@@ -474,7 +484,11 @@ class LspServer {
       int? declPos;
       for (final fn  in mod.functions) { if (fn.name  == word) { declPos = fn.position;  break; } }
       for (final v   in mod.variables) { if (v.name   == word) { declPos = v.position;   break; } }
-      for (final cls in mod.classes)   { if (cls.name == word) { declPos = cls.position; break; } }
+      for (final cls in mod.classes) {
+        if (cls.name == word) { declPos = cls.position; break; }
+        for (final fn in cls.methods) { if (fn.name == word) { declPos = fn.position; break; } }
+        if (declPos != null) break;
+      }
       for (final enm in mod.enums)     { if (enm.name == word) { declPos = enm.position; break; } }
 
       if (declPos == null) continue;
