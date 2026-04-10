@@ -57,6 +57,10 @@ class Context {
   final Map<String, Type?> _locals = {};
   final Set<String> _valLocals = {};
 
+  /// True while validating the callee expression of an Invocation.
+  /// Used to distinguish call-position method references from value-position ones.
+  bool calleePosition = false;
+
   // ── error collection (shared across all child contexts) ───────────────────────
   final List<ValidationError> _errors;
   List<ValidationError> get errors => _errors;

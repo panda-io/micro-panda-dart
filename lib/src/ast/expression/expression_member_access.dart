@@ -64,7 +64,11 @@ class MemberAccess extends Expression {
         // Look for method
         for (final m in cls.methods) {
           if (m.name == member) {
-            type = null; // method reference
+            if (!context.calleePosition) {
+              context.error(position,
+                  "'${parentType.name}.$member' is a class method and cannot be used as a function reference (no 'this' capture)");
+            }
+            type = null; // method reference, type handled at call site
             return;
           }
         }

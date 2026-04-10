@@ -31,6 +31,10 @@ class Identifier extends Expression {
     if (context.currentClass != null) {
       final cls = context.classes[context.currentClass];
       if (cls != null && cls.methods.any((m) => m.name == name)) {
+        if (!context.calleePosition) {
+          context.error(position,
+              "'$name' is a class method and cannot be used as a function reference (no 'this' capture)");
+        }
         type = null; // method reference, type handled at call site
         return;
       }

@@ -19,7 +19,9 @@ class Invocation extends Expression {
 
   @override
   void validate(Context context, Type? expected) {
+    context.calleePosition = true;
     function.validate(context, null);
+    context.calleePosition = false;
 
     // Determine return type from context and collect parameter types for
     // argument validation (so literals adopt the parameter type, e.g. fixed).

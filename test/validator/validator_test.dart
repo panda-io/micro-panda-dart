@@ -479,4 +479,75 @@ fun test()
 ''');
     });
   });
+
+  group('Validator – class method cannot be used as function reference', () {
+    test('bare method name stored in typed fun() var inside class', () {
+      expectError('''
+class Foo(val x: i32)
+    fun bar(): i32
+        return this.x
+    fun setup()
+        var f: fun() i32 = bar
+''', "is a class method and cannot be used as a function reference");
+    });
+
+    test('bare method name stored in untyped var inside class', () {
+      expectError('''
+class Foo(val x: i32)
+    fun bar(): i32
+        return this.x
+    fun setup()
+        var f := bar
+''', "is a class method and cannot be used as a function reference");
+    });
+
+    test('obj.method stored via member access outside class', () {
+      expectError('''
+class Foo(val x: i32)
+    fun bar(): i32
+        return this.x
+
+fun setup()
+    var obj := Foo(1)
+    var f: fun() i32 = obj.bar
+''', "is a class method and cannot be used as a function reference");
+    });
+
+    test('obj.method passed as function argument', () {
+      expectError('''
+class Foo(val x: i32)
+    fun bar(): i32
+        return this.x
+
+fun call(fn: fun() i32): i32
+    return fn()
+
+fun setup()
+    var obj := Foo(1)
+    call(obj.bar)
+''', "is a class method and cannot be used as a function reference");
+    });
+
+    test('normal method call inside class is still valid', () {
+      expectNoErrors('''
+class Foo(val x: i32)
+    fun double(): i32
+        return this.x * 2
+    fun run(): i32
+        return double()
+''');
+    });
+
+    test('normal method call via object outside class is still valid', () {
+      expectNoErrors('''
+class Foo(val x: i32)
+    fun double(): i32
+        return this.x * 2
+
+fun setup()
+    var obj := Foo(3)
+    val r: i32 = obj.double()
+''');
+    });
+  });
 }

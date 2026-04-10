@@ -224,8 +224,8 @@ class CGenerator {
     _emitForwardDeclarations(modules);
     _emitPlainEnumDefs(modules);      // plain enums first — needed by fn-ptr typedefs
     _emitTaggedEnumTagDefs(modules);  // just the Foo_Tag enums
-    _emitFnPointerTypedefs();         // can now reference plain enum types
-    _emitSliceTypedefs();
+    _emitSliceTypedefs();             // must precede fn-ptr typedefs that reference slice types
+    _emitFnPointerTypedefs();         // can now reference plain enum and slice types
     _emitRawBlocks();
     _emitStructDefs(modules);         // class structs in dependency order
     _emitTaggedEnumBodies(modules);   // data structs + struct bodies (after class defs)
