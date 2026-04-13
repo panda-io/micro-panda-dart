@@ -277,6 +277,15 @@ class Context {
       if (a.isFixed && b.isSlice) return true;
       if (a.isSlice && b.isFixed) return true;
     }
+    // plain enum ↔ integer: plain enums are backed by int in C
+    if (a.isEnum && b.isInteger) {
+      final enm = enums[(a as TypeName).name];
+      if (enm != null && enm.members.every((m) => !m.isTagged)) return true;
+    }
+    if (b.isEnum && a.isInteger) {
+      final enm = enums[(b as TypeName).name];
+      if (enm != null && enm.members.every((m) => !m.isTagged)) return true;
+    }
     return false;
   }
 

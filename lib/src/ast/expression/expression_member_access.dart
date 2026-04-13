@@ -24,7 +24,7 @@ class MemberAccess extends Expression {
         if (!hasMember) {
           context.error(position, "enum '$name' has no member '$member'");
         }
-        type = TypeName(name); // enum member has the enum's type
+        type = TypeName(name, isEnum: true); // enum member has the enum's type
         return;
       }
     }
