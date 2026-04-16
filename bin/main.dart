@@ -287,15 +287,24 @@ Future<void> _cmdTest(String? targetName, {required bool verbose, String? projec
 Future<void> _cmdClean({required bool verbose, String? projectDir}) async {
   final project = _loadProject(projectDir);
 
-  _deleteDir(project.out, project.rootDir, verbose: verbose);
+  // Delete .micro-panda/ (stdlib cache, test build artifacts).
+  _deleteDir('.micro-panda', project.rootDir, verbose: verbose);
 
-  // Also clean per-target out dirs and bin/.
+  // Delete default C output directory.
+  _deleteDir('out', project.rootDir, verbose: verbose);
+
+  // Delete default binary output directory.
+  _deleteDir('bin', project.rootDir, verbose: verbose);
+
+  // Delete per-target custom output paths from mpd.yaml.
   for (final target in project.targets.values) {
     if (target.out != null) {
-      _deleteDir(target.out!, project.rootDir, verbose: verbose);
+      _deletePath(target.out!, project.rootDir, verbose: verbose);
+    }
+    if (target.output != null) {
+      _deletePath(target.output!, project.rootDir, verbose: verbose);
     }
   }
-  _deleteDir('bin', project.rootDir, verbose: verbose);
 
   stdout.writeln('Cleaned.');
 }
@@ -441,9 +450,26 @@ List<Target> _resolveTargets(Project project, String? name) {
 }
 
 void _deleteDir(String rel, String root, {required bool verbose}) {
-  final dir = Directory('$root/$rel');
+  final path = p.isAbsolute(rel) ? rel : p.join(root, rel);
+  final dir = Directory(path);
   if (dir.existsSync()) {
-    if (verbose) stdout.writeln('  Deleting ${dir.path}');
+    if (verbose) stdout.writeln('  Deleting $path');
+    dir.deleteSync(recursive: true);
+  }
+}
+
+/// Delete a file or directory at [rel] (relative to [root], or absolute).
+void _deletePath(String rel, String root, {required bool verbose}) {
+  final path = p.isAbsolute(rel) ? rel : p.join(root, rel);
+  final file = File(path);
+  if (file.existsSync()) {
+    if (verbose) stdout.writeln('  Deleting $path');
+    file.deleteSync();
+    return;
+  }
+  final dir = Directory(path);
+  if (dir.existsSync()) {
+    if (verbose) stdout.writeln('  Deleting $path');
     dir.deleteSync(recursive: true);
   }
 }
