@@ -3,7 +3,7 @@
 
 /// Hash of all embedded stdlib content. Used for fast staleness detection.
 /// Recomputed each time gen_stdlib.dart runs.
-const String kStdlibHash = '6fa81658';
+const String kStdlibHash = '18af3d8d';
 
 /// Embedded standard library sources, keyed by module path.
 /// Excludes '*_test.mpd' files.
@@ -1422,21 +1422,153 @@ fun gpio_read(pin: i32) GpioLevel
 // @interface functions are used for type checking only; no code is emitted.
 // The final application must link a platform package that provides the implementations.
 
+// Initialize I2C bus (0 or 1).
+// Returns bus handle or -1 on error.
 @interface
-fun i2c_write(device: i32, buffer: byte[], length: int) i32
+fun i2c_init(bus: i32, sda: i32, scl: i32, freq_hz: i32) i32
 
+// Open a device by 7-bit address on the bus.
+// Returns device handle or -1 on error.
 @interface
-fun i2c_read(device: i32, buffer: byte[], length: int) i32
+fun i2c_open(bus: i32, addr: i32) i32
+
+// Close and release a device handle.
+@interface
+fun i2c_close(dev: i32)
+
+// Write len bytes from data to the device.
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun i2c_write(dev: i32, data: u8[], len: i32) i32
+
+// Read len bytes from the device into buf.
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun i2c_read(dev: i32, buf: u8[], len: i32) i32
+
+// Write tx_len bytes then read rx_len bytes in one transaction.
+// Common for register reads: write [reg_addr], read [value].
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun i2c_write_read(dev: i32, tx: u8[], tx_len: i32, rx: u8[], rx_len: i32) i32
+""",
+  'pwm': """// PWM peripheral interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+enum PwmTimer
+    TIMER0 = 0
+    TIMER1 = 1
+    TIMER2 = 2
+    TIMER3 = 3
+
+// Configure a timer with a frequency. Call before pwm_attach.
+@interface
+fun pwm_timer(timer: PwmTimer, freq: i32)
+
+// Attach pin to a PWM channel on the given timer.
+@interface
+fun pwm_attach(pin: i32, timer: PwmTimer)
+
+// Start PWM output or update duty (0–1023).
+@interface
+fun pwm_start(pin: i32, duty: i32)
+
+// Stop PWM output. Pin goes low. Frees the channel slot.
+@interface
+fun pwm_stop(pin: i32)
+""",
+  'rtos': """// RtOS interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+// ── Time ──────────────────────────────────────────────────────────────────
+
+// Delay by raw FreeRTOS ticks.
+@interface
+fun delay(ticks: i32)
+
+// Delay by milliseconds.
+@interface
+fun delay_ms(ms: i32)
+
+// Returns raw FreeRTOS tick count since boot.
+@interface
+fun ticks(): i32
+
+// Returns milliseconds elapsed since boot.
+@interface
+fun time_ms(): i32
+
+// ── CPU core ──────────────────────────────────────────────────────────────
+
+// Returns the CPU core ID the calling code is running on (0 or 1).
+@interface
+fun core_id(): i32
+
+// ── Tasks ─────────────────────────────────────────────────────────────────
+
+// Spin up a FreeRTOS task. Returns an opaque handle (&void).
+// stack is bytes; priority is FreeRTOS priority level.
+// Use task_notify/task_wait with the returned handle for synchronisation.
+@interface
+fun task_create(fn: fun(), stack: i32, priority: i32): &void
+
+// Spin up a FreeRTOS task pinned to a specific CPU core (0 or 1).
+@interface
+fun task_create_pinned(fn: fun(), stack: i32, priority: i32, core: i32): &void
+
+// Stop the calling task. Must be called from inside the task itself.
+@interface
+fun task_exit()
+
+// ── Task notifications ────────────────────────────────────────────────────
+
+// Send a notification to another task (wake it if blocked in task_wait).
+@interface
+fun task_notify(handle: &void)
+
+// Block until notified. Returns the notification value.
+// Clears the notification on exit (binary semaphore pattern).
+@interface
+fun task_wait(): i32
 """,
   'spi': """// SPI peripheral interface — platform-independent prototype.
 // Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
 // @interface functions are used for type checking only; no code is emitted.
 // The final application must link a platform package that provides the implementations.
 
+// Initialize SPI bus (0 = SPI2, 1 = SPI3).
+// Pass miso = -1 for write-only devices (e.g. displays).
+// Returns bus handle or -1 on error.
 @interface
-fun spi_write(device: i32, buffer: byte[], length: int) i32
+fun spi_init(bus: i32, mosi: i32, miso: i32, clk: i32) i32
 
+// Open a device on the bus with its own cs pin, clock speed and SPI mode (0–3).
+// All devices on the same bus stay open simultaneously.
+// Returns device handle or -1 on error.
 @interface
-fun spi_transfer(device: i32, tx: byte[], rx: byte[], length: int) i32
+fun spi_open(bus: i32, cs: i32, freq_hz: i32, mode: i32) i32
+
+// Close and release a device handle.
+@interface
+fun spi_close(dev: i32)
+
+// Write len bytes to device (TX only, RX ignored).
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun spi_write(dev: i32, data: u8[], len: i32) i32
+
+// Read len bytes from device (TX zeros, RX captured).
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun spi_read(dev: i32, buf: u8[], len: i32) i32
+
+// Full-duplex transfer: send tx while receiving into rx, len bytes each.
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun spi_transfer(dev: i32, tx: u8[], rx: u8[], len: i32) i32
 """,
 };
