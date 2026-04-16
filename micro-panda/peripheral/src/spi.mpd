@@ -3,8 +3,33 @@
 // @interface functions are used for type checking only; no code is emitted.
 // The final application must link a platform package that provides the implementations.
 
+// Initialize SPI bus (0 = SPI2, 1 = SPI3).
+// Pass miso = -1 for write-only devices (e.g. displays).
+// Returns bus handle or -1 on error.
 @interface
-fun spi_write(device: i32, buffer: byte[], length: int) i32
+fun spi_init(bus: i32, mosi: i32, miso: i32, clk: i32) i32
 
+// Open a device on the bus with its own cs pin, clock speed and SPI mode (0–3).
+// All devices on the same bus stay open simultaneously.
+// Returns device handle or -1 on error.
 @interface
-fun spi_transfer(device: i32, tx: byte[], rx: byte[], length: int) i32
+fun spi_open(bus: i32, cs: i32, freq_hz: i32, mode: i32) i32
+
+// Close and release a device handle.
+@interface
+fun spi_close(dev: i32)
+
+// Write len bytes to device (TX only, RX ignored).
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun spi_write(dev: i32, data: u8[], len: i32) i32
+
+// Read len bytes from device (TX zeros, RX captured).
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun spi_read(dev: i32, buf: u8[], len: i32) i32
+
+// Full-duplex transfer: send tx while receiving into rx, len bytes each.
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun spi_transfer(dev: i32, tx: u8[], rx: u8[], len: i32) i32

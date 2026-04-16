@@ -3,7 +3,7 @@
 
 /// Hash of all embedded stdlib content. Used for fast staleness detection.
 /// Recomputed each time gen_stdlib.dart runs.
-const String kStdlibHash = '0a638136';
+const String kStdlibHash = '6fa81658';
 
 /// Embedded standard library sources, keyed by module path.
 /// Excludes '*_test.mpd' files.
@@ -1370,6 +1370,29 @@ fun _report() int
     if _failed > 0
         return 1
     return 0
+""",
+  'adc': """// ADC peripheral interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+// Set ADC resolution in bits (9–12). Default is 12 (0–4095).
+// Call once at startup before adc_read.
+@interface
+fun adc_resolution(bits: i32)
+
+// Read raw ADC value for the given GPIO pin.
+// Returns 0–4095 (12-bit default). Returns -1 for unsupported pins.
+// Works on all ESP32 variants — pin mapping resolved by IDF automatically.
+// Note: ADC2 pins conflict with WiFi; use ADC1 pins when WiFi is active.
+@interface
+fun adc_read(pin: i32) i32
+
+// Read calibrated millivolts for the given GPIO pin.
+// Uses IDF curve-fitting or line-fitting calibration (eFuse-based, per-chip accurate).
+// Falls back to linear formula if no calibration data available on this chip.
+@interface
+fun adc_read_mv(pin: i32) i32
 """,
   'gpio': """// GPIO peripheral interface — platform-independent prototype.
 // Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).

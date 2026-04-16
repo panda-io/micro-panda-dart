@@ -1,0 +1,26 @@
+// PWM peripheral interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+enum PwmTimer
+    TIMER0 = 0
+    TIMER1 = 1
+    TIMER2 = 2
+    TIMER3 = 3
+
+// Configure a timer with a frequency. Call before pwm_attach.
+@interface
+fun pwm_timer(timer: PwmTimer, freq: i32)
+
+// Attach pin to a PWM channel on the given timer.
+@interface
+fun pwm_attach(pin: i32, timer: PwmTimer)
+
+// Start PWM output or update duty (0–1023).
+@interface
+fun pwm_start(pin: i32, duty: i32)
+
+// Stop PWM output. Pin goes low. Frees the channel slot.
+@interface
+fun pwm_stop(pin: i32)

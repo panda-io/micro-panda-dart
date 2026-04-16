@@ -3,8 +3,32 @@
 // @interface functions are used for type checking only; no code is emitted.
 // The final application must link a platform package that provides the implementations.
 
+// Initialize I2C bus (0 or 1).
+// Returns bus handle or -1 on error.
 @interface
-fun i2c_write(device: i32, buffer: byte[], length: int) i32
+fun i2c_init(bus: i32, sda: i32, scl: i32, freq_hz: i32) i32
 
+// Open a device by 7-bit address on the bus.
+// Returns device handle or -1 on error.
 @interface
-fun i2c_read(device: i32, buffer: byte[], length: int) i32
+fun i2c_open(bus: i32, addr: i32) i32
+
+// Close and release a device handle.
+@interface
+fun i2c_close(dev: i32)
+
+// Write len bytes from data to the device.
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun i2c_write(dev: i32, data: u8[], len: i32) i32
+
+// Read len bytes from the device into buf.
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun i2c_read(dev: i32, buf: u8[], len: i32) i32
+
+// Write tx_len bytes then read rx_len bytes in one transaction.
+// Common for register reads: write [reg_addr], read [value].
+// Returns 0 on success, ESP error code on failure.
+@interface
+fun i2c_write_read(dev: i32, tx: u8[], tx_len: i32, rx: u8[], rx_len: i32) i32
