@@ -159,6 +159,34 @@ fun test_add()
 
 ---
 
+## `@interface`
+
+Marks a function as a platform interface — a prototype-only declaration with no
+implementation in this module. Used in the `peripheral/` standard library to declare
+hardware APIs (GPIO, I2C, SPI, …) that each platform package must implement.
+
+```mpd
+@interface
+fun gpio_write(pin: i32, level: GpioLevel)
+```
+
+- The compiler registers the function signature for type checking and LSP.
+- **No prototype or definition is emitted** in the generated C output.
+- Call sites resolve to the platform module's implementation at link time.
+- The function must have no body.
+
+### Platform override
+
+Modules in the `peripheral/` library (e.g. `gpio`, `i2c`, `spi`) define `@interface`
+stubs. When a platform package (e.g. `micro-panda-esp32`) is added as a dependency, its
+module at the same path takes precedence over the stub, providing the real implementation.
+The `@interface` stub is then never loaded.
+
+Without a platform dep the project still compiles cleanly; the linker will fail only if
+a `@interface` function is actually called.
+
+---
+
 ## `@raw`
 
 Emits a raw C string verbatim at the top of the generated `.c` file, before any

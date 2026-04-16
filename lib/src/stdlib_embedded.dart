@@ -3,7 +3,7 @@
 
 /// Hash of all embedded stdlib content. Used for fast staleness detection.
 /// Recomputed each time gen_stdlib.dart runs.
-const String kStdlibHash = '5f57d91e';
+const String kStdlibHash = '0a638136';
 
 /// Embedded standard library sources, keyed by module path.
 /// Excludes '*_test.mpd' files.
@@ -1370,5 +1370,50 @@ fun _report() int
     if _failed > 0
         return 1
     return 0
+""",
+  'gpio': """// GPIO peripheral interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+enum GpioMode
+    INPUT        = 0
+    OUTPUT       = 1
+    INPUT_PULLUP = 2
+
+enum GpioLevel
+    LOW  = 0
+    HIGH = 1
+
+@interface
+fun gpio_mode(pin: i32, mode: GpioMode)
+
+@interface
+fun gpio_write(pin: i32, level: GpioLevel)
+
+@interface
+fun gpio_read(pin: i32) GpioLevel
+""",
+  'i2c': """// I2C peripheral interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+@interface
+fun i2c_write(device: i32, buffer: byte[], length: int) i32
+
+@interface
+fun i2c_read(device: i32, buffer: byte[], length: int) i32
+""",
+  'spi': """// SPI peripheral interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+@interface
+fun spi_write(device: i32, buffer: byte[], length: int) i32
+
+@interface
+fun spi_transfer(device: i32, tx: byte[], rx: byte[], length: int) i32
 """,
 };

@@ -14,4 +14,6 @@ class Annotation {
   final String? template;
 
   Annotation(this.name, {this.template});
+
+  bool get isInterface => name == 'interface';
 }

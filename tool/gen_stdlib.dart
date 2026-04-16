@@ -19,21 +19,26 @@ void main() {
   final scriptDir = p.dirname(Platform.script.toFilePath());
   final repoRoot = p.normalize(p.join(scriptDir, '..'));
   final stdSrc = p.join(repoRoot, 'micro-panda', 'std', 'src');
+  final peripheralSrc = p.join(repoRoot, 'micro-panda', 'peripheral', 'src');
   final outFile = p.join(repoRoot, 'lib', 'src', 'stdlib_embedded.dart');
 
-  final files = Directory(stdSrc)
-      .listSync(recursive: true)
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.mpd') && !f.path.endsWith('_test.mpd'))
-      .toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
-
+  // Collect sources from both std/ and peripheral/ (module keys are flat — no prefix).
+  final sourceDirs = [stdSrc, peripheralSrc];
   final entries = <({String key, String content})>[];
-  for (final file in files) {
-    final rel = p.withoutExtension(p.relative(file.path, from: stdSrc));
-    final key = rel.replaceAll(p.separator, '.');
-    final content = file.readAsStringSync();
-    entries.add((key: key, content: content));
+  for (final srcDir in sourceDirs) {
+    if (!Directory(srcDir).existsSync()) continue;
+    final files = Directory(srcDir)
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.mpd') && !f.path.endsWith('_test.mpd'))
+        .toList()
+      ..sort((a, b) => a.path.compareTo(b.path));
+    for (final file in files) {
+      final rel = p.withoutExtension(p.relative(file.path, from: srcDir));
+      final key = rel.replaceAll(p.separator, '.');
+      final content = file.readAsStringSync();
+      entries.add((key: key, content: content));
+    }
   }
 
   final hash = _computeHash(entries);

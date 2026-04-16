@@ -1,0 +1,10 @@
+// I2C peripheral interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+@interface
+fun i2c_write(device: i32, buffer: byte[], length: int) i32
+
+@interface
+fun i2c_read(device: i32, buffer: byte[], length: int) i32

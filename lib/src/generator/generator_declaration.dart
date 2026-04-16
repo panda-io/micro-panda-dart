@@ -242,7 +242,7 @@ extension GeneratorDeclaration on CGenerator {
     var any = false;
     for (final mod in modules) {
       for (final fn in mod.functions) {
-        if (fn.isExtern) continue;
+        if (fn.isExtern || fn.isInterface) continue;
         if (isTestMode && fn.name == 'main') continue;
         if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
         _writeln('${_fnPrefix(fn)}${_fnSignature(fn, null, modPath: mod.path)};');
@@ -251,7 +251,7 @@ extension GeneratorDeclaration on CGenerator {
       for (final cls in mod.classes) {
         if (cls.typeParams.isEmpty) {
           for (final fn in cls.methods) {
-            if (fn.isExtern) continue;
+            if (fn.isExtern || fn.isInterface) continue;
             if (_fnHasUnerasableReturn(fn)) continue; // only specialized copies emitted later
             _writeln('${_fnPrefix(fn)}${_fnSignature(fn, cls.name)};');
             any = true;
@@ -262,7 +262,7 @@ extension GeneratorDeclaration on CGenerator {
             final specName = _specializedCName(cls.name, typeArgs);
             _setTypeSubstitution(cls, typeArgs);
             for (final fn in cls.methods) {
-              if (fn.isExtern) continue;
+              if (fn.isExtern || fn.isInterface) continue;
               _writeln('${_fnPrefix(fn)}${_fnSignature(fn, specName)};');
               any = true;
             }
@@ -448,7 +448,7 @@ extension GeneratorDeclaration on CGenerator {
   }
 
   void _emitFunctionDef(FunctionDecl fn, String? className, String? modPath) {
-    if (fn.body == null || fn.isExtern) return; // forward declaration or extern
+    if (fn.body == null || fn.isExtern || fn.isInterface) return; // forward declaration, extern, or interface
 
     // Set member-function context and reset scope.
     _currentClass = className;
@@ -477,7 +477,7 @@ extension GeneratorDeclaration on CGenerator {
   /// Emit a monomorphized copy of a generic function for a specific type-arg set.
   void _emitFunctionDefSpecialized(
       FunctionDecl fn, String? className, String? modPath, List<Type> typeArgs) {
-    if (fn.body == null || fn.isExtern) return;
+    if (fn.body == null || fn.isExtern || fn.isInterface) return;
 
     _currentClass = className;
     _typeParams = []; // no erasure — all types are concrete via substitution

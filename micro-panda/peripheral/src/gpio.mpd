@@ -1,0 +1,22 @@
+// GPIO peripheral interface — platform-independent prototype.
+// Implemented by each platform package (micro-panda-esp32, micro-panda-rp2040, …).
+// @interface functions are used for type checking only; no code is emitted.
+// The final application must link a platform package that provides the implementations.
+
+enum GpioMode
+    INPUT        = 0
+    OUTPUT       = 1
+    INPUT_PULLUP = 2
+
+enum GpioLevel
+    LOW  = 0
+    HIGH = 1
+
+@interface
+fun gpio_mode(pin: i32, mode: GpioMode)
+
+@interface
+fun gpio_write(pin: i32, level: GpioLevel)
+
+@interface
+fun gpio_read(pin: i32) GpioLevel
