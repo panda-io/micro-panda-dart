@@ -1,18 +1,20 @@
 # Micro Panda — Agent Quick Start
 
 ## What is it?
+
 Micro Panda (`.mpd`) is a statically-typed systems language that compiles to C.
 Targets: desktop (HOSTED), ESP32 / Cortex-M (MCU32). No heap, no GC, no implicit conversions.
 Syntax is indentation-based (Python-style) — no braces, no `end` keywords.
 
 ## Toolchain
+
 - Compiler: `mpd` binary (default install: `~/.local/bin/mpd`)
 - Every project needs an `mpd.yaml` at its root
 
 ## CLI commands
 
 | Command | Description |
-|---|---|
+| --- | --- |
 | `mpd init` | Create `mpd.yaml` + `src/main.mpd` in current directory |
 | `mpd build` | Parse → generate C → compile binary |
 | `mpd build <target>` | Build a specific named target |
@@ -44,6 +46,7 @@ targets:
 ```
 
 For ESP32 (generate C only, hand off to idf.py):
+
 ```yaml
   esp32:
     entry: firmware/main
@@ -59,12 +62,13 @@ For ESP32 (generate C only, hand off to idf.py):
 ## Conditional compile flags
 
 | Flag | Meaning |
-|---|---|
+| --- | --- |
 | `HOSTED` | Desktop (Linux / macOS / Windows) |
 | `MCU32` | 32-bit MCU (ESP32, Cortex-M) |
 | `DEBUG` | Debug build |
 
 Use in source:
+
 ```mpd
 #if HOSTED
     // desktop-only code
@@ -82,7 +86,7 @@ Use in source:
 All stdlib modules are built-in (no `deps:` needed):
 
 | Import | Available | Contents |
-|---|---|---|
+| --- | --- | --- |
 | `import console` | all | Terminal/UART output |
 | `import string` | all | String utilities, formatting |
 | `import math` | HOSTED / MCU32 | Math functions and constants |
@@ -96,6 +100,7 @@ All stdlib modules are built-in (no `deps:` needed):
 | `import hosted.signal` | HOSTED | SIGINT / SIGTERM handler |
 
 Import styles:
+
 ```mpd
 import console                  # module qualifier: console.print(...)
 import console::print           # specific symbol: print(...) directly
@@ -106,7 +111,7 @@ import mcu32.allocator::Allocator  # specific class
 
 ## Typical project layout
 
-```
+```plaintext
 myproject/
   mpd.yaml
   src/
@@ -133,7 +138,7 @@ Names starting with `_` are private (file-local, C `static`). All other names ar
 
 ## Compilation pipeline
 
-```
+```plaintext
 *.mpd → compiler (Dart) → out/<target>.c → gcc → bin/<target>
 ```
 

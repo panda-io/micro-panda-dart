@@ -3,7 +3,7 @@
 ## Types
 
 | Type | Alias | C type | Notes |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `bool` | | `bool` | `true` / `false` |
 | `i8` | | `int8_t` | |
 | `u8` | `byte` | `uint8_t` | |
@@ -61,7 +61,7 @@ No implicit conversions. All mixed-type expressions need explicit casts.
 
 ## Operators
 
-```
+```plaintext
 +  -  *  /  %            arithmetic
 &  |  ^  ~  <<  >>       bitwise (no implicit promotions)
 ==  !=  <  >  <=  >=    comparison
@@ -170,12 +170,14 @@ class Point(var x: i32, var y: i32)   # constructor params with var/val become f
 ```
 
 **Instantiation at module scope** (global / static lifetime):
+
 ```mpd
 val _origin := Point(0, 0)
 val _engine: Engine               # default init (no constructor params)
 ```
 
 **Instantiation inside a function** — must use allocator:
+
 ```mpd
 fun setup(alloc: &Allocator)
     val p: &Point = alloc.allocate<Point>()
@@ -205,6 +207,7 @@ var s: Shape = Shape.Circle(2.5)
 ```
 
 Recursive tagged enums use `&T` fields to keep struct size fixed:
+
 ```mpd
 enum Expr
     Num(value: i32)
@@ -331,7 +334,7 @@ sizeof(T)               # same, classic form
 ## C name mangling
 
 | Micro Panda | C output |
-|---|---|
+| --- | --- |
 | `module::function` | `module__function` |
 | class method `Foo.bar` | `Foo_bar` |
 | generic `min<i32>` | `min_int32_t` |

@@ -32,6 +32,7 @@ Never try to return a local fixed array as a slice — the pointer will dangle.
 ## 3. Class instances inside functions require an allocator
 
 You cannot create a class instance on the stack. Either:
+
 - Declare at **module (global) scope** — lives in static memory
 - Use an **allocator** inside a function
 

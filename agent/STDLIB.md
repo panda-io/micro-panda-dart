@@ -1,6 +1,7 @@
 # Micro Panda Standard Library API
 
 ## `import console`
+
 Terminal / UART output. All platforms.
 
 ```mpd
@@ -29,9 +30,11 @@ Default transport: `putchar` on HOSTED/MCU32; must call `init()` on bare MCU.
 ---
 
 ## `import string`
+
 String utilities. All platforms.
 
 ### Comparison / search
+
 ```mpd
 equals(a: byte[], b: byte[]) bool
 starts_with(string: byte[], prefix: byte[]) bool
@@ -40,6 +43,7 @@ index_of(string: byte[], character: byte) int   # -1 if not found
 ```
 
 ### Slicing
+
 ```mpd
 sub(string: byte[], start: int, len: int) byte[]
 trim(string: byte[]) byte[]                      # strip leading/trailing whitespace
@@ -48,12 +52,14 @@ trim_end(string: byte[]) byte[]
 ```
 
 ### Tokenization
+
 ```mpd
 token(string: byte[], start: int, delim: byte) byte[]  # slice up to next delim
 skip(string: byte[], start: int, delim: byte) int       # advance past delim chars
 ```
 
 ### Parsing
+
 ```mpd
 parse_u32(string: byte[]) u32
 parse_i32(string: byte[]) i32
@@ -61,6 +67,7 @@ parse_int(string: byte[]) int
 ```
 
 ### Formatting
+
 ```mpd
 format_u32(buf: byte[], value: u32) int    # writes digits into buf, returns count
 format_i32(buf: byte[], value: i32) i32
@@ -70,6 +77,7 @@ format(text: byte[], buf: byte[], args: int[]) byte[]
 ```
 
 `format` replaces `{Ni}` / `{Nu}` / `{Nf}` / `{Nd}` / `{Nb}` placeholders:
+
 - `{0i}` — signed int (default)
 - `{0u}` — unsigned int
 - `{0f}` — float (pass bits via `string.float_bits(v)`)
@@ -84,6 +92,7 @@ console.write_string(s)
 ```
 
 ### Bit-cast helpers (for format args)
+
 ```mpd
 float_bits(value: float) int      # reinterpret float bits as int (no value change)
 q16_bits(value: q16) int          # reinterpret q16 as int
@@ -93,9 +102,11 @@ fixed_bits(value: fixed) int      # alias for q16_bits
 ---
 
 ## `import math`
+
 Math functions and constants. HOSTED and MCU32.
 
 ### Constants
+
 ```mpd
 const PI  := 3.14159265358979
 const TAU := 6.28318530717959
@@ -103,6 +114,7 @@ const E   := 2.71828182845905
 ```
 
 ### Generic (all platforms)
+
 ```mpd
 min<T>(a: T, b: T) T
 max<T>(a: T, b: T) T
@@ -111,6 +123,7 @@ abs<T>(value: T) T
 ```
 
 ### Fixed-point rounding
+
 ```mpd
 floor_q16(value: q16) q16
 ceil_q16(value: q16) q16
@@ -121,6 +134,7 @@ round_fixed(value: fixed) fixed
 ```
 
 ### Float (HOSTED / MCU32 only)
+
 ```mpd
 sin(value: float) float
 cos(value: float) float
@@ -139,6 +153,7 @@ round(value: float) float
 ---
 
 ## `import mcu32.allocator` (or `import mcu32.allocator::Allocator`)
+
 Arena allocator. HOSTED and MCU32.
 
 ```mpd
@@ -151,6 +166,7 @@ class Allocator()
 ```
 
 Usage pattern:
+
 ```mpd
 var _mem: byte[4096]
 val _alloc: Allocator
@@ -163,10 +179,12 @@ fun main()
 ---
 
 ## `import mcu32.collection`
+
 Fixed-capacity collections backed by `Allocator`. HOSTED and MCU32.
 Requires `import mcu32.allocator`.
 
 ### `ArrayList<T>`
+
 ```mpd
 class ArrayList<T>()
     init(alloc: &Allocator, capacity: int) bool
@@ -184,6 +202,7 @@ class ArrayList<T>()
 ```
 
 ### `RingBuffer<T>`
+
 ```mpd
 class RingBuffer<T>()
     init(allocator: &Allocator, capacity: int) bool
@@ -199,6 +218,7 @@ class RingBuffer<T>()
 ---
 
 ## `import hosted.allocator` (or `::HeapAllocator`)
+
 Heap allocator wrapping malloc/realloc/free. **HOSTED only.**
 
 ```mpd
@@ -213,9 +233,11 @@ No `init()` needed — stateless wrapper. Declare global or pass by reference.
 ---
 
 ## `import hosted.collection`
+
 Growable collections backed by `HeapAllocator`. **HOSTED only.**
 
 ### `HeapList<T>`
+
 ```mpd
 class HeapList<T>()
     init(heap: &HeapAllocator)
@@ -233,6 +255,7 @@ class HeapList<T>()
 ```
 
 ### `HeapMap<T>` — string-keyed hash map
+
 ```mpd
 class HeapMap<T>()
     init(heap: &HeapAllocator)
@@ -247,6 +270,7 @@ class HeapMap<T>()
 ---
 
 ## `import hosted.file`
+
 File I/O. **HOSTED only.**
 
 ```mpd
@@ -273,6 +297,7 @@ class File()
 ---
 
 ## `import hosted.args`
+
 Access to `argc`/`argv`. **HOSTED only.**
 
 ```mpd
@@ -283,6 +308,7 @@ arg_value(i: int) byte[] # argument i as u8[] slice
 ---
 
 ## `import hosted.time`
+
 Timing utilities. **HOSTED only.**
 
 ```mpd
@@ -293,6 +319,7 @@ time_us() i64            # monotonic clock, microseconds since some epoch
 ---
 
 ## `import hosted.signal`
+
 SIGINT / SIGTERM handler. **HOSTED only.**
 
 ```mpd
@@ -301,6 +328,7 @@ exit_requested() bool    # true after a signal is received
 ```
 
 Usage:
+
 ```mpd
 import hosted.signal
 
