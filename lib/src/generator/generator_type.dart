@@ -36,7 +36,7 @@ extension GeneratorType on CGenerator {
       return type.name ?? 'void';
     }
     if (type is TypeArray) {
-      if (type.isSlice) return '__Slice_${_cType(type.elementType)}';
+      if (type.isSlice) return '__Slice_${_fnTypeIdent(type.elementType)}';
       return _cType(type.elementType); // fixed array: caller appends dims
     }
     if (type is TypeFunction) return _fnTypeName(type);
@@ -52,6 +52,11 @@ extension GeneratorType on CGenerator {
       return _fnTypeIdent(type.elementType);
     }
     if (type is TypeFunction) return _fnTypeName(type);
+    if (type is TypeName) {
+      final sub = _typeSubstitution[type.name];
+      if (sub != null) return _fnTypeIdent(sub);
+      return type.name ?? 'void';
+    }
     return _cType(type);
   }
 

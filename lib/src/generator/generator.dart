@@ -81,8 +81,8 @@ class CGenerator {
   /// Maps @extern function name → FunctionDecl (for template-based call generation).
   final Map<String, FunctionDecl> _externFns = {};
 
-  /// C element type strings for which a __Slice_T typedef must be emitted.
-  final Set<String> _sliceElementTypes = {};
+  /// Maps identifier-safe element name → C type string for __Slice_T typedefs.
+  final Map<String, String> _sliceElementTypes = {};
 
   /// Function pointer typedef name → TypeFunction, for all fun(...) types used.
   final Map<String, TypeFunction> _fnPtrTypes = {};
@@ -292,7 +292,7 @@ class CGenerator {
   /// C name for a generic class instantiation, e.g. `ArrayList<i32>` → `ArrayList_int32_t`.
   String _specializedCName(String baseName, List<Type> typeArgs) {
     if (typeArgs.isEmpty) return baseName;
-    return '${baseName}_${typeArgs.map(_cType).join('_')}';
+    return '${baseName}_${typeArgs.map(_fnTypeIdent).join('_')}';
   }
 
   /// Apply type substitution for a generic class instantiation.
@@ -377,7 +377,7 @@ class CGenerator {
     void register(Type? type) {
       if (type == null) return;
       if (type is TypeArray && type.isSlice) {
-        _sliceElementTypes.add(_cType(type.elementType));
+        _sliceElementTypes[_fnTypeIdent(type.elementType)] = _cType(type.elementType);
       }
       if (type is TypeRef) register(type.elementType);
       if (type is TypeArray && !type.isSlice) register(type.elementType);
@@ -648,9 +648,9 @@ class CGenerator {
 
   void _emitSliceTypedefs() {
     // uint8_t slice is always needed for string literals.
-    _sliceElementTypes.add('uint8_t');
-    for (final elemCType in _sliceElementTypes) {
-      _writeln('typedef struct { $elemCType* ptr; int32_t size; } __Slice_$elemCType;');
+    _sliceElementTypes['uint8_t'] = 'uint8_t';
+    for (final entry in _sliceElementTypes.entries) {
+      _writeln('typedef struct { ${entry.value}* ptr; int32_t size; } __Slice_${entry.key};');
     }
     _writeln();
   }
@@ -659,7 +659,7 @@ class CGenerator {
 
   /// Specialized C name: "ClassName_method" + [i32] → "ClassName_method_int32_t".
   String _fnSpecializedCName(String baseKey, List<Type> typeArgs) =>
-      '${baseKey}_${typeArgs.map(_cType).join('_')}';
+      '${baseKey}_${typeArgs.map(_fnTypeIdent).join('_')}';
 
   /// Apply a compile-time class substitution map to a type (used during collection).
   Type _applyClassSubst(Type t, Map<String, Type> subst) {
