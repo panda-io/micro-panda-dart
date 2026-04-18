@@ -136,10 +136,15 @@ extension GeneratorExpression on CGenerator {
   }
 
   String _memberAccess(MemberAccess ma) {
-    // Enum member: Color.Red → Color_Red
     if (ma.parent is Identifier) {
       final name = (ma.parent as Identifier).name;
+      // Enum member: Color.Red → Color_Red
       if (_enums.containsKey(name)) return '${name}_${ma.member}';
+      // Module-qualified constant: file.WRITE → hosted__file__WRITE
+      if (_qualifierToModPath.containsKey(name)) {
+        final modPath = _qualifierToModPath[name]!;
+        return '${_modulePrefix(modPath)}__${ma.member}';
+      }
     }
     // Pointer vs value member access
     final type = _inferType(ma.parent);

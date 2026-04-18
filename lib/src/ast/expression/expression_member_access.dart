@@ -1,5 +1,6 @@
 import '../context.dart';
 import '../type/type.dart';
+import '../type/type_array.dart';
 import '../type/type_name.dart';
 import '../type/type_ref.dart';
 import 'expression.dart';
@@ -29,9 +30,49 @@ class MemberAccess extends Expression {
       }
     }
 
+    // Module-qualified access: file.WRITE (variable) or string.format_int (function in callee pos).
+    // Only apply when the identifier is not a local variable (locals shadow module qualifiers).
+    if (parent is Identifier) {
+      final qualifier = (parent as Identifier).name;
+      if (context.moduleQualifiers.contains(qualifier) && !context.isDeclaredVar(qualifier)) {
+        if (context.calleePosition) {
+          // Function call — type resolution is handled in Invocation.validate.
+          type = null;
+          return;
+        }
+        final modVars = context.qualifiedVariables[qualifier];
+        if (modVars != null && modVars.containsKey(member)) {
+          type = modVars[member];
+        } else {
+          context.error(position,
+              "module '$qualifier' has no member '$member'");
+          type = null;
+        }
+        return;
+      }
+    }
+
     // Struct/class field: dereference pointer if needed
     var parentType = parent.type;
     if (parentType is TypeRef) parentType = parentType.elementType;
+
+    // Slice fields .ptr and .size are only valid on slices, not fixed arrays
+    if (parentType is TypeArray) {
+      if (parentType.isFixed && member == 'ptr') {
+        context.error(position,
+            "cannot access '.ptr' on fixed array '${Context.typeName(parentType)}'; "
+            "use a slice '${Context.typeName(parentType.elementType)}[]' instead");
+        type = null;
+        return;
+      }
+      // Valid slice field access
+      if (parentType.isSlice && member == 'ptr') {
+        type = TypeRef(parentType.elementType);
+        return;
+      }
+      type = null;
+      return;
+    }
 
     if (parentType is TypeName) {
       final cls = context.classes[parentType.name];

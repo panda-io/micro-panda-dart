@@ -71,6 +71,36 @@ class Invocation extends Expression {
       final ma = function as MemberAccess;
       var receiverType = ma.parent.type;
       if (receiverType is TypeRef) receiverType = receiverType.elementType;
+
+      // Module-qualified function call: string.format_int(a, b)
+      // Only apply when the identifier is not a local variable (locals shadow module qualifiers).
+      if (ma.parent is Identifier) {
+        final qualifier = (ma.parent as Identifier).name;
+        if (context.moduleQualifiers.contains(qualifier) && !context.isDeclaredVar(qualifier)) {
+          final fn = context.qualifiedFunctions[qualifier]?[ma.member];
+          if (fn != null) {
+            _checkArgCount(context, fn.parameters.length, '$qualifier.${ma.member}');
+            List<Type?> paramTypes = fn.parameters.map((p) => p.type as Type?).toList();
+            if (typeArgs.isNotEmpty && fn.typeParams.isNotEmpty) {
+              final callSubst = {
+                for (var i = 0; i < fn.typeParams.length && i < typeArgs.length; i++)
+                  fn.typeParams[i]: typeArgs[i]
+              };
+              paramTypes = paramTypes
+                  .map((t) => t != null ? _substituteType(t, callSubst) : null)
+                  .toList();
+            }
+            _validateArgs(context, paramTypes);
+            type = _resolveReturnType(fn, context);
+          } else {
+            context.error(position,
+                "module '$qualifier' has no function '${ma.member}'");
+            type = null;
+          }
+          return;
+        }
+      }
+
       // .size() on a slice or fixed array always returns i32.
       if (receiverType is TypeArray && ma.member == 'size') {
         _validateArgs(context, null);

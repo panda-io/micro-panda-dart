@@ -2,6 +2,7 @@ import '../../token/token_type.dart';
 import '../context.dart';
 import '../type/type.dart';
 import '../type/type_builtin.dart';
+import '../type/type_ref.dart';
 import 'expression.dart';
 import 'expression_identifier.dart';
 
@@ -60,6 +61,11 @@ class Binary extends Expression {
         // e.g. `0 - v` where v: fixed → 0 should become fixed, not i32.
         if (!context.typesCompatible(left.type, right.type) && right.type != null) {
           left.validate(context, right.type);
+        }
+        // Pointer arithmetic: &T + integer or &T - integer → &T
+        if (left.type is TypeRef && (right.type?.isInteger ?? false)) {
+          type = left.type;
+          return;
         }
         if (!context.typesCompatible(left.type, right.type)) {
           context.error(position,

@@ -41,6 +41,12 @@ class Context {
   /// Populated from bare imports: `import console` → qualifier "console".
   final Set<String> moduleQualifiers;
 
+  /// Maps module qualifier → function name → FunctionDecl (for module-qualified calls).
+  final Map<String, Map<String, FunctionDecl>> qualifiedFunctions;
+
+  /// Maps module qualifier → variable name → Type (for module-qualified constants).
+  final Map<String, Map<String, Type?>> qualifiedVariables;
+
   // ── current file (for error location) ────────────────────────────────────────
   final SourceFile? currentFile;
 
@@ -73,6 +79,8 @@ class Context {
     required this.globalVariables,
     required this.classModules,
     required this.moduleQualifiers,
+    required this.qualifiedFunctions,
+    required this.qualifiedVariables,
     required this.currentFile,
     required this.currentModulePath,
     required this.returnType,
@@ -90,8 +98,13 @@ class Context {
     final variables = <String, Type?>{};
     final classModules = <String, String>{};
     final moduleQualifiers = <String>{};
+    final qualifiedFns = <String, Map<String, FunctionDecl>>{};
+    final qualifiedVars = <String, Map<String, Type?>>{};
     for (final mod in modules) {
-      moduleQualifiers.add(mod.path.split('.').last);
+      final qualifier = mod.path.split('.').last;
+      moduleQualifiers.add(qualifier);
+      qualifiedFns.putIfAbsent(qualifier, () => {});
+      qualifiedVars.putIfAbsent(qualifier, () => {});
       for (final cls in mod.classes) {
         classes[cls.name] = cls;
         classModules[cls.name] = mod.path;
@@ -101,9 +114,11 @@ class Context {
       }
       for (final fn in mod.functions) {
         functions[fn.name] = fn;
+        qualifiedFns[qualifier]![fn.name] = fn;
       }
       for (final v in mod.variables) {
         variables[v.name] = v.type;
+        qualifiedVars[qualifier]![v.name] = v.type;
       }
     }
     variables.addAll(configVars);
@@ -114,6 +129,8 @@ class Context {
       globalVariables: variables,
       classModules: classModules,
       moduleQualifiers: moduleQualifiers,
+      qualifiedFunctions: qualifiedFns,
+      qualifiedVariables: qualifiedVars,
       currentFile: null,
       currentModulePath: null,
       returnType: null,
@@ -132,6 +149,8 @@ class Context {
         globalVariables: globalVariables,
         classModules: classModules,
         moduleQualifiers: moduleQualifiers,
+        qualifiedFunctions: qualifiedFunctions,
+        qualifiedVariables: qualifiedVariables,
         currentFile: file,
         currentModulePath: modulePath,
         returnType: null,
@@ -149,6 +168,8 @@ class Context {
         globalVariables: globalVariables,
         classModules: classModules,
         moduleQualifiers: moduleQualifiers,
+        qualifiedFunctions: qualifiedFunctions,
+        qualifiedVariables: qualifiedVariables,
         currentFile: currentFile,
         currentModulePath: currentModulePath,
         returnType: returnType,
@@ -173,6 +194,8 @@ class Context {
         globalVariables: globalVariables,
         classModules: classModules,
         moduleQualifiers: moduleQualifiers,
+        qualifiedFunctions: qualifiedFunctions,
+        qualifiedVariables: qualifiedVariables,
         currentFile: currentFile,
         currentModulePath: currentModulePath,
         returnType: fn.returnType,
