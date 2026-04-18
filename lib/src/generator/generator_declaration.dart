@@ -304,12 +304,16 @@ extension GeneratorDeclaration on CGenerator {
   void _emitGlobalVar(VariableDecl v, String modPath) {
     final cVarName = '${_modulePrefix(modPath)}__${v.name}';
     final isPrivate = v.name.startsWith('_');
-    final isConst = v.isConst;
-    final prefix =
-        '${isPrivate ? 'static ' : ''}${isConst ? 'const ' : ''}';
 
     // Infer type for := declarations.
     final type = v.type ?? _inferVarType(v.value);
+
+    // Class-type const vars must NOT get C `const`: taking their address yields
+    // `const T*`, which is rejected when passed to functions expecting `T*`.
+    // Only primitives and fixed arrays can safely carry C `const`.
+    final isConst = v.isConst && _typeIsConstSafe(type);
+    final prefix =
+        '${isPrivate ? 'static ' : ''}${isConst ? 'const ' : ''}';
 
     if (v.value != null) {
       // Class constructor call → zero-initialize the struct.
@@ -328,6 +332,12 @@ extension GeneratorDeclaration on CGenerator {
     } else {
       _writeln('$prefix${_varDecl(cVarName, type)};');
     }
+  }
+
+  bool _typeIsConstSafe(Type? type) {
+    if (type is TypeBuiltin) return true;
+    if (type is TypeArray && type.isFixed) return true;
+    return false;
   }
 
   // ── function definitions ──────────────────────────────────────────────────────

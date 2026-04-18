@@ -135,7 +135,8 @@ extension GeneratorExpression on CGenerator {
         final size = d == -1
             ? (_evalConstExpr(arrType.dimExprs.isNotEmpty ? arrType.dimExprs[0] : null)?.toString() ?? '0')
             : d.toString();
-        return '(${_cType(fieldType)}){${_expr(elem)}, $size}';
+        final ptrCast = '(${_cType(fieldType.elementType)}*)';
+        return '(${_cType(fieldType)}){$ptrCast${_expr(elem)}, $size}';
       }
     }
     return _expr(elem);
