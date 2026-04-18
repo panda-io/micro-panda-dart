@@ -92,6 +92,26 @@ class Invocation extends Expression {
             paramTypes = method.parameters
                 .map((p) => _substituteType(p.type, classTypeSubst))
                 .toList();
+            // Apply method-level type param substitution (e.g. free_array<byte>).
+            if (method.typeParams.isNotEmpty) {
+              if (typeArgs.isNotEmpty) {
+                final methodSubst = {
+                  for (var i = 0;
+                      i < method.typeParams.length && i < typeArgs.length;
+                      i++)
+                    method.typeParams[i]: typeArgs[i]
+                };
+                paramTypes = paramTypes
+                    .map((t) => t != null ? _substituteType(t, methodSubst) : null)
+                    .toList();
+              } else {
+                // No explicit type args — skip checking params that reference
+                // the method's unresolved type params (they'll be inferred by the generator).
+                paramTypes = paramTypes
+                    .map((t) => _containsTypeParam(t, method.typeParams) ? null : t)
+                    .toList();
+              }
+            }
             _validateArgs(context, paramTypes);
             type = _resolveReturnType(method, context,
                 classTypeSubst: classTypeSubst);
@@ -162,6 +182,14 @@ class Invocation extends Expression {
       for (var i = 0; i < cls.typeParams.length && i < receiverTypeArgs.length; i++)
         cls.typeParams[i]: receiverTypeArgs[i]
     };
+  }
+
+  bool _containsTypeParam(Type? type, List<String> typeParams) {
+    if (type == null) return false;
+    if (type is TypeName && type.typeArgs.isEmpty && typeParams.contains(type.name)) return true;
+    if (type is TypeArray) return _containsTypeParam(type.elementType, typeParams);
+    if (type is TypeRef) return _containsTypeParam(type.elementType, typeParams);
+    return false;
   }
 
   Type? _substituteType(Type? type, Map<String, Type> subst) {

@@ -516,6 +516,19 @@ fun use(p: &Pool)
       expect(c, contains('uint8_t* Pool_alloc_uint8_t(Pool* this)'));
       expect(c, contains('Pool_alloc_uint8_t(p)'));
     });
+
+    test('generic method with T[] param: explicit type arg emits specialized call', () {
+      final src = '''class Alloc()
+    fun free_array<T>(array: T[])
+        return
+
+fun use(a: &Alloc, s: u8[])
+    a.free_array<u8>(s)
+''';
+      final c = gen(src);
+      expect(c, contains('void Alloc_free_array_uint8_t(Alloc* this, __Slice_uint8_t array)'));
+      expect(c, contains('Alloc_free_array_uint8_t(a, s)'));
+    });
   });
 
   group('Generator – allocator pattern', () {

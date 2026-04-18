@@ -697,6 +697,44 @@ fun flip(d: Dir) Dir
     });
   });
 
+  group('Validator – generic method type arg', () {
+    test('generic method call with explicit type arg is accepted', () {
+      expectNoErrors('''
+class Alloc()
+    fun free_array<T>(array: T[])
+        return
+
+fun use(s: u8[])
+    val a := Alloc()
+    a.free_array<u8>(s)
+''');
+    });
+
+    test('generic method call without explicit type arg is accepted', () {
+      expectNoErrors('''
+class Alloc()
+    fun free_array<T>(array: T[])
+        return
+
+fun use(s: u8[])
+    val a := Alloc()
+    a.free_array(s)
+''');
+    });
+
+    test('generic method call with wrong explicit type arg is rejected', () {
+      expectError('''
+class Alloc()
+    fun free_array<T>(array: T[])
+        return
+
+fun use(s: u8[])
+    val a := Alloc()
+    a.free_array<i32>(s)
+''', "argument type 'u8[]' is not compatible with parameter type 'i32[]'");
+    });
+  });
+
   group('Validator – call site argument type check', () {
     test('passing class value where reference expected is rejected', () {
       expectError('''
