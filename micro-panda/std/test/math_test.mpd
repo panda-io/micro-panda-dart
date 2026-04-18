@@ -1,4 +1,3 @@
-import test::assert
 import math::min
 import math::max
 import math::clamp

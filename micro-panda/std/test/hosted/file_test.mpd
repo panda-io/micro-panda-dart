@@ -1,5 +1,4 @@
 #if HOSTED
-import test::assert
 import hosted.file::File
 import hosted.file::READ
 import hosted.file::WRITE

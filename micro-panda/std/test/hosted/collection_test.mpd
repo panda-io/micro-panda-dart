@@ -1,5 +1,4 @@
 #if HOSTED
-import test::assert
 import hosted.collection::HeapList
 import hosted.collection::HeapMap
 import hosted.memory::HeapAllocator

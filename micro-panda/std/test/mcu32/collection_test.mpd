@@ -1,5 +1,4 @@
 #if HOSTED || MCU32
-import test::assert
 import mcu32.collection::ArrayList
 import mcu32.collection::RingBuffer
 import mcu32.memory::Allocator

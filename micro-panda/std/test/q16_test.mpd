@@ -1,4 +1,3 @@
-import test::assert
 import console::write_q16
 import console::write_byte
 import math::floor_q16

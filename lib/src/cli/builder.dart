@@ -189,10 +189,23 @@ class Builder {
           stderr.writeln(parseError.toString());
           return null;
         }
-        modules.add(module);
+        // Auto-inject 'import test' for modules that declare @test functions.
+        var finalModule = module;
+        if (module.functions.any((f) => f.isTest) &&
+            !module.imports.any((i) => i.path == 'test')) {
+          final testFile = _resolveImport('test', absPath);
+          if (testFile != null) queue.add(testFile);
+          finalModule = Module(
+            module.path, module.sourceFile, module.rawBlocks,
+            module.requiresConfig,
+            [...module.imports, Import('test', position: 0)],
+            module.variables, module.functions, module.classes, module.enums,
+          );
+        }
+        modules.add(finalModule);
 
         // Enqueue imported modules.
-        for (final imp in module.imports) {
+        for (final imp in finalModule.imports) {
           final importedFile = _resolveImport(imp.path, absPath);
           if (importedFile != null) queue.add(importedFile);
         }
