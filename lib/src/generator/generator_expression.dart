@@ -96,11 +96,49 @@ extension GeneratorExpression on CGenerator {
   }
 
   String _structInit(StructInitializer expr) {
+    if (expr.type is TypeName) {
+      final cls = _classes[(expr.type as TypeName).name];
+      if (cls != null) {
+        final fieldNames = [
+          ...cls.constructorFields.map((f) => f.name),
+          ...cls.bodyFields.map((f) => f.name),
+        ];
+        final fieldTypes = [
+          ...cls.constructorFields.map((f) => f.type),
+          ...cls.bodyFields.map((f) => f.type),
+        ];
+        final elems = <String>[];
+        for (var i = 0; i < expr.elements.length; i++) {
+          final fieldName = i < fieldNames.length ? fieldNames[i] : null;
+          final fieldType = i < fieldTypes.length ? fieldTypes[i] : null;
+          final elem = expr.elements[i];
+          final val = _structElem(elem, fieldType);
+          elems.add(fieldName != null ? '.$fieldName = $val' : val);
+        }
+        return '(${_cType(expr.type!)}){${elems.join(', ')}}';
+      }
+    }
     final elems = expr.elements.map(_expr).join(', ');
     if (expr.type != null) {
       return '(${_cType(expr.type!)}){$elems}';
     }
     return '{$elems}';
+  }
+
+  /// Emit a struct initializer element, wrapping fixed arrays in a slice literal
+  /// when the target field expects a slice type.
+  String _structElem(Expression elem, Type? fieldType) {
+    if (fieldType is TypeArray && fieldType.isSlice && elem.type is TypeArray) {
+      final arrType = elem.type as TypeArray;
+      if (arrType.isFixed) {
+        final d = arrType.dimension[0];
+        final size = d == -1
+            ? (_evalConstExpr(arrType.dimExprs.isNotEmpty ? arrType.dimExprs[0] : null)?.toString() ?? '0')
+            : d.toString();
+        return '(${_cType(fieldType)}){${_expr(elem)}, $size}';
+      }
+    }
+    return _expr(elem);
   }
 
   String _conversion(Conversion expr) {

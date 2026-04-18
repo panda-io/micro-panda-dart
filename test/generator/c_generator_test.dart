@@ -146,7 +146,7 @@ class Foo
 var foo: Foo = {123}
 ''';
       final c = gen(src);
-      expect(c, contains('(Foo){123}'));
+      expect(c, contains('(Foo){.value = 123}'));
     });
 
     test('struct brace init — nested', () {
@@ -161,7 +161,7 @@ class Bar
 var bar: Bar = {123, {456}}
 ''';
       final c = gen(src);
-      expect(c, contains('(Bar){123, (Foo){456}}'));
+      expect(c, contains('(Bar){.value = 123, .foo = (Foo){.value = 456}}'));
     });
 
     test('struct brace init — local var', () {
@@ -175,7 +175,7 @@ fun make() Point
     return p
 ''';
       final c = gen(src);
-      expect(c, contains('(Point){10, 20}'));
+      expect(c, contains('(Point){.x = 10, .y = 20}'));
     });
   });
 
