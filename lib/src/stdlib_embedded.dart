@@ -3,7 +3,7 @@
 
 /// Hash of all embedded stdlib content. Used for fast staleness detection.
 /// Recomputed each time gen_stdlib.dart runs.
-const String kStdlibHash = '18af3d8d';
+const String kStdlibHash = '35f78099';
 
 /// Embedded standard library sources, keyed by module path.
 /// Excludes '*_test.mpd' files.
@@ -1206,8 +1206,14 @@ fun _bits_to_float(value: int) float
 @extern("((int32_t){value})")
 fun q16_bits(value: q16) int
 
+@extern("({value})")
+fun bits_to_q16(value: int) q16
+
 @extern("((int32_t){value})")
 fun fixed_bits(value: fixed) int
+
+@extern("({value})")
+fun bits_to_fixed(value: int) fixed
 
 fun _format_float(buf: byte[], value: float) int
     var bi: int = 0
