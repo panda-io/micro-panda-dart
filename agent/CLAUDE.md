@@ -147,8 +147,8 @@ Names starting with `_` are private (file-local, C `static`). All other names ar
 
 ## See also
 
-- `LANGUAGE.md` — complete language syntax cheat sheet
-- `STDLIB.md` — standard library API reference
-- `GOTCHAS.md` — common pitfalls
-- `examples/` — runnable example programs
-- `starter/` — copy-paste project template
+- `language/LANGUAGE.md` — complete language syntax cheat sheet
+- `language/STDLIB.md` — standard library API reference
+- `language/GOTCHAS.md` — common pitfalls
+- `language/examples/` — runnable example programs
+- `language/starter/` — copy-paste project template
