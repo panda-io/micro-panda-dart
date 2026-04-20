@@ -474,11 +474,23 @@ class LspServer {
   Map<String, dynamic>? _handleDefinition(Map<String, dynamic> params) {
     final uri  = (params['textDocument'] as Map)['uri'] as String;
     final pos  = params['position'] as Map<String, dynamic>;
-    final word = _wordAt(uri, pos['line'] as int, pos['character'] as int);
+    final line = pos['line'] as int;
+    final char = pos['character'] as int;
+    final word = _wordAt(uri, line, char);
     if (word.isEmpty) return null;
 
+    // 1. Local variables / parameters in the enclosing function (highest priority).
+    final localDecl = _findLocalDecl(uri, line, char, word);
+    if (localDecl != null) {
+      final (dLine, dCol, dFile) = localDecl;
+      return {
+        'uri': _pathToUri(dFile),
+        'range': _range(dLine - 1, dCol - 1, dLine - 1, dCol - 1 + word.length),
+      };
+    }
+
+    // 2. Module-level declarations.
     for (final mod in _modules) {
-      // Skip pseudo-modules.
       if (mod.path.startsWith(r'$')) continue;
 
       int? declPos;
@@ -493,11 +505,93 @@ class LspServer {
 
       if (declPos == null) continue;
 
-      final (line, col) = mod.sourceFile.getLocation(declPos);
+      final (dLine, dCol) = mod.sourceFile.getLocation(declPos);
       return {
         'uri': _pathToUri(mod.sourceFile.name),
-        'range': _range(line - 1, col - 1, line - 1, col - 1 + word.length),
+        'range': _range(dLine - 1, dCol - 1, dLine - 1, dCol - 1 + word.length),
       };
+    }
+    return null;
+  }
+
+  /// Returns (line, col, filePath) for the declaration of [word] as a local
+  /// variable or parameter in the function enclosing the cursor position.
+  (int, int, String)? _findLocalDecl(String uri, int line, int char, String word) {
+    final content = _openFiles[uri];
+    if (content == null) return null;
+
+    final lines = content.split('\n');
+    int offset = 0;
+    for (int i = 0; i < line && i < lines.length; i++) {
+      offset += lines[i].length + 1;
+    }
+    offset += char.clamp(0, line < lines.length ? lines[line].length : 0);
+
+    final filePath = Uri.parse(uri).toFilePath();
+    for (final mod in _modules) {
+      if (mod.sourceFile.name != filePath) continue;
+
+      final allFns = <FunctionDecl>[
+        ...mod.functions,
+        for (final cls in mod.classes) ...cls.methods,
+      ]..sort((a, b) => a.position.compareTo(b.position));
+
+      FunctionDecl? enclosing;
+      for (int i = 0; i < allFns.length; i++) {
+        if (allFns[i].position > offset) break;
+        final nextStart = i + 1 < allFns.length ? allFns[i + 1].position : content.length;
+        if (offset <= nextStart) enclosing = allFns[i];
+      }
+      if (enclosing == null) return null;
+
+      for (final p in enclosing.parameters) {
+        if (p.name == word) {
+          final (pLine, pCol) = mod.sourceFile.getLocation(p.position);
+          return (pLine, pCol, filePath);
+        }
+      }
+
+      if (enclosing.body != null) {
+        return _findLocalInStmt(enclosing.body!, word, mod);
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /// Recursively search [stmt] for a local declaration of [word].
+  (int, int, String)? _findLocalInStmt(Statement stmt, String word, Module mod) {
+    if (stmt is DeclarationStatement && stmt.name == word) {
+      final (l, c) = mod.sourceFile.getLocation(stmt.position);
+      return (l, c, mod.sourceFile.name);
+    } else if (stmt is Block) {
+      for (final s in stmt.statements) {
+        final r = _findLocalInStmt(s, word, mod);
+        if (r != null) return r;
+      }
+    } else if (stmt is IfStatement) {
+      final r = _findLocalInStmt(stmt.body, word, mod);
+      if (r != null) return r;
+      if (stmt.else_ != null) return _findLocalInStmt(stmt.else_!, word, mod);
+    } else if (stmt is WhileStatement) {
+      return _findLocalInStmt(stmt.body, word, mod);
+    } else if (stmt is ForRangeStatement) {
+      if (stmt.variable == word) {
+        final (l, c) = mod.sourceFile.getLocation(stmt.position);
+        return (l, c, mod.sourceFile.name);
+      }
+      return _findLocalInStmt(stmt.body, word, mod);
+    } else if (stmt is ForInStatement) {
+      if (stmt.item == word || stmt.index == word) {
+        final (l, c) = mod.sourceFile.getLocation(stmt.position);
+        return (l, c, mod.sourceFile.name);
+      }
+      return _findLocalInStmt(stmt.body, word, mod);
+    } else if (stmt is MatchStatement) {
+      for (final arm in stmt.arms) {
+        final r = _findLocalInStmt(arm.body, word, mod);
+        if (r != null) return r;
+      }
     }
     return null;
   }
