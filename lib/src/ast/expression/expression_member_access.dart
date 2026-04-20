@@ -14,7 +14,10 @@ class MemberAccess extends Expression {
 
   @override
   void validate(Context context, Type? expected) {
+    final savedCalleePosition = context.calleePosition;
+    context.calleePosition = false;
     parent.validate(context, null);
+    context.calleePosition = savedCalleePosition;
 
     // Enum member: Color.Red → type is the enum itself (u32-like)
     if (parent is Identifier) {
