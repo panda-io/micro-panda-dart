@@ -735,6 +735,233 @@ fun use(s: u8[])
     });
   });
 
+  group('Validator – undefined type', () {
+    test('undefined type in function parameter is rejected', () {
+      expectError('''
+fun foo(r: &RenderContext)
+    return
+''', "undefined type 'RenderContext'");
+    });
+
+    test('undefined type in function return type is rejected', () {
+      expectError('''
+fun make() &RenderContext
+    return null
+''', "undefined type 'RenderContext'");
+    });
+
+    test('undefined type in class constructor field is rejected', () {
+      expectError('''
+class Scene(var ctx: &RenderContext)
+''', "undefined type 'RenderContext'");
+    });
+
+    test('undefined type in class body field is rejected', () {
+      expectError('''
+class Scene()
+    var ctx: &RenderContext
+''', "undefined type 'RenderContext'");
+    });
+
+    test('undefined type in global variable is rejected', () {
+      expectError('''
+var g: &RenderContext
+''', "undefined type 'RenderContext'");
+    });
+
+    test('undefined element type in slice is rejected', () {
+      expectError('''
+fun foo(items: RenderContext[])
+    return
+''', "undefined type 'RenderContext'");
+    });
+
+    test('undefined type in fun() parameter type is rejected', () {
+      expectError('''
+fun foo(cb: fun(&RenderContext))
+    return
+''', "undefined type 'RenderContext'");
+    });
+
+    test('defined class reference is accepted', () {
+      expectNoErrors('''
+class RenderContext(val width: i32)
+
+fun foo(r: &RenderContext)
+    return
+''');
+    });
+
+    test('enum type in parameter is accepted', () {
+      expectNoErrors('''
+enum Dir
+    Up
+    Down
+
+fun go(d: Dir)
+    return
+''');
+    });
+
+    test('generic type param T is accepted as undefined-looking name', () {
+      expectNoErrors('''
+fun alloc<T>(): &T
+    return null
+''');
+    });
+
+    test('generic class field with T is accepted', () {
+      expectNoErrors('''
+class Box<T>(var value: T)
+''');
+    });
+
+    test('generic type arg referencing undefined class is rejected', () {
+      expectError('''
+class Box<T>(var value: T)
+
+fun foo(b: &Box<RenderContext>)
+    return
+''', "undefined type 'RenderContext'");
+    });
+  });
+
+  group('Validator – import symbol', () {
+    test('importing existing function symbol is accepted', () {
+      expectNoErrorsMulti({
+        'math': '''
+fun square(x: i32) i32
+    return x * x
+''',
+        'main': '''
+import math::square
+
+fun run() i32
+    return square(3)
+''',
+      });
+    });
+
+    test('importing non-existent symbol is rejected', () {
+      expectErrorMulti({
+        'math': '''
+fun square(x: i32) i32
+    return x * x
+''',
+        'main': '''
+import math::cube
+
+fun run() i32
+    return 0
+''',
+      }, "module 'math' has no symbol 'cube'");
+    });
+
+    test('importing existing class symbol is accepted', () {
+      expectNoErrorsMulti({
+        'gfx': '''
+class Sprite(val x: i32)
+''',
+        'main': '''
+import gfx::Sprite
+
+fun make() Sprite
+    return Sprite(0)
+''',
+      });
+    });
+
+    test('importing non-existent class symbol is rejected', () {
+      expectErrorMulti({
+        'gfx': '''
+class Sprite(val x: i32)
+''',
+        'main': '''
+import gfx::RenderContext
+
+fun run()
+    return
+''',
+      }, "module 'gfx' has no symbol 'RenderContext'");
+    });
+
+    test('importing existing enum symbol is accepted', () {
+      expectNoErrorsMulti({
+        'dirs': '''
+enum Dir
+    Up
+    Down
+''',
+        'main': '''
+import dirs::Dir
+
+fun run() Dir
+    return Dir.Up
+''',
+      });
+    });
+
+    test('importing non-existent enum symbol is rejected', () {
+      expectErrorMulti({
+        'dirs': '''
+enum Dir
+    Up
+    Down
+''',
+        'main': '''
+import dirs::Color
+
+fun run()
+    return
+''',
+      }, "module 'dirs' has no symbol 'Color'");
+    });
+
+    test('importing existing variable symbol is accepted', () {
+      expectNoErrorsMulti({
+        'cfg': '''
+var MAX_SIZE: i32 = 100
+''',
+        'main': '''
+import cfg::MAX_SIZE
+
+fun run() i32
+    return MAX_SIZE
+''',
+      });
+    });
+
+    test('wildcard import does not trigger symbol check', () {
+      expectNoErrorsMulti({
+        'math': '''
+fun square(x: i32) i32
+    return x * x
+''',
+        'main': '''
+import math::*
+
+fun run() i32
+    return 0
+''',
+      });
+    });
+
+    test('bare module import does not trigger symbol check', () {
+      expectNoErrorsMulti({
+        'math': '''
+fun square(x: i32) i32
+    return x * x
+''',
+        'main': '''
+import math
+
+fun run() i32
+    return math.square(3)
+''',
+      });
+    });
+  });
+
   group('Validator – call site argument type check', () {
     test('passing class value where reference expected is rejected', () {
       expectError('''
